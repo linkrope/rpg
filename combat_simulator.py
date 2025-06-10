@@ -182,21 +182,21 @@ if __name__ == "__main__":
         'foot': 4,
     }
     other_armor = {
-        'skull': 6,
+        'skull': 8,
         'face': 6,
-        'neck': 0,
-        'shoulders': 1,
-        'upper arm': 1,
+        'neck': 2,
+        'shoulders': 3,
+        'upper arm': 2,
         'elbow': 0,
         'forearm': 0,
         'hand': 0,
-        'thorax': 1,
-        'abdomen': 1,
-        'hip': 5,
-        'groin': 5,
+        'thorax': 3,
+        'abdomen': 3,
+        'hip': 6,
+        'groin': 6,
         'thigh': 4,
-        'knee': 7,
-        'calf': 7,
+        'knee': 4,
+        'calf': 4,
         'foot': 7,
     }
 
@@ -207,14 +207,14 @@ if __name__ == "__main__":
     combatant1 = Combatant("Helgya",
         attack_skill=18+8, defense_skill=defense_skill, weapon_bonus=7, armor=light_armor, encumbrance=3)
 
-    # Weapon skill + D x40% add5 Dodge skill = 36 + 2 add5 30 = 38 add5 30
+    # Weapon skill + D x40% add5 Dodge skill = 36 + 2 add5 28 = 38 add5 28
     defense_skill = 40
 
     combatant2 = Combatant("Ysbrydd",
-        attack_skill=36+4, defense_skill=defense_skill, weapon_bonus= 7, armor=other_armor, encumbrance=3)
+        attack_skill=37+4, defense_skill=defense_skill, weapon_bonus= 4, armor=other_armor, encumbrance=5)
 
     # Run simulation
-    runs = 100
+    runs = 1000
     wins = {
         combatant1.name: 0,
         combatant2.name: 0,
