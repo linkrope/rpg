@@ -15,14 +15,14 @@ class Combatant:
 
     def get_current_attack_skill(self):
         """Calculate current attack skill with damage penalties"""
-        return max(0, self.attack_skill + self.penalty - self.encumbrance)
+        return self.attack_skill + self.penalty - self.encumbrance
 
     def get_current_defense_skill(self):
         """Calculate current defense skill with damage penalties"""
-        return max(0, self.defense_skill + self.penalty - self.encumbrance)
+        return add5(self.defense_skill + self.penalty - self.encumbrance, -10)
 
-    def get_armor_bonus(self, location):
-        """Get armor bonus for a specific location"""
+    def get_armor_protection(self, location):
+        """Get armor protection value for a specific location."""
         return self.armor.get(location, 0)
 
     def take_damage(self, damage):
@@ -64,12 +64,12 @@ class CombatSimulator:
         print(f"-- round {self.round}")
         print(f"  {self.combatant1} | {self.combatant2}")
 
-        # First combatant attacks
+        # first combatant attacks
         self.attack(self.combatant1, self.combatant2)
         if self.combatant2.is_defeated():
             return self.combatant1  # Winner
 
-        # Second combatant attacks back
+        # second combatant attacks back
         self.attack(self.combatant2, self.combatant1)
         if self.combatant1.is_defeated():
             return self.combatant2  # Winner
@@ -79,91 +79,112 @@ class CombatSimulator:
 
     def attack(self, attacker, defender):
         """Execute an attack from attacker to defender"""
-        dice_roll = self.roll_dice()
-        strike_location = self.roll_strike_location()
-        armor_protection = self.get_armor_protection(defender, strike_location)
+        dice_roll = n5()
+        current_strike_location = strike_location()
+        armor_protection = defender.get_armor_protection(current_strike_location)
 
         skill_diff = attacker.get_current_attack_skill() - defender.get_current_defense_skill()
-        dice_component = dice_roll
         weapon_vs_armor = (attacker.weapon_bonus - armor_protection)
-        damage_dealt = max(0, (skill_diff + dice_component) // 5 + weapon_vs_armor)
+        damage = max(0, (skill_diff + dice_roll) // 5 + weapon_vs_armor)
 
-        print(f"  {attacker.name} rolls {dice_roll}, attacks {strike_location}: {damage_dealt} damage")
+        print(f"  {attacker.name} rolls {dice_roll}, attacks {current_strike_location}: {damage} damage")
 
-        defender.take_damage(damage_dealt)
-        return damage_dealt
-
-    def roll_strike_location(self):
-        """Roll d100 for strike location"""
-        roll = random.randint(1, 100)
-
-        if roll <= 4:
-            return 'skull'
-        elif roll <= 8:
-            return 'face'
-        elif roll <= 12:
-            return 'neck'
-        elif roll <= 20:
-            return 'shoulders'
-        elif roll <= 26:
-            return 'upper arm'
-        elif roll <= 30:
-            return 'elbow'
-        elif roll <= 36:
-            return 'forearm'
-        elif roll <= 40:
-            return 'hand'
-        elif roll <= 60:
-            return 'thorax'
-        elif roll <= 70:
-            return 'abdomen'
-        elif roll <= 76:
-            return 'hip'
-        elif roll <= 80:
-            return 'groin'
-        elif roll <= 88:
-            return 'thigh'
-        elif roll <= 90:
-            return 'knee'
-        elif roll <= 96:
-            return 'calf'
-        else:
-            return 'foot'
-
-    def get_armor_protection(self, combatant, location):
-        """Get armor protection value for a specific location"""
-        return combatant.armor.get(location, 0)
-
-    def roll_dice(self):
-        """Roll dice using the n5 system (p5 - p5)"""
-        return self.roll_n5()
-
-    def roll_n5(self):
-        """Roll n5: p5 minus p5"""
-        positive_roll = self.p5()
-        negative_roll = self.p5()
-        return positive_roll - negative_roll
-
-    def p5(self):
-        """Roll p5: count rolls until getting a 1 on d5"""
-        rolls = 0
-        roll = self.d(5)
-
-        while roll != 1:
-            rolls += 1
-            roll = self.d(5)
-
-        return rolls
-
-    def d(self, sides):
-        """Roll a die with specified number of sides"""
-        return random.randint(1, sides)
+        defender.take_damage(damage)
+        return damage
 
 
-# Example usage and test
-if __name__ == "__main__":
-    # Define armor tables
-    light_armor = {
+def n5():
+    """Roll n5: p5 minus p.5"""
+    positive_roll = p5()
+    negative_roll = p5()
+    return positive_roll - negative_roll
+
+
+def p5():
+    """Roll p5: count rolls until getting a 1 on d5."""
+    rolls = 0
+    roll = d(5)
+
+    while roll != 1:
+        rolls += 1
+        roll = d(5)
+
+    return rolls
+
+
+def strike_location():
+    """Roll d100 for strike location."""
+    roll = random.randint(1, 100)
+
+    if roll <= 4:
+        return 'skull'
+    if roll <= 8:
+        return 'face'
+    if roll <= 12:
+        return 'neck'
+    if roll <= 20:
+        return 'shoulders'
+    if roll <= 26:
+        return 'upper arm'
+    if roll <= 30:
+        return 'elbow'
+    if roll <= 36:
+        return 'forearm'
+    if roll <= 40:
+        return 'hand'
+    if roll <= 60:
+        return 'thorax'
+    if roll <= 70:
+        return 'abdomen'
+    if roll <= 76:
+        return 'hip'
+    if roll <= 80:
+        return 'groin'
+    if roll <= 88:
+        return 'thigh'
+    if roll <= 90:
+        return 'knee'
+    if roll <= 96:
+        return 'calf'
+    if roll <= 100:
+        return 'foot'
+
+
+def d(sides):
+    """Roll a die with specified number of sides."""
+    return random.randint(1, sides)
+
+
+def add5(a, b):
+    """
+    Add a bonus to the greater number based on their difference.
+
+    Difference ranges and bonuses:
+    0-1: +5, 2-3: +4, 4-6: +3, 7-10: +2, 11-19: +1, 20+: +0
+    """
+    diff = abs(a - b)
+    greater = max(a, b)
+
+    if diff <= 1:
+        return greater + 5
+    if diff <= 3:
+        return greater + 4
+    if diff <= 6:
+        return greater + 3
+    if diff <= 10:
+        return greater + 2
+    if diff <= 19:
+        return greater + 1
+
+    return greater
+
+
+def helgya():
+    spear = 18
+    dodge = 30
+    A, D = 20, 10
+    # only P
+    armor = {
         'skull': 0,
         'face': 0,
         'neck': 0,
@@ -181,7 +202,24 @@ if __name__ == "__main__":
         'calf': 5,
         'foot': 4,
     }
-    other_armor = {
+
+    return Combatant(
+        "Helgya",
+        attack_skill=(spear + A * 4 // 10),
+        defense_skill=add5(spear + D * 4 // 10, dodge),
+        weapon_bonus=7,
+        armor=armor,
+        encumbrance=3,
+    )
+
+
+def ysbrydd():
+    shortsword = 37
+    dodge = 28
+    A, D = 10, 5
+
+    # only P
+    armor = {
         'skull': 8,
         'face': 6,
         'neck': 2,
@@ -200,18 +238,57 @@ if __name__ == "__main__":
         'foot': 7,
     }
 
-    # Weapon skill + D x40% add5 Dodge skill = 18 + 8 add5 30 = 26 add5 30
-    defense_skill = 33
+    return Combatant(
+        "Ysbrydd",
+        attack_skill=(shortsword + A * 4 // 10),
+        defense_skill=add5(shortsword + D * 4 // 10, dodge),
+        weapon_bonus=4,
+        armor=armor,
+        encumbrance=5,
+    )
 
-    # Create combatants with explicit armor tables
-    combatant1 = Combatant("Helgya",
-        attack_skill=18+8, defense_skill=defense_skill, weapon_bonus=7, armor=light_armor, encumbrance=3)
 
-    # Weapon skill + D x40% add5 Dodge skill = 36 + 2 add5 28 = 38 add5 28
-    defense_skill = 40
+def knight():
+    broadsword = 32
+    shield = 32
+    dodge = 24
+    A, D = 15, 20
 
-    combatant2 = Combatant("Ysbrydd",
-        attack_skill=37+4, defense_skill=defense_skill, weapon_bonus= 4, armor=other_armor, encumbrance=5)
+    # mail cowl, hauberk, mittens, leather boots
+    # only P
+    armor = {
+        'skull': 5,
+        'face': 0,
+        'neck': 5,
+        'shoulders': 5,
+        'upper arm': 5,
+        'elbow': 5,
+        'forearm': 5,
+        'hand': 5,
+        'thorax': 5,
+        'abdomen': 5,
+        'hip': 5,
+        'groin': 5,
+        'thigh': 5,
+        'knee': 3,
+        'calf': 3,
+        'foot': 3,
+    }
+
+    return Combatant(
+        "Knight",
+        attack_skill=(broadsword + A * 4 // 10),
+        defense_skill=add5(shield + D * 4 // 10, dodge),
+        weapon_bonus=4,
+        armor=armor,
+        encumbrance=5,
+    )
+
+
+# Example usage and test
+if __name__ == "__main__":
+    combatant1 = knight()
+    combatant2 = ysbrydd()
 
     # Run simulation
     runs = 1000
@@ -231,5 +308,4 @@ if __name__ == "__main__":
         wins[winner.name] += 1
         total_rounds += rounds
 
-    avg_rounds = total_rounds / runs
-    print(f"{wins.get(combatant1.name)}:{wins.get(combatant2.name)} in {avg_rounds:.1f} rounds")
+    print(f"{wins.get(combatant1.name)}:{wins.get(combatant2.name)} in {total_rounds / runs:.1f} rounds")
