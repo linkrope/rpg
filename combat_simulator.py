@@ -254,25 +254,25 @@ def knight():
     dodge = 24
     A, D = 15, 20
 
-    # mail cowl, hauberk, mittens, leather boots
+    # mail cowl, hauberk, mittens, leather vest, leggings, shoes
     # only P
     armor = {
         'skull': 5,
         'face': 0,
         'neck': 5,
-        'shoulders': 5,
+        'shoulders': 8,
         'upper arm': 5,
         'elbow': 5,
         'forearm': 5,
         'hand': 5,
-        'thorax': 5,
-        'abdomen': 5,
-        'hip': 5,
-        'groin': 5,
-        'thigh': 5,
+        'thorax': 8,
+        'abdomen': 8,
+        'hip': 8,
+        'groin': 8,
+        'thigh': 8,
         'knee': 3,
         'calf': 3,
-        'foot': 3,
+        'foot': 6,
     }
 
     return Combatant(
@@ -281,14 +281,14 @@ def knight():
         defense_skill=add5(shield + D * 4 // 10, dodge),
         weapon_bonus=4,
         armor=armor,
-        encumbrance=5,
+        encumbrance=6,
     )
 
 
 # Example usage and test
 if __name__ == "__main__":
-    combatant1 = knight()
-    combatant2 = ysbrydd()
+    combatant1 = ysbrydd()
+    combatant2 = knight()
 
     # Run simulation
     runs = 1000
