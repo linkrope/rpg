@@ -5,26 +5,27 @@ import random
 
 
 class Combatant:
-    def __init__(self, name, attack_skill, defense_skill, weapon_bonus, armour, encumbrance):
+    def __init__(self, name, attack_skill, defense_skill, weapon_bonus, type, armour, encumbrance):
         self.name = name
         self.attack_skill = attack_skill
         self.defense_skill = defense_skill
         self.weapon_bonus = weapon_bonus
+        self.type = type
         self.armour = armour
         self.encumbrance = encumbrance
         self.penalty = 0
 
-    def get_current_attack_skill(self):
+    def current_attack_skill(self):
         """Calculate current attack skill with damage penalties"""
         return self.attack_skill + self.penalty - self.encumbrance
 
-    def get_current_defense_skill(self):
+    def current_defense_skill(self):
         """Calculate current defense skill with damage penalties"""
         return add5(self.defense_skill + self.penalty - self.encumbrance, -10)
 
-    def get_armour_protection(self, location):
-        """Get armour protection value for a specific location."""
-        return self.armour.get(location, 0)
+    def armour_protection(self, type, location):
+        """Get armour protection value for specific attack type for specific location."""
+        return self.armour.total_protection(type)[location]
 
     def take_damage(self, damage):
         """Apply damage to this combatant"""
@@ -82,16 +83,16 @@ class CombatSimulator:
         """Execute an attack from attacker to defender"""
         dice_roll = n5()
         current_strike_location = strike_location()
-        armour_protection = defender.get_armour_protection(current_strike_location)
+        armour_protection = defender.armour_protection(attacker.type, current_strike_location)
 
-        skill_diff = attacker.get_current_attack_skill() - defender.get_current_defense_skill()
+        skill_diff = attacker.current_attack_skill() - defender.current_defense_skill()
         weapon_vs_armour = (attacker.weapon_bonus - armour_protection)
         damage = max(0, (skill_diff + dice_roll) // 5 + weapon_vs_armour)
 
         print(f"  {attacker.name} rolls {dice_roll}, attacks {current_strike_location}: {damage} damage")
+        print(f"    (skill diff: {skill_diff}, weapon vs armour: {weapon_vs_armour})")
 
         defender.take_damage(damage)
-        return damage
 
 
 def n5():
@@ -118,37 +119,37 @@ def strike_location():
     roll = random.randint(1, 100)
 
     if roll <= 4:
-        return 'skull'
+        return 'Sk'
     if roll <= 8:
-        return 'face'
+        return 'Fa'
     if roll <= 12:
-        return 'neck'
+        return 'Nk'
     if roll <= 20:
-        return 'shoulders'
+        return 'Sh'
     if roll <= 26:
-        return 'upper arm'
+        return 'Ua'
     if roll <= 30:
-        return 'elbow'
+        return 'El'
     if roll <= 36:
-        return 'forearm'
+        return 'Fo'
     if roll <= 40:
-        return 'hand'
+        return 'Ha'
     if roll <= 60:
-        return 'thorax'
+        return 'Tx'
     if roll <= 70:
-        return 'abdomen'
+        return 'Ab'
     if roll <= 76:
-        return 'hip'
+        return 'Hp'
     if roll <= 80:
-        return 'groin'
+        return 'Gr'
     if roll <= 88:
-        return 'thigh'
+        return 'Th'
     if roll <= 90:
-        return 'knee'
+        return 'Kn'
     if roll <= 96:
-        return 'calf'
+        return 'Ca'
     if roll <= 100:
-        return 'foot'
+        return 'Ft'
 
 
 def d(sides):
@@ -198,7 +199,8 @@ def helgya():
         attack_skill=(spear + A * 4 // 10),
         defense_skill=add5(spear + D * 4 // 10, dodge),
         weapon_bonus=7,
-        armour=armour.total_protection('P'),
+        type='P',
+        armour=armour,
         encumbrance=encumbrance,
     )
 
@@ -211,10 +213,8 @@ def ysbrydd():
     armour = Armour()\
         .add('plate', '3/4 helm')\
         .add('quilt', 'cowl')\
-        .add('linen', 'vest')\
         .add('leather', 'tunic')\
         .add('leather', 'gauntlets')\
-        .add('linen', 'leggings')\
         .add('leather', 'leggings')\
         .add('leather', 'shoes')\
         .add('kurbul', 'chest/back')\
@@ -231,7 +231,8 @@ def ysbrydd():
         attack_skill=(battlesword + A * 4 // 10),
         defense_skill=add5(battlesword + D * 4 // 10, dodge),
         weapon_bonus=8,
-        armour=armour.total_protection('E'),
+        type='E',
+        armour=armour,
         encumbrance=encumbrance,
     )
 
@@ -248,7 +249,7 @@ def knight():
         .add('leather', 'vest')\
         .add('mail', 'mittens')\
         .add('leather', 'leggings')\
-        .add('leather', 'shoes')
+        .add('leather', 'knee boots')
     encumbrance = round((8 + armour.total_weight()) / 10)
 
     return Combatant(
@@ -256,7 +257,8 @@ def knight():
         attack_skill=(broadsword + A * 4 // 10),
         defense_skill=add5(shield + D * 4 // 10, dodge),
         weapon_bonus=5,
-        armour=armour.total_protection('E'),
+        type='E',
+        armour=armour,
         encumbrance=encumbrance,
     )
 
@@ -285,3 +287,11 @@ if __name__ == "__main__":
         total_rounds += rounds
 
     print(f"{wins.get(combatant1.name)}:{wins.get(combatant2.name)} in {total_rounds / runs:.1f} rounds")
+
+    for combatant in (helgya(), ysbrydd(), knight()):
+        print()
+        print(f"{combatant.name}")
+        print(f'encumbrance: {combatant.encumbrance}, '
+              f'armour: {combatant.armour.total_weight():.1f} lbs, {combatant.armour.total_price()}d')
+        print()
+        combatant.armour.print_protection()

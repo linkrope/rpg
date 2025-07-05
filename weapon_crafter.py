@@ -144,20 +144,20 @@ def strike_percentage(location):
 def weight(material, coverage):
     """Return the weight of a piece of armour based on its material."""
     weights = {
-        'buckram': 0.1,
-        'kurbul': 0.4,
-        'leather': 0.2,
-        'linen': 0.1,
-        'mail': 0.5,
+        'buckram': 0.08,
+        'kurbul': 0.25,
+        'leather': 0.16,
+        'linen': 0.08,
+        'mail': 0.45,
         'plate': 0.8,
-        'quilt': 0.3,
-        'ring': 0.4,
-        'russet': 0.1,
-        'scale': 0.5,
-        'serge': 0.1,
-        'silk': 0.05,
-        'wool': 0.15,
-        'worsted': 0.075,
+        'quilt': 0.24,
+        'ring': 0.32,
+        'russet': 0.08,
+        'scale': 0.6,
+        'serge': 0.08,
+        'silk': 0.04,
+        'wool': 0.12,
+        'worsted': 0.06,
     }
 
     return weights[material] * coverage
@@ -166,24 +166,23 @@ def weight(material, coverage):
 def price(material, coverage):
     """Return the price of a piece of armour based on its material."""
     prices = {
-        'buckram': 2,
-        'kurbul': 5,
-        'leather': 4,
-        'linen': 2,
-        'mail': 15,
+        'buckram': 1.75,
+        'kurbul': 4,
+        'leather': 3.5,
+        'linen': 1.75,
+        'mail': 13,
         'plate': 25,
-        'quilt': 4,
-        'ring': 7,
+        'quilt': 3.5,
+        'ring': 6,
         'russet': 3,
-        'scale': 7.5,
-        'serge': 2,
+        'scale': 8,
+        'serge': 1.75,
         'silk': 20,
         'wool': 4,
         'worsted': 10,
     }
 
-    price_reduction = (100 - coverage // 10 * 5) / 100
-    return round(prices[material] * coverage * price_reduction)
+    return round(prices[material] * coverage)
 
 
 if __name__ == "__main__":
@@ -201,23 +200,3 @@ if __name__ == "__main__":
                 print(f"| {name} | {weight(material, coverage):.1f} | {price(material, coverage)} | {' '.join(locations)} | {coverage} |")
 
         print()
-
-    armour = Armour()\
-        .add('plate', '3/4 helm')\
-        .add('quilt', 'cowl')\
-        .add('linen', 'vest')\
-        .add('leather', 'tunic')\
-        .add('leather', 'gauntlets')\
-        .add('linen', 'leggings')\
-        .add('leather', 'leggings')\
-        .add('leather', 'shoes')\
-        .add('kurbul', 'chest/back')\
-        .add('kurbul', 'ailettes')\
-        .add('kurbul', 'rerebraces')\
-        .add('kurbul', 'coudes')\
-        .add('kurbul', 'vambraces')\
-        .add('kurbul', 'kneecops')\
-        .add('kurbul', 'greaves')
-
-    armour.print_protection()
-    print(f'price: {armour.total_price()}, weight: {armour.total_weight():.1f}')
