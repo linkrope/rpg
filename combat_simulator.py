@@ -237,7 +237,38 @@ def ysbrydd():
     )
 
 
-def knight():
+def guard():
+    # guard commander
+    broadsword = 32
+    shield = 32
+    dodge = 24
+    A, D = 15, 20
+
+    armour = Armour()\
+        .add('kurbul', 'half helm')\
+        .add('leather', 'coif')\
+        .add('serge', 'shirt')\
+        .add('serge', 'tunic, long')\
+        .add('ring', 'hauberk, short')\
+        .add('linen', 'surcoat, long')\
+        .add('linen', 'breeches')\
+        .add('serge', 'hose')\
+        .add('leather', 'calf boots')
+    encumbrance = round((8 + armour.total_weight()) / 10)
+
+    return Combatant(
+        "Guard",
+        attack_skill=(broadsword + A * 4 // 10),
+        defense_skill=add5(shield + D * 4 // 10, dodge),
+        weapon_bonus=5,
+        type='E',
+        armour=armour,
+        encumbrance=encumbrance,
+    )
+
+
+def infantry():
+    # medium infantry
     broadsword = 32
     shield = 32
     dodge = 24
@@ -250,6 +281,36 @@ def knight():
         .add('mail', 'mittens')\
         .add('leather', 'leggings')\
         .add('leather', 'knee boots')
+    encumbrance = round((8 + armour.total_weight()) / 10)
+
+    return Combatant(
+        "Infantry",
+        attack_skill=(broadsword + A * 4 // 10),
+        defense_skill=add5(shield + D * 4 // 10, dodge),
+        weapon_bonus=5,
+        type='E',
+        armour=armour,
+        encumbrance=encumbrance,
+    )
+
+
+def knight():
+    # knight bachelor
+    broadsword = 32
+    shield = 32
+    dodge = 24
+    A, D = 15, 20
+
+    armour = Armour()\
+        .add('mail', 'cowl')\
+        .add('leather', 'coif')\
+        .add('serge', 'shirt')\
+        .add('quilt', 'gambeson')\
+        .add('mail', 'tabard')\
+        .add('linen', 'surcoat, long')\
+        .add('linen', 'breeches')\
+        .add('serge', 'hose')\
+        .add('leather', 'calf boots')
     encumbrance = round((8 + armour.total_weight()) / 10)
 
     return Combatant(
@@ -288,7 +349,7 @@ if __name__ == "__main__":
 
     print(f"{wins.get(combatant1.name)}:{wins.get(combatant2.name)} in {total_rounds / runs:.1f} rounds")
 
-    for combatant in (helgya(), ysbrydd(), knight()):
+    for combatant in (helgya(), ysbrydd(), guard(), infantry(), knight()):
         print()
         print(f"{combatant.name}")
         print(f'encumbrance: {combatant.encumbrance}, '

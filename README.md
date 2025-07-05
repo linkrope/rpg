@@ -1,9 +1,13 @@
 # Combat Simulation
 
-Ysbrydd fights with battlesword in kurbul and leather armour against
-a knight with broadsword and shield in mail and leather armour.
+Ysbrydd fights with battlesword in kurbul and leather armour against various opponents.
 
-999:1 in 16.5 rounds
+- Ysbrydd vs. Infrantry:
+  999:1 in 16.5 rounds
+- Ysbrydd vs. Guard:
+  1000:0 in 7.1 rounds
+- Ysbrydd vs. Knight:
+  1000:0 in 9.4 rounds
 
 ## Ysbrydd
 
@@ -28,7 +32,30 @@ encumbrance: 5, armour: 38.5 lbs, 798d
 | Ca       | 6   | 9   | 7   | 6   |
 | Ft       | 4   | 8   | 6   | 6   |
 
-## Knight
+## Guard
+
+encumbrance: 5, armour: 42.1 lbs, 854d
+
+| Location | B   | E   | P   | F   |
+| -------- | --- | --- | --- | --- |
+| Sk       | 6   | 9   | 7   | 6   |
+| Fa       | 2   | 4   | 3   | 3   |
+| Nk       | 2   | 4   | 3   | 3   |
+| Sh       | 6   | 9   | 7   | 6   |
+| Ua       | 5   | 8   | 6   | 5   |
+| El       | 1   | 1   | 1   | 1   |
+| Fo       | 1   | 1   | 1   | 1   |
+| Ha       | 0   | 0   | 0   | 0   |
+| Tx       | 6   | 9   | 7   | 6   |
+| Ab       | 6   | 9   | 7   | 6   |
+| Hp       | 7   | 10  | 8   | 7   |
+| Gr       | 7   | 10  | 8   | 7   |
+| Th       | 7   | 10  | 8   | 7   |
+| Kn       | 2   | 2   | 2   | 2   |
+| Ca       | 3   | 5   | 4   | 4   |
+| Ft       | 3   | 5   | 4   | 4   |
+
+## Infantry
 
 encumbrance: 6, armour: 50.6 lbs, 1372d
 
@@ -50,3 +77,26 @@ encumbrance: 6, armour: 50.6 lbs, 1372d
 | Kn       | 4   | 8   | 6   | 6   |
 | Ca       | 4   | 8   | 6   | 6   |
 | Ft       | 4   | 8   | 6   | 6   |
+
+## Knight
+
+encumbrance: 7, armour: 62.4 lbs, 1442d
+
+| Location | B   | E   | P   | F   |
+| -------- | --- | --- | --- | --- |
+| Sk       | 4   | 12  | 8   | 4   |
+| Fa       | 2   | 4   | 3   | 3   |
+| Nk       | 4   | 12  | 8   | 4   |
+| Sh       | 9   | 13  | 9   | 7   |
+| Ua       | 6   | 4   | 3   | 5   |
+| El       | 6   | 4   | 3   | 5   |
+| Fo       | 6   | 4   | 3   | 5   |
+| Ha       | 0   | 0   | 0   | 0   |
+| Tx       | 9   | 13  | 9   | 7   |
+| Ab       | 9   | 13  | 9   | 7   |
+| Hp       | 10  | 14  | 10  | 8   |
+| Gr       | 10  | 14  | 10  | 8   |
+| Th       | 10  | 14  | 10  | 8   |
+| Kn       | 2   | 2   | 2   | 2   |
+| Ca       | 3   | 5   | 4   | 4   |
+| Ft       | 3   | 5   | 4   | 4   |
