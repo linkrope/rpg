@@ -239,10 +239,9 @@ def ysbrydd():
 
 def guard():
     # guard commander
-    broadsword = 32
-    shield = 32
-    dodge = 24
-    A, D = 15, 20
+    spear = 85 * 4 // 10
+    dodge = 30 * 4 // 10
+    A, D = 20, 10
 
     armour = Armour()\
         .add('kurbul', 'half helm')\
@@ -254,14 +253,14 @@ def guard():
         .add('linen', 'breeches')\
         .add('serge', 'hose')\
         .add('leather', 'calf boots')
-    encumbrance = round((8 + armour.total_weight()) / 10)
+    encumbrance = round((5 + armour.total_weight()) / 10)
 
     return Combatant(
         "Guard",
-        attack_skill=(broadsword + A * 4 // 10),
-        defense_skill=add5(shield + D * 4 // 10, dodge),
-        weapon_bonus=5,
-        type='E',
+        attack_skill=(spear + A * 4 // 10),
+        defense_skill=add5(spear + D * 4 // 10, dodge),
+        weapon_bonus=7,
+        type='P',
         armour=armour,
         encumbrance=encumbrance,
     )
@@ -296,9 +295,9 @@ def infantry():
 
 def knight():
     # knight bachelor
-    broadsword = 32
-    shield = 32
-    dodge = 24
+    broadsword = 70 * 4 // 10
+    shield = 75 * 4 // 10
+    dodge = 20 * 4 // 10
     A, D = 15, 20
 
     armour = Armour()\
@@ -327,7 +326,7 @@ def knight():
 # Example usage and test
 if __name__ == "__main__":
     combatant1 = ysbrydd()
-    combatant2 = knight()
+    combatant2 = guard()
 
     # Run simulation
     runs = 1000

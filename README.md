@@ -5,9 +5,9 @@ Ysbrydd fights with battlesword in kurbul and leather armour against various opp
 - Ysbrydd vs. Infrantry:
   999:1 in 16.5 rounds
 - Ysbrydd vs. Guard:
-  1000:0 in 7.1 rounds
+  905:95 in 6.6 rounds
 - Ysbrydd vs. Knight:
-  1000:0 in 9.4 rounds
+  1000:0 in 8.6 rounds
 
 ## Ysbrydd
 
