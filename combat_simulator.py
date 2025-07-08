@@ -1,18 +1,24 @@
 #!/usr/bin/env python3
 
-from weapon_crafter import Armour
+import argparse
 import random
+from weapon_crafter import Armour, Armoury, Aspect
 
 
 class Combatant:
-    def __init__(self, name, attack_skill, defense_skill, weapon_bonus, type, armour, encumbrance):
+    def __init__(self, name, weapon_skill, dodge_skill, armour, weapon, shield_skill=None, shield=None, load=0.0):
         self.name = name
-        self.attack_skill = attack_skill
-        self.defense_skill = defense_skill
-        self.weapon_bonus = weapon_bonus
-        self.type = type
         self.armour = armour
-        self.encumbrance = encumbrance
+        self.weapon = weapon
+        self.shield = shield
+        load += self.armour.total_weight() + self.weapon.weight
+        self.attack_skill = weapon_skill + self.weapon.A * 4 // 10
+        if self.shield:
+            load += self.shield.weight
+            self.defense_skill = add5(shield_skill + self.shield.D * 4 // 10, dodge_skill)
+        else:
+            self.defense_skill = add5(weapon_skill + self.weapon.D * 4 // 10, dodge_skill)
+        self.encumbrance = round(load / 10)
         self.penalty = 0
 
     def current_attack_skill(self):
@@ -23,9 +29,9 @@ class Combatant:
         """Calculate current defense skill with damage penalties"""
         return add5(self.defense_skill + self.penalty - self.encumbrance, -10)
 
-    def armour_protection(self, type, location):
-        """Get armour protection value for specific attack type for specific location."""
-        return self.armour.total_protection(type)[location]
+    def armour_protection(self, aspect : Aspect, location):
+        """Get armour protection value for specific aspect for specific location."""
+        return self.armour.total_protection(aspect)[location]
 
     def take_damage(self, damage):
         """Apply damage to this combatant"""
@@ -55,7 +61,8 @@ class CombatSimulator:
         while winner is None:
             winner = self.combat_round()
 
-        print(f"\n  {winner.name} wins")
+        print()
+        print(f"  {combatant1.name if winner == 1 else combatant2.name} wins")
         print(f"  {self.combatant1} | {self.combatant2}")
         print()
 
@@ -69,12 +76,12 @@ class CombatSimulator:
         # first combatant attacks
         self.attack(self.combatant1, self.combatant2)
         if self.combatant2.is_defeated():
-            return self.combatant1  # Winner
+            return 1
 
         # second combatant attacks back
         self.attack(self.combatant2, self.combatant1)
         if self.combatant1.is_defeated():
-            return self.combatant2  # Winner
+            return 2
 
         self.round += 1
         return None  # No winner yet
@@ -83,10 +90,10 @@ class CombatSimulator:
         """Execute an attack from attacker to defender"""
         dice_roll = n5()
         current_strike_location = strike_location()
-        armour_protection = defender.armour_protection(attacker.type, current_strike_location)
+        armour_protection = defender.armour_protection(attacker.weapon.aspect, current_strike_location)
 
         skill_diff = attacker.current_attack_skill() - defender.current_defense_skill()
-        weapon_vs_armour = (attacker.weapon_bonus - armour_protection)
+        weapon_vs_armour = (attacker.weapon.bonus - armour_protection)
         damage = max(0, (skill_diff + dice_roll) // 5 + weapon_vs_armour)
 
         print(f"  {attacker.name} rolls {dice_roll}, attacks {current_strike_location}: {damage} damage")
@@ -182,9 +189,8 @@ def add5(a, b):
 
 
 def helgya():
-    spear = 18
-    dodge = 30
-    A, D = 20, 10
+    spear=18
+    dodge=30
 
     armour = Armour()\
         .add('linen', 'robe')\
@@ -192,23 +198,20 @@ def helgya():
         .add('leather', 'tunic')\
         .add('leather', 'leggings')\
         .add('leather', 'knee boots')
-    encumbrance = round((6 + armour.total_weight()) / 10)
 
     return Combatant(
         "Helgya",
-        attack_skill=(spear + A * 4 // 10),
-        defense_skill=add5(spear + D * 4 // 10, dodge),
-        weapon_bonus=7,
-        type='P',
+        weapon_skill=spear,
+        dodge_skill=dodge,
         armour=armour,
-        encumbrance=encumbrance,
+        weapon=Armoury().get('spear'),
+        load=Armoury().get("dagger").weight,
     )
 
 
 def ysbrydd():
-    battlesword = 37
+    sword = 37
     dodge = 28
-    A, D = 25, 10
 
     armour = Armour()\
         .add('plate', '3/4 helm')\
@@ -224,16 +227,14 @@ def ysbrydd():
         .add('kurbul', 'vambraces')\
         .add('kurbul', 'kneecops')\
         .add('kurbul', 'greaves')
-    encumbrance = round((14 + armour.total_weight()) / 10)
 
     return Combatant(
         "Ysbrydd",
-        attack_skill=(battlesword + A * 4 // 10),
-        defense_skill=add5(battlesword + D * 4 // 10, dodge),
-        weapon_bonus=8,
-        type='E',
+        weapon_skill=sword,
+        dodge_skill=dodge,
         armour=armour,
-        encumbrance=encumbrance,
+        weapon=Armoury().get('battlesword'),
+        load=Armoury().get("round shield").weight,
     )
 
 
@@ -241,7 +242,6 @@ def guard():
     # guard commander
     spear = 85 * 4 // 10
     dodge = 30 * 4 // 10
-    A, D = 20, 10
 
     armour = Armour()\
         .add('kurbul', 'half helm')\
@@ -253,25 +253,21 @@ def guard():
         .add('linen', 'breeches')\
         .add('serge', 'hose')\
         .add('leather', 'calf boots')
-    encumbrance = round((5 + armour.total_weight()) / 10)
 
     return Combatant(
         "Guard",
-        attack_skill=(spear + A * 4 // 10),
-        defense_skill=add5(spear + D * 4 // 10, dodge),
-        weapon_bonus=7,
-        type='P',
+        weapon_skill=spear,
+        dodge_skill=dodge,
         armour=armour,
-        encumbrance=encumbrance,
+        weapon=Armoury().get('spear'),
     )
 
 
 def infantry():
     # medium infantry
-    broadsword = 32
+    sword = 32
     shield = 32
     dodge = 24
-    A, D = 15, 20
 
     armour = Armour()\
         .add('mail', 'cowl')\
@@ -280,25 +276,23 @@ def infantry():
         .add('mail', 'mittens')\
         .add('leather', 'leggings')\
         .add('leather', 'knee boots')
-    encumbrance = round((8 + armour.total_weight()) / 10)
 
     return Combatant(
         "Infantry",
-        attack_skill=(broadsword + A * 4 // 10),
-        defense_skill=add5(shield + D * 4 // 10, dodge),
-        weapon_bonus=5,
-        type='E',
+        weapon_skill=sword,
+        shield_skill=shield,
+        dodge_skill=dodge,
         armour=armour,
-        encumbrance=encumbrance,
+        weapon=Armoury().get('broadsword'),
+        shield=Armoury().get('knight shield'),
     )
 
 
 def knight():
     # knight bachelor
-    broadsword = 70 * 4 // 10
+    sword = 70 * 4 // 10
     shield = 75 * 4 // 10
     dodge = 20 * 4 // 10
-    A, D = 15, 20
 
     armour = Armour()\
         .add('mail', 'cowl')\
@@ -310,30 +304,46 @@ def knight():
         .add('linen', 'breeches')\
         .add('serge', 'hose')\
         .add('leather', 'calf boots')
-    encumbrance = round((8 + armour.total_weight()) / 10)
 
     return Combatant(
         "Knight",
-        attack_skill=(broadsword + A * 4 // 10),
-        defense_skill=add5(shield + D * 4 // 10, dodge),
-        weapon_bonus=5,
-        type='E',
+        weapon_skill=sword,
+        shield_skill=shield,
+        dodge_skill=dodge,
         armour=armour,
-        encumbrance=encumbrance,
+        weapon=Armoury().get('broadsword'),
+        shield=Armoury().get('knight shield'),
     )
 
 
 # Example usage and test
 if __name__ == "__main__":
-    combatant1 = ysbrydd()
-    combatant2 = guard()
+    parser = argparse.ArgumentParser(description="Combat simulation between two combatants")
+    parser.add_argument('combatant1', help='First combatant')
+    parser.add_argument('combatant2', help='Second combatant')
+
+    combatants = {combatant().name: combatant for combatant in (helgya, ysbrydd, guard, infantry, knight)}
+
+    try:
+        args = parser.parse_args()
+    except SystemExit:
+        print()
+        for combatant in combatants.values():
+            combatant = combatant()
+            print(f"{combatant.name}")
+            print(f'encumbrance: {combatant.encumbrance}, '
+                f'armour: {combatant.armour.total_weight():.1f} lbs, {combatant.armour.total_price()}d')
+            print()
+            combatant.armour.print_protection()
+
+        raise
+
+    combatant1 = combatants[args.combatant1]()
+    combatant2 = combatants[args.combatant2]()
 
     # Run simulation
     runs = 1000
-    wins = {
-        combatant1.name: 0,
-        combatant2.name: 0,
-        }
+    wins = {1: 0, 2: 0}
     total_rounds = 0
 
     for i in range(runs):
@@ -343,15 +353,7 @@ if __name__ == "__main__":
         simulator = CombatSimulator(combatant1, combatant2)
         winner, rounds = simulator.run_simulation()
 
-        wins[winner.name] += 1
+        wins[winner] += 1
         total_rounds += rounds
 
-    print(f"{wins.get(combatant1.name)}:{wins.get(combatant2.name)} in {total_rounds / runs:.1f} rounds")
-
-    for combatant in (helgya(), ysbrydd(), guard(), infantry(), knight()):
-        print()
-        print(f"{combatant.name}")
-        print(f'encumbrance: {combatant.encumbrance}, '
-              f'armour: {combatant.armour.total_weight():.1f} lbs, {combatant.armour.total_price()}d')
-        print()
-        combatant.armour.print_protection()
+    print(f"{wins[1]}:{wins[2]} in {total_rounds / runs:.1f} rounds")

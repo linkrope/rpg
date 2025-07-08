@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
 
+from dataclasses import dataclass
+from typing import Dict, Literal
+
+
+Aspect = Literal["B", "E", "P", "F"]
+
 
 class Armour:
     locations = {
         'cap/half helm': ['Sk'],
         '3/4 helm': ['Sk', 'Fa'],
-        'coif': ['Sk', 'Fa', 'Nk'], # only ears and chin
+        'coif': ['Sk', 'Nk'], # also ears and chin
         'great helm': ['Sk', 'Fa', 'Nk'],
         'cowl/hood': ['Sk', 'Nk'],
         'vest': ['Sh', 'Tx', 'Ab'],
@@ -105,7 +111,7 @@ class Armour:
 
         print()
 
-    def total_protection(self, type):
+    def total_protection(self, aspect: Aspect):
         """Get protection values by location for a specific attack type."""
         total_protection = {}
         for location in ['Sk', 'Fa', 'Nk', 'Sh', 'Ua', 'El', 'Fo', 'Ha', 'Tx', 'Ab', 'Hp', 'Gr', 'Th', 'Kn', 'Ca', 'Ft']:
@@ -113,7 +119,7 @@ class Armour:
 
         for material, item in self.layers:
             for location in self.locations[item]:
-                total_protection[location] += self.protection[material][type]
+                total_protection[location] += self.protection[material][aspect]
 
         return total_protection
 
@@ -189,6 +195,56 @@ def price(material, coverage):
     }
 
     return round(prices[material] * coverage)
+
+
+@dataclass
+class Weapon:
+    name: str
+    weight: float
+    price: int
+    A: int
+    D: int
+    aspect: Aspect
+    bonus: int
+
+    @classmethod
+    def create(cls, name: str, weight: float, price: int, A: int, D: int, B: int = None, E: int = None, P: int = None):
+        """Create weapon with shorthand notation: E=12, P=11, or B=10."""
+        args = [arg for arg in [("B", B), ("E", E), ("P", P)] if arg[1] is not None]
+
+        assert len(args) == 1, "exactly one aspect must be given"
+
+        aspect, bonus = args[0]
+
+        return cls(name=name, A=A, D=D, aspect=aspect, bonus=bonus, weight=weight, price=price)
+
+    def __str__(self):
+        return f"{self.name}: {self.weight:.1f} lbs, {self.price}d, A/D={self.A}/{self.D}, {self.aspect}={self.bonus}"
+
+
+class Armoury:
+    weapons: Dict[str, Weapon] = {}
+
+    def __init__(self):
+        if not self.weapons:
+            self.add(Weapon.create("hand/arm", weight=0, price=0, A=0, D=15, B=0))
+            self.add(Weapon.create("foot/leg/knee", weight=0, price=0, A=5, D=5, B=1))
+            self.add(Weapon.create("knight shield", weight=5, price=60, A=5, D=20, B=2))
+            self.add(Weapon.create("round shield", weight=6, price=42, A=5, D=20, B=2))
+            self.add(Weapon.create("dagger", weight=1, price=24, A=5, D=5, P=5))
+            self.add(Weapon.create("shortsword", weight=2, price=90, A=10, D=5, P=4))
+            self.add(Weapon.create("broadsword", weight=3, price=150, A=15, D=10, E=5))
+            self.add(Weapon.create("falchion", weight=4, price=120, A=15, D=5, E=6))
+            self.add(Weapon.create("battlesword", weight=8, price=230, A=25, D=10, E=8))
+            self.add(Weapon.create("spear", weight=5, price=60, A=20, D=10, P=7))
+
+    def add(self, weapon: Weapon):
+        """Add weapon to armoury."""
+        self.weapons[weapon.name] = weapon
+
+    def get(self, name: str) -> Weapon:
+        """Get a weapon by name."""
+        return self.weapons[name]
 
 
 if __name__ == "__main__":

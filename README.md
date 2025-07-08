@@ -2,12 +2,16 @@
 
 Ysbrydd fights with battlesword in kurbul and leather armour against various opponents.
 
-- Ysbrydd vs. Infrantry:
-  999:1 in 16.5 rounds
-- Ysbrydd vs. Guard:
-  905:95 in 6.6 rounds
-- Ysbrydd vs. Knight:
-  1000:0 in 8.6 rounds
+```
+./combat_simulator.py Ysbrydd Infantry
+999:1 in 16.5 rounds
+
+./combat_simulator.py Ysbrydd Guard
+905:95 in 6.5 rounds
+
+./combat_simulator.py Ysbrydd Knight
+1000:0 in 8.5 rounds
+```
 
 ## Ysbrydd
 
@@ -34,12 +38,12 @@ encumbrance: 5, armour: 38.5 lbs, 798d
 
 ## Guard
 
-encumbrance: 5, armour: 42.1 lbs, 854d
+encumbrance: 5, armour: 41.5 lbs, 840d
 
 | Location | B   | E   | P   | F   |
 | -------- | --- | --- | --- | --- |
 | Sk       | 6   | 9   | 7   | 6   |
-| Fa       | 2   | 4   | 3   | 3   |
+| Fa       | 0   | 0   | 0   | 0   |
 | Nk       | 2   | 4   | 3   | 3   |
 | Sh       | 6   | 9   | 7   | 6   |
 | Ua       | 5   | 8   | 6   | 5   |
@@ -80,12 +84,12 @@ encumbrance: 6, armour: 50.6 lbs, 1372d
 
 ## Knight
 
-encumbrance: 7, armour: 62.4 lbs, 1442d
+encumbrance: 7, armour: 61.8 lbs, 1428d
 
 | Location | B   | E   | P   | F   |
 | -------- | --- | --- | --- | --- |
 | Sk       | 4   | 12  | 8   | 4   |
-| Fa       | 2   | 4   | 3   | 3   |
+| Fa       | 0   | 0   | 0   | 0   |
 | Nk       | 4   | 12  | 8   | 4   |
 | Sh       | 9   | 13  | 9   | 7   |
 | Ua       | 6   | 4   | 3   | 5   |
