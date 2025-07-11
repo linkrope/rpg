@@ -1,0 +1,1923 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Armour Table</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .armor-column {
+            flex: 1;
+            min-width: 500px;
+        }
+
+        .sticky-panel {
+            position: sticky;
+            top: 20px;
+            width: 400px;
+            height: fit-content;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            overflow: hidden;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            grid-column: 1 / -1;
+        }
+
+        .armor-section {
+            margin-bottom: 30px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .armor-section h2 {
+            color: #555;
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f8f8f8;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .checkbox-col {
+            width: 40px;
+            text-align: center;
+        }
+
+        .totals {
+            background-color: #e8f4f8;
+            padding: 20px;
+            border-bottom: 2px solid #d0e8f0;
+        }
+
+        .totals h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 1.1em;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+        }
+
+        .total-label {
+            font-weight: bold;
+        }
+
+        .total-value {
+            font-weight: bold;
+            color: #2c5282;
+        }
+
+        .protection-table {
+            background-color: #f0f8ff;
+            padding: 20px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .protection-table h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 1.1em;
+        }
+
+        .protection-table table {
+            width: 100%;
+            margin-bottom: 0;
+            font-size: 0.9em;
+        }
+
+        .protection-table th {
+            background-color: #e6f3ff;
+            text-align: center;
+            font-size: 0.85em;
+            padding: 6px 4px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .protection-table td {
+            text-align: center;
+            font-size: 0.85em;
+            padding: 4px;
+        }
+
+        .location-label {
+            font-weight: bold;
+            background-color: #f8f8f8;
+            text-align: left !important;
+            padding-left: 8px !important;
+            font-size: 0.8em !important;
+        }
+
+        .front-rear-row {
+            background-color: #f0f8ff;
+        }
+
+        .front-rear-row .location-label {
+            padding-left: 16px !important;
+            font-weight: normal;
+            font-size: 0.75em !important;
+        }
+
+        /* Responsive design */
+        @media (max-width: 1200px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .sticky-panel {
+                position: static;
+                width: 100%;
+                margin-bottom: 20px;
+            }
+
+            .armor-column {
+                min-width: auto;
+            }
+        }
+
+        /* Scrollbar styling for webkit browsers */
+        .protection-table::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .protection-table::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        .protection-table::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+
+        .protection-table::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+    </style>
+</head>
+<body>
+    <h1>Armour Table</h1>
+
+    <div class="container">
+        <div class="armor-column">
+            <div class="armor-section">
+                <h2>Linen, Buckram, Serge</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="checkbox-col">Select</th>
+                            <th>Item</th>
+                            <th>Weight</th>
+                            <th>Price</th>
+                            <th>Coverage</th>
+                            <th>%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="linen-cap" data-weight="0.3" data-price="7" data-coverage="Sk" data-material="linen" onchange="updateTotals()">
+                            </td>
+                            <td>cap</td>
+                            <td>0.3</td>
+                            <td>7</td>
+                            <td>Sk</td>
+                            <td>4</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="linen-hood" data-weight="0.6" data-price="14" data-coverage="Sk Nk" data-material="linen" onchange="updateTotals()">
+                            </td>
+                            <td>hood</td>
+                            <td>0.6</td>
+                            <td>14</td>
+                            <td>Sk Nk</td>
+                            <td>8</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="linen-coif" data-weight="0.7" data-price="16" data-coverage="Sk Ear Jaw Nk" data-material="linen" onchange="updateTotals()">
+                            </td>
+                            <td>coif</td>
+                            <td>0.7</td>
+                            <td>16</td>
+                            <td>Sk Ear Jaw Nk</td>
+                            <td>9</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="linen-vest" data-weight="3.0" data-price="66" data-coverage="Sh Tx Ab" data-material="linen" onchange="updateTotals()">
+                            </td>
+                            <td>vest</td>
+                            <td>3.0</td>
+                            <td>66</td>
+                            <td>Sh Tx Ab</td>
+                            <td>38</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="linen-tunic" data-weight="4.3" data-price="94" data-coverage="Ua Sh Tx Ab Hp Gr" data-material="linen" onchange="updateTotals()">
+                            </td>
+                            <td>tunic</td>
+                            <td>4.3</td>
+                            <td>94</td>
+                            <td>Ua Sh Tx Ab Hp Gr</td>
+                            <td>54</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="linen-tunic,-long" data-weight="5.0" data-price="108" data-coverage="Ua Sh Tx Ab Hp Gr Th" data-material="linen" onchange="updateTotals()">
+                            </td>
+                            <td>tunic, long</td>
+                            <td>5.0</td>
+                            <td>108</td>
+                            <td>Ua Sh Tx Ab Hp Gr Th</td>
+                            <td>62</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="linen-surcoat" data-weight="4.5" data-price="98" data-coverage="Sh Tx Ab Hp Gr Th" data-material="linen" onchange="updateTotals()">
+                            </td>
+                            <td>surcoat</td>
+                            <td>4.5</td>
+                            <td>98</td>
+                            <td>Sh Tx Ab Hp Gr Th</td>
+                            <td>56</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="linen-surcoat,-long" data-weight="4.6" data-price="102" data-coverage="Sh Tx Ab Hp Gr Th Kn" data-material="linen" onchange="updateTotals()">
+                            </td>
+                            <td>surcoat, long</td>
+                            <td>4.6</td>
+                            <td>102</td>
+                            <td>Sh Tx Ab Hp Gr Th Kn</td>
+                            <td>58</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="linen-shirt" data-weight="5.1" data-price="112" data-coverage="Fo El Ua Sh Tx Ab Hp Gr" data-material="linen" onchange="updateTotals()">
+                            </td>
+                            <td>shirt</td>
+                            <td>5.1</td>
+                            <td>112</td>
+                            <td>Fo El Ua Sh Tx Ab Hp Gr</td>
+                            <td>56</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="linen-robe" data-weight="6.4" data-price="140" data-coverage="Fo El Ua Sh Tx Ab Hp Gr Th Kn Ca" data-material="linen" onchange="updateTotals()">
+                            </td>
+                            <td>robe</td>
+                            <td>6.4</td>
+                            <td>140</td>
+                            <td>Fo El Ua Sh Tx Ab Hp Gr Th Kn Ca</td>
+                            <td>80</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="linen-breeches" data-weight="1.4" data-price="32" data-coverage="Hp Gr Th" data-material="linen" onchange="updateTotals()">
+                            </td>
+                            <td>breeches</td>
+                            <td>1.4</td>
+                            <td>32</td>
+                            <td>Hp Gr Th</td>
+                            <td>18</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="linen-hose" data-weight="1.6" data-price="35" data-coverage="Th Kn Ca Ft" data-material="linen" onchange="updateTotals()">
+                            </td>
+                            <td>hose</td>
+                            <td>1.6</td>
+                            <td>35</td>
+                            <td>Th Kn Ca Ft</td>
+                            <td>20</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="linen-leggings" data-weight="2.4" data-price="52" data-coverage="Hp Gr Th Kn Ca Ft" data-material="linen" onchange="updateTotals()">
+                            </td>
+                            <td>leggings</td>
+                            <td>2.4</td>
+                            <td>52</td>
+                            <td>Hp Gr Th Kn Ca Ft</td>
+                            <td>30</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="armor-section">
+                <h2>Russet</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="checkbox-col">Select</th>
+                            <th>Item</th>
+                            <th>Weight</th>
+                            <th>Price</th>
+                            <th>Coverage</th>
+                            <th>%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="russet-cap" data-weight="0.3" data-price="12" data-coverage="Sk" data-material="russet" onchange="updateTotals()">
+                            </td>
+                            <td>cap</td>
+                            <td>0.3</td>
+                            <td>12</td>
+                            <td>Sk</td>
+                            <td>4</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="russet-hood" data-weight="0.6" data-price="24" data-coverage="Sk Nk" data-material="russet" onchange="updateTotals()">
+                            </td>
+                            <td>hood</td>
+                            <td>0.6</td>
+                            <td>24</td>
+                            <td>Sk Nk</td>
+                            <td>8</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="russet-coif" data-weight="0.7" data-price="27" data-coverage="Sk Ear Jaw Nk" data-material="russet" onchange="updateTotals()">
+                            </td>
+                            <td>coif</td>
+                            <td>0.7</td>
+                            <td>27</td>
+                            <td>Sk Ear Jaw Nk</td>
+                            <td>9</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="russet-vest" data-weight="3.0" data-price="114" data-coverage="Sh Tx Ab" data-material="russet" onchange="updateTotals()">
+                            </td>
+                            <td>vest</td>
+                            <td>3.0</td>
+                            <td>114</td>
+                            <td>Sh Tx Ab</td>
+                            <td>38</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="russet-tunic" data-weight="4.3" data-price="162" data-coverage="Ua Sh Tx Ab Hp Gr" data-material="russet" onchange="updateTotals()">
+                            </td>
+                            <td>tunic</td>
+                            <td>4.3</td>
+                            <td>162</td>
+                            <td>Ua Sh Tx Ab Hp Gr</td>
+                            <td>54</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="russet-tunic,-long" data-weight="5.0" data-price="186" data-coverage="Ua Sh Tx Ab Hp Gr Th" data-material="russet" onchange="updateTotals()">
+                            </td>
+                            <td>tunic, long</td>
+                            <td>5.0</td>
+                            <td>186</td>
+                            <td>Ua Sh Tx Ab Hp Gr Th</td>
+                            <td>62</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="russet-surcoat" data-weight="4.5" data-price="168" data-coverage="Sh Tx Ab Hp Gr Th" data-material="russet" onchange="updateTotals()">
+                            </td>
+                            <td>surcoat</td>
+                            <td>4.5</td>
+                            <td>168</td>
+                            <td>Sh Tx Ab Hp Gr Th</td>
+                            <td>56</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="russet-surcoat,-long" data-weight="4.6" data-price="174" data-coverage="Sh Tx Ab Hp Gr Th Kn" data-material="russet" onchange="updateTotals()">
+                            </td>
+                            <td>surcoat, long</td>
+                            <td>4.6</td>
+                            <td>174</td>
+                            <td>Sh Tx Ab Hp Gr Th Kn</td>
+                            <td>58</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="russet-shirt" data-weight="5.1" data-price="192" data-coverage="Fo El Ua Sh Tx Ab Hp Gr" data-material="russet" onchange="updateTotals()">
+                            </td>
+                            <td>shirt</td>
+                            <td>5.1</td>
+                            <td>192</td>
+                            <td>Fo El Ua Sh Tx Ab Hp Gr</td>
+                            <td>56</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="russet-robe" data-weight="6.4" data-price="240" data-coverage="Fo El Ua Sh Tx Ab Hp Gr Th Kn Ca" data-material="russet" onchange="updateTotals()">
+                            </td>
+                            <td>robe</td>
+                            <td>6.4</td>
+                            <td>240</td>
+                            <td>Fo El Ua Sh Tx Ab Hp Gr Th Kn Ca</td>
+                            <td>80</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="russet-breeches" data-weight="1.4" data-price="54" data-coverage="Hp Gr Th" data-material="russet" onchange="updateTotals()">
+                            </td>
+                            <td>breeches</td>
+                            <td>1.4</td>
+                            <td>54</td>
+                            <td>Hp Gr Th</td>
+                            <td>18</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="russet-hose" data-weight="1.6" data-price="60" data-coverage="Th Kn Ca Ft" data-material="russet" onchange="updateTotals()">
+                            </td>
+                            <td>hose</td>
+                            <td>1.6</td>
+                            <td>60</td>
+                            <td>Th Kn Ca Ft</td>
+                            <td>20</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="russet-leggings" data-weight="2.4" data-price="90" data-coverage="Hp Gr Th Kn Ca Ft" data-material="russet" onchange="updateTotals()">
+                            </td>
+                            <td>leggings</td>
+                            <td>2.4</td>
+                            <td>90</td>
+                            <td>Hp Gr Th Kn Ca Ft</td>
+                            <td>30</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="armor-section">
+                <h2>Wool</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="checkbox-col">Select</th>
+                            <th>Item</th>
+                            <th>Weight</th>
+                            <th>Price</th>
+                            <th>Coverage</th>
+                            <th>%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="wool-cap" data-weight="0.5" data-price="16" data-coverage="Sk" data-material="wool" onchange="updateTotals()">
+                            </td>
+                            <td>cap</td>
+                            <td>0.5</td>
+                            <td>16</td>
+                            <td>Sk</td>
+                            <td>4</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="wool-hood" data-weight="1.0" data-price="32" data-coverage="Sk Nk" data-material="wool" onchange="updateTotals()">
+                            </td>
+                            <td>hood</td>
+                            <td>1.0</td>
+                            <td>32</td>
+                            <td>Sk Nk</td>
+                            <td>8</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="wool-coif" data-weight="1.1" data-price="36" data-coverage="Sk Ear Jaw Nk" data-material="wool" onchange="updateTotals()">
+                            </td>
+                            <td>coif</td>
+                            <td>1.1</td>
+                            <td>36</td>
+                            <td>Sk Ear Jaw Nk</td>
+                            <td>9</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="wool-vest" data-weight="4.6" data-price="152" data-coverage="Sh Tx Ab" data-material="wool" onchange="updateTotals()">
+                            </td>
+                            <td>vest</td>
+                            <td>4.6</td>
+                            <td>152</td>
+                            <td>Sh Tx Ab</td>
+                            <td>38</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="wool-tunic" data-weight="6.5" data-price="216" data-coverage="Ua Sh Tx Ab Hp Gr" data-material="wool" onchange="updateTotals()">
+                            </td>
+                            <td>tunic</td>
+                            <td>6.5</td>
+                            <td>216</td>
+                            <td>Ua Sh Tx Ab Hp Gr</td>
+                            <td>54</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="wool-tunic,-long" data-weight="7.4" data-price="248" data-coverage="Ua Sh Tx Ab Hp Gr Th" data-material="wool" onchange="updateTotals()">
+                            </td>
+                            <td>tunic, long</td>
+                            <td>7.4</td>
+                            <td>248</td>
+                            <td>Ua Sh Tx Ab Hp Gr Th</td>
+                            <td>62</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="wool-surcoat" data-weight="6.7" data-price="224" data-coverage="Sh Tx Ab Hp Gr Th" data-material="wool" onchange="updateTotals()">
+                            </td>
+                            <td>surcoat</td>
+                            <td>6.7</td>
+                            <td>224</td>
+                            <td>Sh Tx Ab Hp Gr Th</td>
+                            <td>56</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="wool-surcoat,-long" data-weight="7.0" data-price="232" data-coverage="Sh Tx Ab Hp Gr Th Kn" data-material="wool" onchange="updateTotals()">
+                            </td>
+                            <td>surcoat, long</td>
+                            <td>7.0</td>
+                            <td>232</td>
+                            <td>Sh Tx Ab Hp Gr Th Kn</td>
+                            <td>58</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="wool-shirt" data-weight="7.7" data-price="256" data-coverage="Fo El Ua Sh Tx Ab Hp Gr" data-material="wool" onchange="updateTotals()">
+                            </td>
+                            <td>shirt</td>
+                            <td>7.7</td>
+                            <td>256</td>
+                            <td>Fo El Ua Sh Tx Ab Hp Gr</td>
+                            <td>56</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="wool-robe" data-weight="9.6" data-price="320" data-coverage="Fo El Ua Sh Tx Ab Hp Gr Th Kn Ca" data-material="wool" onchange="updateTotals()">
+                            </td>
+                            <td>robe</td>
+                            <td>9.6</td>
+                            <td>320</td>
+                            <td>Fo El Ua Sh Tx Ab Hp Gr Th Kn Ca</td>
+                            <td>80</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="wool-breeches" data-weight="2.2" data-price="72" data-coverage="Hp Gr Th" data-material="wool" onchange="updateTotals()">
+                            </td>
+                            <td>breeches</td>
+                            <td>2.2</td>
+                            <td>72</td>
+                            <td>Hp Gr Th</td>
+                            <td>18</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="wool-hose" data-weight="2.4" data-price="80" data-coverage="Th Kn Ca Ft" data-material="wool" onchange="updateTotals()">
+                            </td>
+                            <td>hose</td>
+                            <td>2.4</td>
+                            <td>80</td>
+                            <td>Th Kn Ca Ft</td>
+                            <td>20</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="wool-leggings" data-weight="3.6" data-price="120" data-coverage="Hp Gr Th Kn Ca Ft" data-material="wool" onchange="updateTotals()">
+                            </td>
+                            <td>leggings</td>
+                            <td>3.6</td>
+                            <td>120</td>
+                            <td>Hp Gr Th Kn Ca Ft</td>
+                            <td>30</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="armor-section">
+                <h2>Worsted</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="checkbox-col">Select</th>
+                            <th>Item</th>
+                            <th>Weight</th>
+                            <th>Price</th>
+                            <th>Coverage</th>
+                            <th>%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="worsted-cap" data-weight="0.2" data-price="40" data-coverage="Sk" data-material="worsted" onchange="updateTotals()">
+                            </td>
+                            <td>cap</td>
+                            <td>0.2</td>
+                            <td>40</td>
+                            <td>Sk</td>
+                            <td>4</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="worsted-hood" data-weight="0.5" data-price="80" data-coverage="Sk Nk" data-material="worsted" onchange="updateTotals()">
+                            </td>
+                            <td>hood</td>
+                            <td>0.5</td>
+                            <td>80</td>
+                            <td>Sk Nk</td>
+                            <td>8</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="worsted-coif" data-weight="0.5" data-price="90" data-coverage="Sk Ear Jaw Nk" data-material="worsted" onchange="updateTotals()">
+                            </td>
+                            <td>coif</td>
+                            <td>0.5</td>
+                            <td>90</td>
+                            <td>Sk Ear Jaw Nk</td>
+                            <td>9</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="worsted-vest" data-weight="2.3" data-price="380" data-coverage="Sh Tx Ab" data-material="worsted" onchange="updateTotals()">
+                            </td>
+                            <td>vest</td>
+                            <td>2.3</td>
+                            <td>380</td>
+                            <td>Sh Tx Ab</td>
+                            <td>38</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="worsted-tunic" data-weight="3.2" data-price="540" data-coverage="Ua Sh Tx Ab Hp Gr" data-material="worsted" onchange="updateTotals()">
+                            </td>
+                            <td>tunic</td>
+                            <td>3.2</td>
+                            <td>540</td>
+                            <td>Ua Sh Tx Ab Hp Gr</td>
+                            <td>54</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="worsted-tunic,-long" data-weight="3.7" data-price="620" data-coverage="Ua Sh Tx Ab Hp Gr Th" data-material="worsted" onchange="updateTotals()">
+                            </td>
+                            <td>tunic, long</td>
+                            <td>3.7</td>
+                            <td>620</td>
+                            <td>Ua Sh Tx Ab Hp Gr Th</td>
+                            <td>62</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="worsted-surcoat" data-weight="3.4" data-price="560" data-coverage="Sh Tx Ab Hp Gr Th" data-material="worsted" onchange="updateTotals()">
+                            </td>
+                            <td>surcoat</td>
+                            <td>3.4</td>
+                            <td>560</td>
+                            <td>Sh Tx Ab Hp Gr Th</td>
+                            <td>56</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="worsted-surcoat,-long" data-weight="3.5" data-price="580" data-coverage="Sh Tx Ab Hp Gr Th Kn" data-material="worsted" onchange="updateTotals()">
+                            </td>
+                            <td>surcoat, long</td>
+                            <td>3.5</td>
+                            <td>580</td>
+                            <td>Sh Tx Ab Hp Gr Th Kn</td>
+                            <td>58</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="worsted-shirt" data-weight="3.8" data-price="640" data-coverage="Fo El Ua Sh Tx Ab Hp Gr" data-material="worsted" onchange="updateTotals()">
+                            </td>
+                            <td>shirt</td>
+                            <td>3.8</td>
+                            <td>640</td>
+                            <td>Fo El Ua Sh Tx Ab Hp Gr</td>
+                            <td>56</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="worsted-robe" data-weight="4.8" data-price="800" data-coverage="Fo El Ua Sh Tx Ab Hp Gr Th Kn Ca" data-material="worsted" onchange="updateTotals()">
+                            </td>
+                            <td>robe</td>
+                            <td>4.8</td>
+                            <td>800</td>
+                            <td>Fo El Ua Sh Tx Ab Hp Gr Th Kn Ca</td>
+                            <td>80</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="worsted-breeches" data-weight="1.1" data-price="180" data-coverage="Hp Gr Th" data-material="worsted" onchange="updateTotals()">
+                            </td>
+                            <td>breeches</td>
+                            <td>1.1</td>
+                            <td>180</td>
+                            <td>Hp Gr Th</td>
+                            <td>18</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="worsted-hose" data-weight="1.2" data-price="200" data-coverage="Th Kn Ca Ft" data-material="worsted" onchange="updateTotals()">
+                            </td>
+                            <td>hose</td>
+                            <td>1.2</td>
+                            <td>200</td>
+                            <td>Th Kn Ca Ft</td>
+                            <td>20</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="worsted-leggings" data-weight="1.8" data-price="300" data-coverage="Hp Gr Th Kn Ca Ft" data-material="worsted" onchange="updateTotals()">
+                            </td>
+                            <td>leggings</td>
+                            <td>1.8</td>
+                            <td>300</td>
+                            <td>Hp Gr Th Kn Ca Ft</td>
+                            <td>30</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="armor-section">
+                <h2>Silk</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="checkbox-col">Select</th>
+                            <th>Item</th>
+                            <th>Weight</th>
+                            <th>Price</th>
+                            <th>Coverage</th>
+                            <th>%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="silk-cap" data-weight="0.2" data-price="80" data-coverage="Sk" data-material="silk" onchange="updateTotals()">
+                            </td>
+                            <td>cap</td>
+                            <td>0.2</td>
+                            <td>80</td>
+                            <td>Sk</td>
+                            <td>4</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="silk-hood" data-weight="0.3" data-price="160" data-coverage="Sk Nk" data-material="silk" onchange="updateTotals()">
+                            </td>
+                            <td>hood</td>
+                            <td>0.3</td>
+                            <td>160</td>
+                            <td>Sk Nk</td>
+                            <td>8</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="silk-coif" data-weight="0.4" data-price="180" data-coverage="Sk Ear Jaw Nk" data-material="silk" onchange="updateTotals()">
+                            </td>
+                            <td>coif</td>
+                            <td>0.4</td>
+                            <td>180</td>
+                            <td>Sk Ear Jaw Nk</td>
+                            <td>9</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="silk-vest" data-weight="1.5" data-price="760" data-coverage="Sh Tx Ab" data-material="silk" onchange="updateTotals()">
+                            </td>
+                            <td>vest</td>
+                            <td>1.5</td>
+                            <td>760</td>
+                            <td>Sh Tx Ab</td>
+                            <td>38</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="silk-tunic" data-weight="2.2" data-price="1080" data-coverage="Ua Sh Tx Ab Hp Gr" data-material="silk" onchange="updateTotals()">
+                            </td>
+                            <td>tunic</td>
+                            <td>2.2</td>
+                            <td>1080</td>
+                            <td>Ua Sh Tx Ab Hp Gr</td>
+                            <td>54</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="silk-tunic,-long" data-weight="2.5" data-price="1240" data-coverage="Ua Sh Tx Ab Hp Gr Th" data-material="silk" onchange="updateTotals()">
+                            </td>
+                            <td>tunic, long</td>
+                            <td>2.5</td>
+                            <td>1240</td>
+                            <td>Ua Sh Tx Ab Hp Gr Th</td>
+                            <td>62</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="silk-surcoat" data-weight="2.2" data-price="1120" data-coverage="Sh Tx Ab Hp Gr Th" data-material="silk" onchange="updateTotals()">
+                            </td>
+                            <td>surcoat</td>
+                            <td>2.2</td>
+                            <td>1120</td>
+                            <td>Sh Tx Ab Hp Gr Th</td>
+                            <td>56</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="silk-surcoat,-long" data-weight="2.3" data-price="1160" data-coverage="Sh Tx Ab Hp Gr Th Kn" data-material="silk" onchange="updateTotals()">
+                            </td>
+                            <td>surcoat, long</td>
+                            <td>2.3</td>
+                            <td>1160</td>
+                            <td>Sh Tx Ab Hp Gr Th Kn</td>
+                            <td>58</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id=silk-shirt" data-weight="2.6" data-price="1280" data-coverage="Fo El Ua Sh Tx Ab Hp Gr" data-material=silk" onchange="updateTotals()">
+                            </td>
+                            <td>shirt</td>
+                            <td>2.6</td>
+                            <td>1280</td>
+                            <td>Fo El Ua Sh Tx Ab Hp Gr</td>
+                            <td>56</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="silk-robe" data-weight="3.2" data-price="1600" data-coverage="Fo El Ua Sh Tx Ab Hp Gr Th Kn Ca" data-material="silk" onchange="updateTotals()">
+                            </td>
+                            <td>robe</td>
+                            <td>3.2</td>
+                            <td>1600</td>
+                            <td>Fo El Ua Sh Tx Ab Hp Gr Th Kn Ca</td>
+                            <td>80</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="silk-breeches" data-weight="0.7" data-price="360" data-coverage="Hp Gr Th" data-material="silk" onchange="updateTotals()">
+                            </td>
+                            <td>breeches</td>
+                            <td>0.7</td>
+                            <td>360</td>
+                            <td>Hp Gr Th</td>
+                            <td>18</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="silk-hose" data-weight="0.8" data-price="400" data-coverage="Th Kn Ca Ft" data-material="silk" onchange="updateTotals()">
+                            </td>
+                            <td>hose</td>
+                            <td>0.8</td>
+                            <td>400</td>
+                            <td>Th Kn Ca Ft</td>
+                            <td>20</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="silk-leggings" data-weight="1.2" data-price="600" data-coverage="Hp Gr Th Kn Ca Ft" data-material="silk" onchange="updateTotals()">
+                            </td>
+                            <td>leggings</td>
+                            <td>1.2</td>
+                            <td>600</td>
+                            <td>Hp Gr Th Kn Ca Ft</td>
+                            <td>30</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="armor-section">
+                <h2>Quilt</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="checkbox-col">Select</th>
+                            <th>Item</th>
+                            <th>Weight</th>
+                            <th>Price</th>
+                            <th>Coverage</th>
+                            <th>%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="quilt-cap" data-weight="1.0" data-price="14" data-coverage="Sk" data-material="quilt" onchange="updateTotals()">
+                            </td>
+                            <td>cap</td>
+                            <td>1.0</td>
+                            <td>14</td>
+                            <td>Sk</td>
+                            <td>4</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="quilt-cowl" data-weight="1.9" data-price="28" data-coverage="Sk Nk" data-material="quilt" onchange="updateTotals()">
+                            </td>
+                            <td>cowl</td>
+                            <td>1.9</td>
+                            <td>28</td>
+                            <td>Sk Nk</td>
+                            <td>8</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="quilt-coif" data-weight="2.2" data-price="32" data-coverage="Sk Ear Jaw Nk" data-material="quilt" onchange="updateTotals()">
+                            </td>
+                            <td>coif</td>
+                            <td>2.2</td>
+                            <td>32</td>
+                            <td>Sk Ear Jaw Nk</td>
+                            <td>9</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="quilt-tunic" data-weight="13.0" data-price="189" data-coverage="Ua Sh Tx Ab Hp Gr" data-material="quilt" onchange="updateTotals()">
+                            </td>
+                            <td>tunic</td>
+                            <td>13.0</td>
+                            <td>189</td>
+                            <td>Ua Sh Tx Ab Hp Gr</td>
+                            <td>54</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="quilt-tunic,-long" data-weight="14.9" data-price="217" data-coverage="Ua Sh Tx Ab Hp Gr Th" data-material="quilt" onchange="updateTotals()">
+                            </td>
+                            <td>tunic, long</td>
+                            <td>14.9</td>
+                            <td>217</td>
+                            <td>Ua Sh Tx Ab Hp Gr Th</td>
+                            <td>62</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="quilt-gambeson" data-weight="17.3" data-price="252" data-coverage="Fo El Ua Sh Tx Ab Hp Gr Th" data-material="quilt" onchange="updateTotals()">
+                            </td>
+                            <td>gambeson</td>
+                            <td>17.3</td>
+                            <td>252</td>
+                            <td>Fo El Ua Sh Tx Ab Hp Gr Th</td>
+                            <td>72</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="quilt-leggings" data-weight="7.2" data-price="105" data-coverage="Hp Gr Th Kn Ca Ft" data-material="quilt" onchange="updateTotals()">
+                            </td>
+                            <td>leggings</td>
+                            <td>7.2</td>
+                            <td>105</td>
+                            <td>Hp Gr Th Kn Ca Ft</td>
+                            <td>30</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="armor-section">
+                <h2>Leather</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="checkbox-col">Select</th>
+                            <th>Item</th>
+                            <th>Weight</th>
+                            <th>Price</th>
+                            <th>Coverage</th>
+                            <th>%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="leather-cap" data-weight="0.6" data-price="14" data-coverage="Sk" data-material="leather" onchange="updateTotals()">
+                            </td>
+                            <td>cap</td>
+                            <td>0.6</td>
+                            <td>14</td>
+                            <td>Sk</td>
+                            <td>4</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="leather-cowl" data-weight="1.3" data-price="28" data-coverage="Sk Nk" data-material="leather" onchange="updateTotals()">
+                            </td>
+                            <td>cowl</td>
+                            <td>1.3</td>
+                            <td>28</td>
+                            <td>Sk Nk</td>
+                            <td>8</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="leather-coif" data-weight="1.4" data-price="32" data-coverage="Sk Ear Jaw Nk" data-material="leather" onchange="updateTotals()">
+                            </td>
+                            <td>coif</td>
+                            <td>1.4</td>
+                            <td>32</td>
+                            <td>Sk Ear Jaw Nk</td>
+                            <td>9</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="leather-vest" data-weight="6.1" data-price="133" data-coverage="Sh Tx Ab" data-material="leather" onchange="updateTotals()">
+                            </td>
+                            <td>vest</td>
+                            <td>6.1</td>
+                            <td>133</td>
+                            <td>Sh Tx Ab</td>
+                            <td>38</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="leather-tunic" data-weight="8.6" data-price="189" data-coverage="Ua Sh Tx Ab Hp Gr" data-material="leather" onchange="updateTotals()">
+                            </td>
+                            <td>tunic</td>
+                            <td>8.6</td>
+                            <td>189</td>
+                            <td>Ua Sh Tx Ab Hp Gr</td>
+                            <td>54</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="leather-tunic,-long" data-weight="9.9" data-price="217" data-coverage="Ua Sh Tx Ab Hp Gr Th" data-material="leather" onchange="updateTotals()">
+                            </td>
+                            <td>tunic, long</td>
+                            <td>9.9</td>
+                            <td>217</td>
+                            <td>Ua Sh Tx Ab Hp Gr Th</td>
+                            <td>62</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="leather-surcoat" data-weight="9.0" data-price="196" data-coverage="Sh Tx Ab Hp Gr Th" data-material="leather" onchange="updateTotals()">
+                            </td>
+                            <td>surcoat</td>
+                            <td>9.0</td>
+                            <td>196</td>
+                            <td>Sh Tx Ab Hp Gr Th</td>
+                            <td>56</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="leather-surcoat,-long" data-weight="9.3" data-price="203" data-coverage="Sh Tx Ab Hp Gr Th Kn" data-material="leather" onchange="updateTotals()">
+                            </td>
+                            <td>surcoat, long</td>
+                            <td>9.3</td>
+                            <td>203</td>
+                            <td>Sh Tx Ab Hp Gr Th Kn</td>
+                            <td>58</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="leather-leggings" data-weight="4.8" data-price="105" data-coverage="Hp Gr Th Kn Ca Ft" data-material="leather" onchange="updateTotals()">
+                            </td>
+                            <td>leggings</td>
+                            <td>4.8</td>
+                            <td>105</td>
+                            <td>Hp Gr Th Kn Ca Ft</td>
+                            <td>30</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="leather-gauntlets" data-weight="0.6" data-price="14" data-coverage="Ha" data-material="leather" onchange="updateTotals()">
+                            </td>
+                            <td>gauntlets</td>
+                            <td>0.6</td>
+                            <td>14</td>
+                            <td>Ha</td>
+                            <td>4</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="leather-shoes" data-weight="0.6" data-price="14" data-coverage="Ft" data-material="leather" onchange="updateTotals()">
+                            </td>
+                            <td>shoes</td>
+                            <td>0.6</td>
+                            <td>14</td>
+                            <td>Ft</td>
+                            <td>4</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="leather-calf-boots" data-weight="1.6" data-price="35" data-coverage="Ca Ft" data-material="leather" onchange="updateTotals()">
+                            </td>
+                            <td>calf boots</td>
+                            <td>1.6</td>
+                            <td>35</td>
+                            <td>Ca Ft</td>
+                            <td>10</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="leather-knee-boots" data-weight="1.9" data-price="42" data-coverage="Kn Ca Ft" data-material="leather" onchange="updateTotals()">
+                            </td>
+                            <td>knee boots</td>
+                            <td>1.9</td>
+                            <td>42</td>
+                            <td>Kn Ca Ft</td>
+                            <td>12</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="armor-section">
+                <h2>Kurbul</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="checkbox-col">Select</th>
+                            <th>Item</th>
+                            <th>Weight</th>
+                            <th>Price</th>
+                            <th>Coverage</th>
+                            <th>%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="kurbul-half-helm" data-weight="1.0" data-price="16" data-coverage="Sk" data-material="kurbul" onchange="updateTotals()">
+                            </td>
+                            <td>half helm</td>
+                            <td>1.0</td>
+                            <td>16</td>
+                            <td>Sk</td>
+                            <td>4</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="kurbul-breastplate" data-weight="3.8" data-price="60" data-coverage="front Tx Ab" data-material="kurbul" onchange="updateTotals()">
+                            </td>
+                            <td>breastplate</td>
+                            <td>3.8</td>
+                            <td>60</td>
+                            <td>front Tx Ab</td>
+                            <td>15</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="kurbul-backplate" data-weight="3.8" data-price="60" data-coverage="rear Tx Ab" data-material="kurbul" onchange="updateTotals()">
+                            </td>
+                            <td>backplate</td>
+                            <td>3.8</td>
+                            <td>60</td>
+                            <td>rear Tx Ab</td>
+                            <td>15</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="kurbul-ailettes" data-weight="2.0" data-price="32" data-coverage="Sh" data-material="kurbul" onchange="updateTotals()">
+                            </td>
+                            <td>ailettes</td>
+                            <td>2.0</td>
+                            <td>32</td>
+                            <td>Sh</td>
+                            <td>8</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="kurbul-rerebraces" data-weight="1.5" data-price="24" data-coverage="Ua" data-material="kurbul" onchange="updateTotals()">
+                            </td>
+                            <td>rerebraces</td>
+                            <td>1.5</td>
+                            <td>24</td>
+                            <td>Ua</td>
+                            <td>6</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="kurbul-coudes" data-weight="1.0" data-price="16" data-coverage="El" data-material="kurbul" onchange="updateTotals()">
+                            </td>
+                            <td>coudes</td>
+                            <td>1.0</td>
+                            <td>16</td>
+                            <td>El</td>
+                            <td>4</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="kurbul-vambraces" data-weight="1.5" data-price="24" data-coverage="Fo" data-material="kurbul" onchange="updateTotals()">
+                            </td>
+                            <td>vambraces</td>
+                            <td>1.5</td>
+                            <td>24</td>
+                            <td>Fo</td>
+                            <td>6</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="kurbul-kneecops" data-weight="0.5" data-price="8" data-coverage="Kn" data-material="kurbul" onchange="updateTotals()">
+                            </td>
+                            <td>kneecops</td>
+                            <td>0.5</td>
+                            <td>8</td>
+                            <td>Kn</td>
+                            <td>2</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="kurbul-greaves" data-weight="1.5" data-price="24" data-coverage="Ca" data-material="kurbul" onchange="updateTotals()">
+                            </td>
+                            <td>greaves</td>
+                            <td>1.5</td>
+                            <td>24</td>
+                            <td>Ca</td>
+                            <td>6</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="armor-section">
+                <h2>Ring</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="checkbox-col">Select</th>
+                            <th>Item</th>
+                            <th>Weight</th>
+                            <th>Price</th>
+                            <th>Coverage</th>
+                            <th>%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="ring-half-helm" data-weight="1.3" data-price="24" data-coverage="Sk" data-material="ring" onchange="updateTotals()">
+                            </td>
+                            <td>half helm</td>
+                            <td>1.3</td>
+                            <td>24</td>
+                            <td>Sk</td>
+                            <td>4</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="ring-vest" data-weight="12.2" data-price="228" data-coverage="Sh Tx Ab" data-material="ring" onchange="updateTotals()">
+                            </td>
+                            <td>vest</td>
+                            <td>12.2</td>
+                            <td>228</td>
+                            <td>Sh Tx Ab</td>
+                            <td>38</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="ring-byrnie" data-weight="17.3" data-price="324" data-coverage="Ua Sh Tx Ab Hp Gr" data-material="ring" onchange="updateTotals()">
+                            </td>
+                            <td>byrnie</td>
+                            <td>17.3</td>
+                            <td>324</td>
+                            <td>Ua Sh Tx Ab Hp Gr</td>
+                            <td>54</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="ring-hauberk,-short" data-weight="19.8" data-price="372" data-coverage="Ua Sh Tx Ab Hp Gr Th" data-material="ring" onchange="updateTotals()">
+                            </td>
+                            <td>hauberk, short</td>
+                            <td>19.8</td>
+                            <td>372</td>
+                            <td>Ua Sh Tx Ab Hp Gr Th</td>
+                            <td>62</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="ring-hauberk" data-weight="23.0" data-price="432" data-coverage="Fo El Ua Sh Tx Ab Hp Gr Th" data-material="ring" onchange="updateTotals()">
+                            </td>
+                            <td>hauberk</td>
+                            <td>23.0</td>
+                            <td>432</td>
+                            <td>Fo El Ua Sh Tx Ab Hp Gr Th</td>
+                            <td>72</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="ring-leggings" data-weight="9.6" data-price="180" data-coverage="Hp Gr Th Kn Ca Ft" data-material="ring" onchange="updateTotals()">
+                            </td>
+                            <td>leggings</td>
+                            <td>9.6</td>
+                            <td>180</td>
+                            <td>Hp Gr Th Kn Ca Ft</td>
+                            <td>30</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="ring-gauntlets" data-weight="1.3" data-price="24" data-coverage="Ha" data-material="ring" onchange="updateTotals()">
+                            </td>
+                            <td>gauntlets</td>
+                            <td>1.3</td>
+                            <td>24</td>
+                            <td>Ha</td>
+                            <td>4</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="armor-section">
+                <h2>Mail</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="checkbox-col">Select</th>
+                            <th>Item</th>
+                            <th>Weight</th>
+                            <th>Price</th>
+                            <th>Coverage</th>
+                            <th>%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="mail-cowl" data-weight="3.6" data-price="104" data-coverage="Sk Nk" data-material="mail" onchange="updateTotals()">
+                            </td>
+                            <td>cowl</td>
+                            <td>3.6</td>
+                            <td>104</td>
+                            <td>Sk Nk</td>
+                            <td>8</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="mail-byrnie" data-weight="24.3" data-price="702" data-coverage="Ua Sh Tx Ab Hp Gr" data-material="mail" onchange="updateTotals()">
+                            </td>
+                            <td>byrnie</td>
+                            <td>24.3</td>
+                            <td>702</td>
+                            <td>Ua Sh Tx Ab Hp Gr</td>
+                            <td>54</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="mail-hauberk,-short" data-weight="27.9" data-price="806" data-coverage="Ua Sh Tx Ab Hp Gr Th" data-material="mail" onchange="updateTotals()">
+                            </td>
+                            <td>hauberk, short</td>
+                            <td>27.9</td>
+                            <td>806</td>
+                            <td>Ua Sh Tx Ab Hp Gr Th</td>
+                            <td>62</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="mail-hauberk" data-weight="32.4" data-price="936" data-coverage="Fo El Ua Sh Tx Ab Hp Gr Th" data-material="mail" onchange="updateTotals()">
+                            </td>
+                            <td>hauberk</td>
+                            <td>32.4</td>
+                            <td>936</td>
+                            <td>Fo El Ua Sh Tx Ab Hp Gr Th</td>
+                            <td>72</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="mail-leggings" data-weight="13.5" data-price="390" data-coverage="Hp Gr Th Kn Ca Ft" data-material="mail" onchange="updateTotals()">
+                            </td>
+                            <td>leggings</td>
+                            <td>13.5</td>
+                            <td>390</td>
+                            <td>Hp Gr Th Kn Ca Ft</td>
+                            <td>30</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="mail-mittens" data-weight="1.8" data-price="52" data-coverage="Ha" data-material="mail" onchange="updateTotals()">
+                            </td>
+                            <td>mittens</td>
+                            <td>1.8</td>
+                            <td>52</td>
+                            <td>Ha</td>
+                            <td>4</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="armor-section">
+                <h2>Scale</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="checkbox-col">Select</th>
+                            <th>Item</th>
+                            <th>Weight</th>
+                            <th>Price</th>
+                            <th>Coverage</th>
+                            <th>%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="scale-vest" data-weight="22.8" data-price="304" data-coverage="Sh Tx Ab" data-material="scale" onchange="updateTotals()">
+                            </td>
+                            <td>vest</td>
+                            <td>22.8</td>
+                            <td>304</td>
+                            <td>Sh Tx Ab</td>
+                            <td>38</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="scale-byrnie" data-weight="32.4" data-price="432" data-coverage="Ua Sh Tx Ab Hp Gr" data-material="scale" onchange="updateTotals()">
+                            </td>
+                            <td>byrnie</td>
+                            <td>32.4</td>
+                            <td>432</td>
+                            <td>Ua Sh Tx Ab Hp Gr</td>
+                            <td>54</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="scale-hauberk,-short" data-weight="37.2" data-price="496" data-coverage="Ua Sh Tx Ab Hp Gr Th" data-material="scale" onchange="updateTotals()">
+                            </td>
+                            <td>hauberk, short</td>
+                            <td>37.2</td>
+                            <td>496</td>
+                            <td>Ua Sh Tx Ab Hp Gr Th</td>
+                            <td>62</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="scale-hauberk" data-weight="43.2" data-price="576" data-coverage="Fo El Ua Sh Tx Ab Hp Gr Th" data-material="scale" onchange="updateTotals()">
+                            </td>
+                            <td>hauberk</td>
+                            <td>43.2</td>
+                            <td>576</td>
+                            <td>Fo El Ua Sh Tx Ab Hp Gr Th</td>
+                            <td>72</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="armor-section">
+                <h2>Plate</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="checkbox-col">Select</th>
+                            <th>Item</th>
+                            <th>Weight</th>
+                            <th>Price</th>
+                            <th>Coverage</th>
+                            <th>%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="plate-half-helm" data-weight="3.2" data-price="100" data-coverage="Sk" data-material="plate" onchange="updateTotals()">
+                            </td>
+                            <td>half helm</td>
+                            <td>3.2</td>
+                            <td>100</td>
+                            <td>Sk</td>
+                            <td>4</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="plate-3/4-helm" data-weight="6.4" data-price="200" data-coverage="Sk Fa" data-material="plate" onchange="updateTotals()">
+                            </td>
+                            <td>3/4 helm</td>
+                            <td>6.4</td>
+                            <td>200</td>
+                            <td>Sk Fa</td>
+                            <td>8</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="plate-great-helm" data-weight="9.6" data-price="300" data-coverage="Sk Fa Nk" data-material="plate" onchange="updateTotals()">
+                            </td>
+                            <td>great helm</td>
+                            <td>9.6</td>
+                            <td>300</td>
+                            <td>Sk Fa Nk</td>
+                            <td>12</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="plate-breastplate" data-weight="12.0" data-price="375" data-coverage="front Tx Ab" data-material="plate" onchange="updateTotals()">
+                            </td>
+                            <td>breastplate</td>
+                            <td>12.0</td>
+                            <td>375</td>
+                            <td>front Tx Ab</td>
+                            <td>15</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="plate-backplate" data-weight="12.0" data-price="375" data-coverage="rear Tx Ab" data-material="plate" onchange="updateTotals()">
+                            </td>
+                            <td>backplate</td>
+                            <td>12.0</td>
+                            <td>375</td>
+                            <td>rear Tx Ab</td>
+                            <td>15</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="plate-ailettes" data-weight="6.4" data-price="200" data-coverage="Sh" data-material="plate" onchange="updateTotals()">
+                            </td>
+                            <td>ailettes</td>
+                            <td>6.4</td>
+                            <td>200</td>
+                            <td>Sh</td>
+                            <td>8</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="plate-rerebraces" data-weight="4.8" data-price="150" data-coverage="Ua" data-material="plate" onchange="updateTotals()">
+                            </td>
+                            <td>rerebraces</td>
+                            <td>4.8</td>
+                            <td>150</td>
+                            <td>Ua</td>
+                            <td>6</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="plate-coudes" data-weight="3.2" data-price="100" data-coverage="El" data-material="plate" onchange="updateTotals()">
+                            </td>
+                            <td>coudes</td>
+                            <td>3.2</td>
+                            <td>100</td>
+                            <td>El</td>
+                            <td>4</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="plate-vambraces" data-weight="4.8" data-price="150" data-coverage="Fo" data-material="plate" onchange="updateTotals()">
+                            </td>
+                            <td>vambraces</td>
+                            <td>4.8</td>
+                            <td>150</td>
+                            <td>Fo</td>
+                            <td>6</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="plate-kneecops" data-weight="1.6" data-price="50" data-coverage="Kn" data-material="plate" onchange="updateTotals()">
+                            </td>
+                            <td>kneecops</td>
+                            <td>1.6</td>
+                            <td>50</td>
+                            <td>Kn</td>
+                            <td>2</td>
+                        </tr>
+                        <tr>
+                            <td class="checkbox-col">
+                                <input type="checkbox" id="plate-greaves" data-weight="4.8" data-price="150" data-coverage="Ca" data-material="plate" onchange="updateTotals()">
+                            </td>
+                            <td>greaves</td>
+                            <td>4.8</td>
+                            <td>150</td>
+                            <td>Ca</td>
+                            <td>6</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="sticky-panel">
+            <div class="totals">
+                <h3>Totals</h3>
+                <div class="total-row">
+                    <span class="total-label">Total Weight:</span>
+                    <span class="total-value" id="total-weight">0.0</span>
+                </div>
+                <div class="total-row">
+                    <span class="total-label">Total Price:</span>
+                    <span class="total-value" id="total-price">0</span>
+                </div>
+            </div>
+
+            <div class="protection-table">
+                <h3>Protection Values</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Location</th>
+                            <th>B</th>
+                            <th>E</th>
+                            <th>P</th>
+                            <th>F</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td class="location-label">Sk (Skull)</td><td id="Sk-B">0</td><td id="Sk-E">0</td><td id="Sk-P">0</td><td id="Sk-F">0</td></tr>
+                        <tr><td class="location-label">Fa (Face)</td><td id="Fa-B">0</td><td id="Fa-E">0</td><td id="Fa-P">0</td><td id="Fa-F">0</td></tr>
+                        <tr id="Jaw-row" class="front-rear-row" style="display: none;"><td class="location-label">→ Jaw</td><td id="Jaw-B">0</td><td id="Jaw-E">0</td><td id="Jaw-P">0</td><td id="Jaw-F">0</td></tr>
+                        <tr id="Eye-row" class="front-rear-row" style="display: none;"><td class="location-label">→ Eye</td><td id="Eye-B">0</td><td id="Eye-E">0</td><td id="Eye-P">0</td><td id="Eye-F">0</td></tr>
+                        <tr id="Cheek-row" class="front-rear-row" style="display: none;"><td class="location-label">→ Cheek</td><td id="Cheek-B">0</td><td id="Cheek-E">0</td><td id="Cheek-P">0</td><td id="Cheek-F">0</td></tr>
+                        <tr id="Nose-row" class="front-rear-row" style="display: none;"><td class="location-label">→ Nose</td><td id="Nose-B">0</td><td id="Nose-E">0</td><td id="Nose-P">0</td><td id="Nose-F">0</td></tr>
+                        <tr id="Ear-row" class="front-rear-row" style="display: none;"><td class="location-label">→ Ear</td><td id="Ear-B">0</td><td id="Ear-E">0</td><td id="Ear-P">0</td><td id="Ear-F">0</td></tr>
+                        <tr id="Mouth-row" class="front-rear-row" style="display: none;"><td class="location-label">→ Mouth</td><td id="Mouth-B">0</td><td id="Mouth-E">0</td><td id="Mouth-P">0</td><td id="Mouth-F">0</td></tr>
+                        <tr><td class="location-label">Nk (Neck)</td><td id="Nk-B">0</td><td id="Nk-E">0</td><td id="Nk-P">0</td><td id="Nk-F">0</td></tr>
+                        <tr><td class="location-label">Sh (Shoulder)</td><td id="Sh-B">0</td><td id="Sh-E">0</td><td id="Sh-P">0</td><td id="Sh-F">0</td></tr>
+                        <tr><td class="location-label">Ua (Upper Arm)</td><td id="Ua-B">0</td><td id="Ua-E">0</td><td id="Ua-P">0</td><td id="Ua-F">0</td></tr>
+                        <tr><td class="location-label">El (Elbow)</td><td id="El-B">0</td><td id="El-E">0</td><td id="El-P">0</td><td id="El-F">0</td></tr>
+                        <tr><td class="location-label">Fo (Forearm)</td><td id="Fo-B">0</td><td id="Fo-E">0</td><td id="Fo-P">0</td><td id="Fo-F">0</td></tr>
+                        <tr><td class="location-label">Ha (Hand)</td><td id="Ha-B">0</td><td id="Ha-E">0</td><td id="Ha-P">0</td><td id="Ha-F">0</td></tr>
+                        <tr><td class="location-label">Tx (Thorax)</td><td id="Tx-B">0</td><td id="Tx-E">0</td><td id="Tx-P">0</td><td id="Tx-F">0</td></tr>
+                        <tr id="Tx-front-row" class="front-rear-row" style="display: none;"><td class="location-label">→ front</td><td id="Tx-front-B">0</td><td id="Tx-front-E">0</td><td id="Tx-front-P">0</td><td id="Tx-front-F">0</td></tr>
+                        <tr id="Tx-rear-row" class="front-rear-row" style="display: none;"><td class="location-label">→ rear</td><td id="Tx-rear-B">0</td><td id="Tx-rear-E">0</td><td id="Tx-rear-P">0</td><td id="Tx-rear-F">0</td></tr>
+                        <tr><td class="location-label">Ab (Abdomen)</td><td id="Ab-B">0</td><td id="Ab-E">0</td><td id="Ab-P">0</td><td id="Ab-F">0</td></tr>
+                        <tr id="Ab-front-row" class="front-rear-row" style="display: none;"><td class="location-label">→ front</td><td id="Ab-front-B">0</td><td id="Ab-front-E">0</td><td id="Ab-front-P">0</td><td id="Ab-front-F">0</td></tr>
+                        <tr id="Ab-rear-row" class="front-rear-row" style="display: none;"><td class="location-label">→ rear</td><td id="Ab-rear-B">0</td><td id="Ab-rear-E">0</td><td id="Ab-rear-P">0</td><td id="Ab-rear-F">0</td></tr>
+                        <tr><td class="location-label">Hp (Hip)</td><td id="Hp-B">0</td><td id="Hp-E">0</td><td id="Hp-P">0</td><td id="Hp-F">0</td></tr>
+                        <tr><td class="location-label">Gr (Groin)</td><td id="Gr-B">0</td><td id="Gr-E">0</td><td id="Gr-P">0</td><td id="Gr-F">0</td></tr>
+                        <tr><td class="location-label">Th (Thigh)</td><td id="Th-B">0</td><td id="Th-E">0</td><td id="Th-P">0</td><td id="Th-F">0</td></tr>
+                        <tr><td class="location-label">Kn (Knee)</td><td id="Kn-B">0</td><td id="Kn-E">0</td><td id="Kn-P">0</td><td id="Kn-F">0</td></tr>
+                        <tr><td class="location-label">Ca (Calf)</td><td id="Ca-B">0</td><td id="Ca-E">0</td><td id="Ca-P">0</td><td id="Ca-F">0</td></tr>
+                        <tr><td class="location-label">Ft (Foot)</td><td id="Ft-B">0</td><td id="Ft-E">0</td><td id="Ft-P">0</td><td id="Ft-F">0</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const protection = {
+            linen: { B: 1, E: 1, P: 1, F: 1 },
+            russet: { B: 1, E: 1, P: 1, F: 1 },
+            wool: { B: 1, E: 1, P: 1, F: 1 },
+            worsted: { B: 1, E: 1, P: 1, F: 1 },
+            silk: { B: 1, E: 1, P: 1, F: 1 },
+            quilt: { B: 5, E: 3, P: 2, F: 4 },
+            leather: { B: 2, E: 4, P: 3, F: 3 },
+            kurbul: { B: 4, E: 5, P: 4, F: 3 },
+            ring: { B: 3, E: 6, P: 4, F: 3 },
+            mail: { B: 2, E: 8, P: 5, F: 1 },
+            scale: { B: 5, E: 9, P: 4, F: 5 },
+            plate: { B: 6, E: 10, P: 6, F: 2 }
+        };
+
+        const locations = ['Sk', 'Fa', 'Nk', 'Sh', 'Ua', 'El', 'Fo', 'Ha', 'Tx', 'Ab', 'Hp', 'Gr', 'Th', 'Kn', 'Ca', 'Ft'];
+        const faceSubLocations = ['Jaw', 'Eye', 'Cheek', 'Nose', 'Ear', 'Mouth'];
+
+        function updateTotals() {
+            let totalWeight = 0;
+            let totalPrice = 0;
+
+            const locationMaterials = {};
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+
+            checkboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    totalWeight += parseFloat(checkbox.dataset.weight);
+                    totalPrice += parseInt(checkbox.dataset.price);
+
+                    const coverage = checkbox.dataset.coverage;
+                    const material = checkbox.dataset.material;
+                    let side = null;
+
+                    coverage.split(' ').forEach(item => {
+                        if (item === 'front' || item === 'rear') {
+                            side = item;
+                        }
+                        if (locations.includes(item) || faceSubLocations.includes(item)) {
+                            if (!locationMaterials[item]) {
+                                locationMaterials[item] = { front: [], rear: [], general: [] };
+                            }
+
+                            if (side) {
+                                locationMaterials[item][side].push(material);
+                            } else {
+                                locationMaterials[item].general.push(material);
+                            }
+                        }
+                    });
+                }
+            });
+
+            // Combine front+rear coverage of same materials into general coverage
+            Object.keys(locationMaterials).forEach(location => {
+                const materials = locationMaterials[location];
+
+                // Check if one is a subset of the other
+                const frontSet = new Set(materials.front);
+                const rearSet = new Set(materials.rear);
+
+                // Check if rear is subset of front
+                if (materials.rear.every(material => frontSet.has(material))) {
+                    // Rear is subset of front
+                    // Move common materials to general
+                    materials.general = materials.general.concat(materials.rear);
+                    // Keep only non-common materials in front
+                    materials.front = materials.front.filter(material => !rearSet.has(material));
+                    materials.rear = [];
+                }
+                // Check if front is subset of rear
+                else if (materials.front.every(material => rearSet.has(material))) {
+                    // Front is subset of rear
+                    // Move common materials to general
+                    materials.general = materials.general.concat(materials.front);
+                    // Keep only non-common materials in rear
+                    materials.rear = materials.rear.filter(material => !frontSet.has(material));
+                    materials.front = [];
+                }
+            });
+
+            // Initialize totalProtection
+            const totalProtection = {};
+
+            // Helper function to initialize protection values
+            const initProtection = () => ({ B: 0, E: 0, P: 0, F: 0 });
+
+            // Helper function to sum protection from materials
+            const sumProtection = (location, materials) => {
+                if (!totalProtection[location]) {
+                    totalProtection[location] = initProtection();
+                }
+
+                materials.forEach(material => {
+                    totalProtection[location].B += protection[material].B;
+                    totalProtection[location].E += protection[material].E;
+                    totalProtection[location].P += protection[material].P;
+                    totalProtection[location].F += protection[material].F;
+                });
+            };
+
+            locations.forEach(location => {
+                if (!locationMaterials[location]) {
+                    locationMaterials[location] = { front: [], rear: [], general: [] };
+                }
+
+                const materials = locationMaterials[location];
+
+                sumProtection(location, materials.general);
+
+                if (materials.front.length > 0) {
+                    const frontLocation = location + '-front';
+
+                    sumProtection(frontLocation, materials.general);
+                    sumProtection(frontLocation, materials.front);
+                }
+
+                if (materials.rear.length > 0) {
+                    const rearLocation = location + '-rear';
+
+                    sumProtection(rearLocation, materials.general);
+                    sumProtection(rearLocation, materials.rear);
+                }
+            });
+
+            faceSubLocations.forEach(location => {
+                if (locationMaterials[location]) {
+                    const materials = locationMaterials[location];
+
+                    sumProtection(location, locationMaterials['Fa'].general);
+                    sumProtection(location, materials.general);
+                }
+            });
+
+            // Update display
+            document.getElementById('total-weight').textContent = totalWeight.toFixed(1);
+            document.getElementById('total-price').textContent = totalPrice;
+
+            // Update protection table for main locations
+            locations.forEach(location => {
+                document.getElementById(location + '-B').textContent = totalProtection[location].B;
+                document.getElementById(location + '-E').textContent = totalProtection[location].E;
+                document.getElementById(location + '-P').textContent = totalProtection[location].P;
+                document.getElementById(location + '-F').textContent = totalProtection[location].F;
+
+                // Check for front/rear specific protection
+                const frontLocation = location + '-front';
+                const rearLocation = location + '-rear';
+
+                if (totalProtection[frontLocation]) {
+                    document.getElementById(frontLocation + '-B').textContent = totalProtection[frontLocation].B;
+                    document.getElementById(frontLocation + '-E').textContent = totalProtection[frontLocation].E;
+                    document.getElementById(frontLocation + '-P').textContent = totalProtection[frontLocation].P;
+                    document.getElementById(frontLocation + '-F').textContent = totalProtection[frontLocation].F;
+
+                    // Make the front row visible
+                    const frontRow = document.getElementById(frontLocation + '-row');
+
+                    if (frontRow) {
+                        frontRow.style.display = '';
+                    }
+                } else {
+                    // Hide the front row if no front-specific protection
+                    const frontRow = document.getElementById(frontLocation + '-row');
+
+                    if (frontRow) {
+                        frontRow.style.display = 'none';
+                    }
+                }
+
+                if (totalProtection[rearLocation]) {
+                    document.getElementById(rearLocation + '-B').textContent = totalProtection[rearLocation].B;
+                    document.getElementById(rearLocation + '-E').textContent = totalProtection[rearLocation].E;
+                    document.getElementById(rearLocation + '-P').textContent = totalProtection[rearLocation].P;
+                    document.getElementById(rearLocation + '-F').textContent = totalProtection[rearLocation].F;
+
+                    // Make the rear row visible
+                    const rearRow = document.getElementById(rearLocation + '-row');
+
+                    if (rearRow) {
+                        rearRow.style.display = '';
+                    }
+                } else {
+                    // Hide the rear row if no rear-specific protection
+                    const rearRow = document.getElementById(rearLocation + '-row');
+
+                    if (rearRow) {
+                        rearRow.style.display = 'none';
+                    }
+                }
+            });
+
+            // Show/hide the face parts row and update values if needed
+            faceSubLocations.forEach(location => {
+                if (totalProtection[location]) {
+                    document.getElementById(location + '-B').textContent = totalProtection[location].B;
+                    document.getElementById(location + '-E').textContent = totalProtection[location].E;
+                    document.getElementById(location + '-P').textContent = totalProtection[location].P;
+                    document.getElementById(location + '-F').textContent = totalProtection[location].F;
+
+                    // Make the face part row visible
+                    const facePartRow = document.getElementById(location + '-row');
+
+                    if (facePartRow) {
+                        facePartRow.style.display = '';
+                    }
+                } else {
+                    // Hide the face part row if no protection
+                    const facePartRow = document.getElementById(location + '-row');
+
+                    if (facePartRow) {
+                        facePartRow.style.display = 'none';
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

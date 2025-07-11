@@ -258,6 +258,9 @@ if __name__ == "__main__":
                 coverage //= 2
                 print(f"| breastplate | {weight(material, coverage):.1f} | {price(material, coverage)} | front {' '.join(locations)} | {coverage} |")
                 print(f"| backplate | {weight(material, coverage):.1f} | {price(material, coverage)} | rear {' '.join(locations)} | {coverage} |")
+            elif name == 'coif':
+                coverage += 1
+                print(f"| {name} | {weight(material, coverage):.1f} | {price(material, coverage)} | {' '.join(locations)} | {coverage} |")
             else:
                 print(f"| {name} | {weight(material, coverage):.1f} | {price(material, coverage)} | {' '.join(locations)} | {coverage} |")
 
