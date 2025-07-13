@@ -132,6 +132,7 @@
 | -------------- | ------ | ----- | -------------------------- | --- |
 | cowl           | 3.6    | 104   | Sk Nk                      | 8   |
 | byrnie         | 24.3   | 702   | Ua Sh Tx Ab Hp Gr          | 54  |
+| tabard         | 25.2   | 728   | Sh Tx Ab Hp Gr Th          | 56  |
 | hauberk, short | 27.9   | 806   | Ua Sh Tx Ab Hp Gr Th       | 62  |
 | hauberk        | 32.4   | 936   | Fo El Ua Sh Tx Ab Hp Gr Th | 72  |
 | leggings       | 13.5   | 390   | Hp Gr Th Kn Ca Ft          | 30  |
