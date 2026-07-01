@@ -2,7 +2,7 @@
 
 ## HârnMaster
 
-- [Armour Table](https://linkrope.github.io/rpg/harn-mster/armour-table.html)
+- [Armour Table](https://linkrope.github.io/rpg/harn-master/armour-table.html)
 
 ## Science Fiction
 
