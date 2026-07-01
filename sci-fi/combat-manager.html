@@ -1,0 +1,1869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Combat Manager</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg-deep:    #0d1117;
+  --bg-panel:   #161b22;
+  --bg-card:    #1c2330;
+  --bg-input:   #0d1117;
+  --border:     #2d3748;
+  --border-dim: #1e2633;
+  --cyan:       #00d4ff;
+  --cyan-dim:   rgba(0,212,255,.13);
+  --cyan-glow:  rgba(0,212,255,.25);
+  --amber:      #f0a500;
+  --amber-dim:  rgba(240,165,0,.12);
+  --red:        #f85149;
+  --red-dim:    rgba(248,81,73,.12);
+  --green:      #3fb950;
+  --green-dim:  rgba(63,185,80,.12);
+  --text:       #c9d1d9;
+  --text-dim:   #6e7681;
+  --text-head:  #e6edf3;
+  --armor-torso:#268bd2;
+  --armor-legs: #859900;
+  --armor-arms: #2aa198;
+  --armor-head: #dc322f;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg-deep);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 13px;
+}
+
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    radial-gradient(circle at 15% 40%, rgba(0,212,255,.04) 0%, transparent 55%),
+    radial-gradient(circle at 85% 60%, rgba(240,165,0,.03) 0%, transparent 55%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cpath d='M28 66L0 50V18L28 2l28 16v32L28 66zM28 98L0 82V50l28-16 28 16v32L28 98z' fill='none' stroke='%232d3748' stroke-width='0.4' opacity='0.3'/%3E%3C/svg%3E");
+  background-size: auto, auto, 56px 100px;
+  pointer-events: none; z-index: 0;
+}
+
+.app { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 0 16px 60px; }
+
+/* ── PAGE HEADER ── */
+.page-header {
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px 0 12px;
+  border-bottom: 1px solid var(--border-dim);
+}
+.page-header-title {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 20px; font-weight: 700;
+  color: var(--text-head); letter-spacing: .06em; text-transform: uppercase;
+}
+.page-header-title span { color: var(--cyan); }
+.page-header-sub { font-size: 11px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+.round-badge { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.round-label { font-size: 11px; color: var(--text-dim); letter-spacing: .08em; text-transform: uppercase; }
+.round-num {
+  font-family: 'Rajdhani', sans-serif; font-size: 26px; font-weight: 700;
+  color: var(--cyan); line-height: 1; min-width: 32px; text-align: center;
+}
+.btn-round {
+  background: var(--cyan-dim); border: 1px solid rgba(0,212,255,.3); border-radius: 6px;
+  padding: 6px 14px; font-size: 11px; font-weight: 600; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--cyan); cursor: pointer;
+  font-family: 'Rajdhani', sans-serif; transition: all .2s;
+}
+.btn-round:hover { background: rgba(0,212,255,.22); }
+
+/* ── STICKY ARENA ── */
+.arena-wrap {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--bg-deep); padding: 10px 0 0;
+  border-bottom: 1px solid var(--border-dim);
+}
+.arena-inner {
+  background: rgba(22,27,34,.97);
+  border: 1px solid var(--border); border-radius: 12px;
+  padding: 12px 14px; margin-bottom: 10px;
+  backdrop-filter: blur(8px);
+}
+
+/* attack slots */
+.attack-slots-row {
+  display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+  min-height: 24px; margin-bottom: 8px;
+}
+.slots-label { font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; margin-right: 2px; white-space: nowrap; }
+.attack-slot {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  padding: 2px 7px; border-radius: 4px; white-space: nowrap;
+}
+.attack-slot.done   { border: 1px solid var(--green);    color: var(--green);    background: var(--green-dim); text-decoration: line-through; opacity: .55; }
+.attack-slot.active { border: 1px solid var(--cyan);     color: var(--cyan);     background: var(--cyan-dim); font-weight: 600; }
+.attack-slot.pending{ border: 1px solid var(--border);   color: var(--text-dim); background: transparent; }
+
+/* arena pair */
+.arena-pair {
+  display: grid; grid-template-columns: 1fr 72px 1fr;
+  gap: 8px; align-items: center; margin-bottom: 8px;
+}
+.arena-combatant {
+  background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px;
+  padding: 9px 11px; min-height: 68px; display: flex; flex-direction: column; gap: 5px;
+  transition: border-color .2s, background .2s;
+}
+.arena-combatant.droppable-over { border-color: var(--cyan) !important; background: var(--cyan-dim) !important; }
+.arena-combatant.empty { border-style: dashed; opacity: .5; justify-content: center; align-items: center; cursor: default; }
+.arena-combatant.empty span { font-size: 11px; color: var(--text-dim); text-align: center; }
+.arena-combatant.attacker { border-color: var(--cyan); background: var(--cyan-dim); cursor: pointer; }
+.arena-combatant.attacker:hover { background: rgba(0,212,255,.18); }
+.arena-combatant.target   { border-color: var(--red);  background: var(--red-dim);  cursor: pointer; }
+.arena-combatant.target:hover   { background: rgba(248,81,73,.18); }
+.arena-comb-role { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim); }
+.arena-comb-role.attacker { color: var(--cyan); }
+.arena-comb-role.target   { color: var(--red); }
+.arena-comb-name { font-family: 'Rajdhani', sans-serif; font-size: 15px; font-weight: 600; color: var(--text-head); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hp-bar-track { width: 100%; height: 5px; background: rgba(255,255,255,.07); border-radius: 3px; overflow: hidden; }
+.hp-bar-fill  { height: 100%; border-radius: 3px; transition: width .4s ease, background-color .3s; }
+.hp-bar-label { font-size: 10px; color: var(--text-dim); margin-top: 2px; font-family: 'JetBrains Mono', monospace; }
+
+.arena-vs { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.vs-text { font-family: 'Rajdhani', sans-serif; font-size: 16px; font-weight: 700; color: var(--text-dim); letter-spacing: .1em; }
+.btn-swap-arena {
+  background: none; border: 1px solid var(--border); border-radius: 6px;
+  width: 26px; height: 26px; cursor: pointer; color: var(--text-dim); font-size: 14px;
+  display: flex; align-items: center; justify-content: center; transition: all .2s;
+}
+.btn-swap-arena:hover { border-color: var(--cyan); color: var(--cyan); }
+
+/* attack controls */
+.attack-controls {
+  display: grid; grid-template-columns: 1fr 1fr 80px 80px auto;
+  gap: 7px; align-items: end; margin-bottom: 8px;
+}
+.ctrl-field { display: flex; flex-direction: column; gap: 3px; }
+.ctrl-label { font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; }
+.ctrl-input, .ctrl-select {
+  background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px;
+  padding: 5px 8px; font-size: 12px; color: var(--text);
+  font-family: 'JetBrains Mono', monospace; outline: none; width: 100%;
+  transition: border-color .2s; -moz-appearance: textfield;
+}
+.ctrl-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.ctrl-input:focus, .ctrl-select:focus { border-color: rgba(0,212,255,.4); }
+.ctrl-select {
+  appearance: none; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23555' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 7px center;
+}
+.btn-attack {
+  background: linear-gradient(135deg, #00a8cc 0%, #0077b6 100%);
+  border: none; border-radius: 7px; padding: 6px 18px;
+  font-family: 'Rajdhani', sans-serif; font-size: 14px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase; color: #fff; cursor: pointer;
+  white-space: nowrap; transition: all .2s; box-shadow: 0 3px 10px rgba(0,168,204,.3);
+}
+.btn-attack:hover { background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%); }
+.btn-attack:disabled { opacity: .35; cursor: not-allowed; box-shadow: none; }
+
+/* combat log */
+.combat-log {
+  max-height: 90px; overflow-y: auto;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.7;
+  scrollbar-width: thin; scrollbar-color: rgba(0,212,255,.2) transparent;
+}
+.combat-log::-webkit-scrollbar { width: 3px; }
+.combat-log::-webkit-scrollbar-thumb { background: rgba(0,212,255,.2); border-radius: 2px; }
+.log-entry   { padding: 1px 0; border-bottom: 1px solid rgba(255,255,255,.03); }
+.log-entry:last-child { border-bottom: none; }
+.log-hit     { color: var(--cyan); }
+.log-hit-adv { color: var(--amber); }
+.log-miss    { color: var(--text-dim); }
+.log-round-sep { color: #444; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; padding: 2px 0; }
+.log-dead    { color: var(--red); font-weight: 600; }
+.log-empty   { color: #333; font-style: italic; }
+
+/* ── ROSTER ── */
+.roster-wrap { padding-top: 14px; }
+.roster-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.roster-col-head {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 10px; padding-bottom: 7px; border-bottom: 1px solid var(--border-dim);
+}
+.roster-col-title {
+  font-family: 'Rajdhani', sans-serif; font-size: 14px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase;
+}
+.roster-col-title.pc  { color: var(--cyan); }
+.roster-col-title.adv { color: var(--amber); }
+
+/* combatant card */
+.combatant-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 10px; margin-bottom: 8px; overflow: hidden;
+  transition: border-color .2s;
+}
+.combatant-card.pc-card  { border-left: 2px solid rgba(0,212,255,.25); }
+.combatant-card.adv-card { border-left: 2px solid rgba(240,165,0,.25); }
+.combatant-card.selected-attacker { border-color: var(--cyan) !important; box-shadow: 0 0 0 1px var(--cyan-glow); }
+.combatant-card.selected-target   { border-color: var(--red)  !important; box-shadow: 0 0 0 1px rgba(248,81,73,.25); }
+.combatant-card.dead-card { opacity: .42; filter: grayscale(.6); }
+.combatant-card.drag-source { opacity: .4; }
+
+.card-header {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 10px; cursor: pointer; user-select: none;
+}
+.card-header[draggable="true"] { cursor: grab; }
+.card-portrait {
+  width: 38px; height: 38px; border-radius: 5px;
+  object-fit: cover; background: var(--bg-input); border: 1px solid var(--border); flex-shrink: 0;
+}
+.card-portrait-placeholder {
+  width: 38px; height: 38px; border-radius: 5px;
+  background: var(--bg-input); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; flex-shrink: 0; color: var(--text-dim);
+}
+.card-name-block { flex: 1; min-width: 0; }
+.card-name { font-family: 'Rajdhani', sans-serif; font-size: 15px; font-weight: 600; color: var(--text-head); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-sub  { font-size: 10px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; }
+.card-hp-bar  { margin: 0 10px 1px; }
+.card-hp-track { height: 3px; background: rgba(255,255,255,.06); border-radius: 2px; overflow: hidden; }
+.card-hp-fill  { height: 100%; border-radius: 2px; transition: width .4s ease, background-color .3s; }
+.card-hp-label { font-size: 9px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; margin-bottom: 5px; padding: 0 10px; }
+.card-actions { display: flex; gap: 3px; margin-left: auto; flex-shrink: 0; }
+.card-btn {
+  background: none; border: 1px solid var(--border); border-radius: 5px;
+  width: 25px; height: 25px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--text-dim); font-size: 12px; transition: all .15s;
+  flex-shrink: 0;
+}
+.card-btn:hover        { border-color: rgba(255,255,255,.2); color: var(--text); }
+.card-btn.btn-atk:hover{ border-color: var(--cyan); color: var(--cyan); background: var(--cyan-dim); }
+.card-btn.btn-tgt:hover{ border-color: var(--red);  color: var(--red);  background: var(--red-dim);  }
+.card-btn.btn-cln:hover{ border-color: var(--green); color: var(--green); }
+.card-btn.btn-del:hover{ border-color: var(--red); color: var(--red); }
+.card-btn.is-attacker  { border-color: var(--cyan); color: var(--cyan); background: var(--cyan-dim); }
+.card-btn.is-target    { border-color: var(--red);  color: var(--red);  background: var(--red-dim);  }
+
+/* card body */
+.card-body { display: none; padding: 0 10px 10px; border-top: 1px solid var(--border-dim); }
+.card-body.open { display: block; }
+
+.field-group { margin-top: 9px; }
+.field-group-title {
+  font-size: 9px; color: var(--text-dim); letter-spacing: .1em;
+  text-transform: uppercase; margin-bottom: 5px; padding-bottom: 3px;
+  border-bottom: 1px solid var(--border-dim);
+}
+.field-row { display: flex; gap: 6px; margin-bottom: 5px; align-items: end; }
+.field-row .f { flex: 1; }
+.f label { display: block; font-size: 10px; color: var(--text-dim); letter-spacing: .05em; margin-bottom: 3px; }
+.f input[type=text], .f input[type=number], .f select {
+  width: 100%; background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: 5px; padding: 5px 7px; font-size: 12px; color: var(--text);
+  font-family: 'JetBrains Mono', monospace; outline: none;
+  transition: border-color .2s; -moz-appearance: textfield;
+}
+.f input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+.f input:focus, .f select:focus { border-color: rgba(0,212,255,.4); }
+.f select {
+  appearance: none; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23555' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 7px center;
+}
+
+/* ── ATTACKS PIP ROW (always visible, below HP bar) ── */
+.card-atk-row {
+  display: flex; align-items: center; gap: 5px;
+  padding: 3px 10px 5px; min-height: 18px;
+}
+.card-atk-pips { display: flex; gap: 4px; align-items: center; }
+.card-atk-pip {
+  width: 11px; height: 11px; border-radius: 2px;
+  border: 1px solid var(--border); background: var(--bg-input);
+  cursor: pointer; transition: all .15s; flex-shrink: 0;
+}
+.card-atk-pip.used     { background: var(--cyan);  border-color: var(--cyan); }
+.card-atk-pip.used.adv { background: var(--amber); border-color: var(--amber); }
+.card-atk-none { font-size: 9px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; }
+.card-atk-reset {
+  font-size: 9px; color: var(--text-dim); cursor: pointer;
+  text-decoration: underline; transition: color .15s; margin-left: auto;
+}
+.card-atk-reset:hover { color: var(--cyan); }
+
+/* ── ARENA AMMO ── */
+.arena-ammo {
+  display: flex; align-items: center; gap: 6px;
+}
+.arena-ammo-count {
+  font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700;
+  color: var(--cyan); white-space: nowrap;
+}
+.arena-ammo-count.low   { color: var(--amber); }
+.arena-ammo-count.empty { color: var(--red); }
+.arena-ammo-reload {
+  font-size: 10px; color: var(--text-dim); background: none;
+  border: 1px solid var(--border-dim); border-radius: 4px;
+  padding: 2px 6px; cursor: pointer; font-family: 'JetBrains Mono', monospace;
+  transition: all .15s;
+}
+.arena-ammo-reload:hover { color: var(--cyan); border-color: rgba(0,212,255,.3); }
+
+/* attacks tracker (card body – legacy kept for pip toggle compat) */
+.attacks-tracker { display: flex; align-items: center; gap: 5px; margin-top: 5px; flex-wrap: wrap; }
+.atk-tracker-label { font-size: 10px; color: var(--text-dim); }
+.atk-pip {
+  width: 13px; height: 13px; border-radius: 3px;
+  border: 1px solid var(--border); background: var(--bg-input);
+  cursor: pointer; transition: all .15s; flex-shrink: 0;
+}
+.atk-pip.used     { background: var(--cyan);  border-color: var(--cyan); }
+.atk-pip.used.adv { background: var(--amber); border-color: var(--amber); }
+.atk-tracker-reset { font-size: 10px; color: var(--text-dim); cursor: pointer; margin-left: auto; text-decoration: underline; transition: color .15s; }
+.atk-tracker-reset:hover { color: var(--cyan); }
+
+/* ── ARMOR (silhouette from token viewer) ── */
+.armor-toggle-row {
+  display: flex; align-items: center; gap: 7px; cursor: pointer;
+  padding: 5px 0; user-select: none;
+}
+.armor-toggle-label { font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; }
+.armor-summary-inline { display: flex; gap: 3px; font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+.asv { padding: 1px 5px; border-radius: 3px; font-size: 10px; font-weight: 600; }
+.asv-t { color: var(--armor-torso); background: rgba(38,139,210,.1);  border: 1px solid rgba(38,139,210,.2); }
+.asv-l { color: var(--armor-legs);  background: rgba(133,153,0,.1);   border: 1px solid rgba(133,153,0,.2); }
+.asv-a { color: var(--armor-arms);  background: rgba(42,161,152,.1);  border: 1px solid rgba(42,161,152,.2); }
+.asv-h { color: var(--armor-head);  background: rgba(220,50,47,.1);   border: 1px solid rgba(220,50,47,.2); }
+.armor-chevron { font-size: 9px; color: var(--text-dim); margin-left: auto; transition: transform .2s; }
+.armor-chevron.open { transform: rotate(90deg); }
+
+.armor-editor { display: none; }
+.armor-editor.open { display: block; padding-top: 8px; }
+.armor-collapse-inner {
+  display: grid; grid-template-columns: 130px 1fr; gap: 12px; align-items: start;
+}
+#armorFigure-tmpl { display: none; }
+.a-fig { width: 100%; height: auto; display: block; max-width: 130px; margin: 0 auto; }
+.a-hit-zone {
+  cursor: pointer;
+  fill: var(--zone-color); fill-opacity: .08;
+  stroke: var(--zone-color); stroke-opacity: 0; stroke-width: 2;
+  transition: fill-opacity .15s, stroke-opacity .15s;
+}
+.a-hit-zone:hover { fill-opacity: .22; }
+.a-hit-zone.active { fill-opacity: .38; stroke-opacity: .85; }
+.armor-legend {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 8px;
+  margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--border);
+}
+.a-legend-item {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--text-dim);
+  background: none; border: none; cursor: pointer; padding: 2px;
+}
+.a-legend-item:hover, .a-legend-item.active { color: var(--text-head); }
+.a-legend-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--dot-color, var(--text-dim)); flex: none; }
+.a-legend-val { font-weight: 700; color: var(--text-head); }
+
+.armor-zone-panel { border-left: 3px solid var(--azp-color, var(--border)); padding-left: 12px; transition: border-color .15s; }
+.azp-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.azp-name  { font-family: 'Rajdhani', sans-serif; font-size: 16px; font-weight: 700; color: var(--text-head); letter-spacing: .06em; }
+.azp-total { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 700; color: var(--azp-color, var(--text-head)); min-width: 2ch; }
+.azp-breakdown { font-size: 11px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; }
+.azp-input {
+  width: 64px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 5px;
+  color: var(--text-head); font-family: 'JetBrains Mono', monospace; font-size: 13px;
+  padding: 5px 8px; outline: none; margin-bottom: 8px; display: block;
+  -moz-appearance: textfield;
+}
+.azp-input::-webkit-outer-spin-button, .azp-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.azp-input:focus { border-color: var(--accent2, var(--cyan)); }
+.azp-buttons { display: flex; flex-wrap: wrap; gap: 5px; }
+.azp-mat-btn {
+  font-family: 'Rajdhani', sans-serif; font-weight: 600; font-size: 11px;
+  letter-spacing: .04em; padding: 4px 9px; border-radius: 4px; cursor: pointer;
+  background: transparent; transition: background .15s, color .15s;
+}
+.azp-mat-btn.leather  { border: 1px solid #b58900; color: #b58900; }
+.azp-mat-btn.leather:hover  { background: #b58900; color: var(--bg-deep); }
+.azp-mat-btn.plasteel { border: 1px solid var(--cyan); color: var(--cyan); }
+.azp-mat-btn.plasteel:hover { background: var(--cyan); color: var(--bg-deep); }
+.azp-mat-btn.clear    { border: 1px solid var(--text-dim); color: var(--text-dim); }
+.azp-mat-btn.clear:hover    { background: var(--text-dim); color: var(--bg-deep); }
+.azp-pct-note { font-size: 9px; color: var(--text-dim); margin-top: 8px; }
+
+/* add/upload buttons at bottom */
+.roster-add-row { display: flex; gap: 8px; margin-top: 6px; }
+.btn-add, .btn-upload {
+  flex: 1; background: none; border: 1px dashed var(--border); border-radius: 7px;
+  padding: 7px 10px; cursor: pointer; font-size: 11px; color: var(--text-dim);
+  font-family: 'Inter', sans-serif; transition: all .2s;
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+}
+.btn-add:hover,    .btn-upload:hover    { color: var(--cyan); border-color: rgba(0,212,255,.3); }
+.btn-add.adv:hover,.btn-upload.adv:hover{ color: var(--amber);border-color: rgba(240,165,0,.3); }
+
+.roster-empty { border: 1px dashed var(--border-dim); border-radius: 8px; padding: 20px; text-align: center; color: var(--text-dim); font-size: 12px; margin-bottom: 8px; }
+
+/* ── AMMO COUNTER ── */
+.ammo-row {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 5px 0 2px;
+}
+.ammo-label { font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; }
+.ammo-reload-btn {
+  font-size: 10px; color: var(--text-dim); background: none;
+  border: 1px solid var(--border-dim); border-radius: 4px;
+  padding: 2px 7px; cursor: pointer; font-family: 'JetBrains Mono', monospace;
+  transition: all .15s; width: fit-content;
+}
+.ammo-reload-btn:hover { color: var(--cyan); border-color: rgba(0,212,255,.3); }
+.aim-toggle-row {
+  display: flex; align-items: center; gap: 7px; cursor: pointer;
+  padding: 6px 0 4px; border-top: 1px solid var(--border-dim);
+  user-select: none;
+}
+.aim-toggle-label { font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; }
+.aim-summary-inline { display: flex; align-items: center; gap: 6px; }
+.aim-chevron { font-size: 9px; color: var(--text-dim); margin-left: auto; transition: transform .2s; }
+.aim-chevron.open { transform: rotate(90deg); }
+
+.aim-editor { display: none; padding-bottom: 6px; }
+.aim-editor.open { display: block; }
+
+.aim-collapse-inner {
+  display: grid; grid-template-columns: 130px 1fr; gap: 12px; align-items: start;
+}
+.aim-fig-wrap { width: 100%; }
+.aim-fig {
+  width: 100%; height: auto; display: block; max-width: 130px; margin: 0 auto;
+}
+.aim-zone {
+  cursor: pointer;
+  fill: var(--zone-color); fill-opacity: .08;
+  stroke: var(--zone-color); stroke-width: 2; stroke-opacity: 0;
+  transition: fill-opacity .15s, stroke-opacity .15s;
+}
+.aim-zone.selected { fill-opacity: .38; stroke-opacity: .85; }
+.aim-zone:hover    { fill-opacity: .22; }
+.aim-info {
+  display: flex; flex-direction: column; gap: 7px; min-width: 0;
+}
+.aim-zone-toggles {
+  display: flex; flex-wrap: wrap; gap: 4px;
+}
+.aim-zone-btn {
+  display: flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border-radius: 4px; cursor: pointer;
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text-dim); transition: all .15s; user-select: none;
+}
+.aim-zone-btn.selected { color: var(--text-head); }
+.aim-zone-btn .aim-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.aim-stat-row {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.aim-label { font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+.aim-pct {
+  font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700;
+  color: var(--cyan);
+}
+.aim-penalty {
+  font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600;
+  color: var(--amber); white-space: nowrap;
+}
+.aim-all-btn {
+  font-size: 10px; color: var(--text-dim); background: none;
+  border: 1px solid var(--border-dim); border-radius: 4px;
+  padding: 2px 7px; cursor: pointer; font-family: 'JetBrains Mono', monospace;
+  transition: all .15s; width: fit-content;
+}
+.aim-all-btn:hover { color: var(--cyan); border-color: rgba(0,212,255,.3); }
+
+/* drop target highlight */
+.drop-target-active { border: 2px dashed var(--cyan) !important; }
+
+/* toast */
+.toast {
+  position: fixed; bottom: 22px; left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 9px 16px; font-size: 12px; color: var(--text); z-index: 999;
+  opacity: 0; transition: opacity .25s, transform .25s; pointer-events: none; white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.hit  { border-color: var(--cyan); color: var(--cyan); }
+.toast.miss { border-color: var(--text-dim); }
+.toast.dead { border-color: var(--red); color: var(--red); }
+
+* { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.1) transparent; }
+@media (max-width: 720px) {
+  .roster-grid { grid-template-columns: 1fr; }
+  .attack-controls { grid-template-columns: 1fr 1fr; }
+  .arena-pair { grid-template-columns: 1fr 50px 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+  <svg width="26" height="26" viewBox="0 0 28 28" fill="none">
+    <polygon points="14,2 26,8 26,20 14,26 2,20 2,8" stroke="#00d4ff" stroke-width="1.2" fill="rgba(0,212,255,.06)"/>
+    <line x1="14" y1="7" x2="14" y2="21" stroke="#00d4ff" stroke-width="1.2"/>
+    <line x1="7" y1="10.5" x2="21" y2="17.5" stroke="#00d4ff" stroke-width="1.2"/>
+    <line x1="21" y1="10.5" x2="7" y2="17.5" stroke="#00d4ff" stroke-width="1.2"/>
+  </svg>
+  <div>
+    <div class="page-header-title">COMBAT <span>MANAGER</span></div>
+    <div class="page-header-sub">Dark Matter · TTRPG Session Tool</div>
+  </div>
+  <div class="round-badge">
+    <span class="round-label">ROUND</span>
+    <span class="round-num" id="roundNum">1</span>
+    <button class="btn-round" onclick="nextRound()">Next Round ›</button>
+    <button class="btn-round" style="background:none;border-color:rgba(255,255,255,.12);color:var(--text-dim)" onclick="resetRound()" title="Reset round counter to 1">↺ Reset</button>
+  </div>
+</div>
+
+<!-- STICKY ARENA -->
+<div class="arena-wrap">
+  <div class="arena-inner">
+    <div class="attack-slots-row" id="attackSlotsRow">
+      <span class="slots-label">Attacks:</span>
+      <span class="log-empty" style="font-size:11px">Add combatants to begin.</span>
+    </div>
+    <div class="arena-pair">
+      <div class="arena-combatant empty" id="arenaAttacker"
+           ondragover="arenaZoneDragOver(event,'attacker')"
+           ondragleave="arenaZoneDragLeave(event)"
+           ondrop="arenaZoneDrop(event,'attacker')"
+           onclick="clearRole('attacker')">
+        <span>Double-click or drag a combatant<br>to set as attacker</span>
+      </div>
+      <div class="arena-vs">
+        <div class="vs-text">VS</div>
+        <button class="btn-swap-arena" onclick="swapRoles()" title="Swap attacker ↔ target">⇄</button>
+      </div>
+      <div class="arena-combatant empty" id="arenaTarget"
+           ondragover="arenaZoneDragOver(event,'target')"
+           ondragleave="arenaZoneDragLeave(event)"
+           ondrop="arenaZoneDrop(event,'target')"
+           onclick="clearRole('target')">
+        <span>Double-click or drag a combatant<br>to set as target</span>
+      </div>
+    </div>
+    <!-- AIM ZONE SELECTOR -->
+    <div class="aim-toggle-row" onclick="toggleAimPanel()">
+      <span class="aim-toggle-label">Aim</span>
+      <div class="aim-summary-inline" id="aimSummary">
+        <span class="aim-pct" id="aimPctHeader" style="font-size:11px">100%</span>
+      </div>
+      <span class="aim-chevron" id="aimChevron">▶</span>
+    </div>
+    <div class="aim-editor" id="aimEditor">
+      <div class="aim-collapse-inner">
+        <!-- figure -->
+        <div>
+          <svg class="aim-fig" viewBox="0 0 512 640" xmlns="http://www.w3.org/2000/svg" id="aimFig">
+            <ellipse class="aim-zone" data-zone="head"  style="--zone-color:var(--armor-head)"  cx="255.8" cy="68"  rx="82"  ry="66"  onclick="toggleAimZone('head')"></ellipse>
+            <rect    class="aim-zone" data-zone="arms"  style="--zone-color:var(--armor-arms)"  x="28"    y="132" width="458" height="74" rx="16" onclick="toggleAimZone('arms')"></rect>
+            <rect    class="aim-zone" data-zone="torso" style="--zone-color:var(--armor-torso)" x="148"   y="204" width="216" height="108" rx="18" onclick="toggleAimZone('torso')"></rect>
+            <rect    class="aim-zone" data-zone="legs"  style="--zone-color:var(--armor-legs)"  x="148"   y="310" width="216" height="192" rx="20" onclick="toggleAimZone('legs')"></rect>
+            <g style="fill:var(--text-head);pointer-events:none;opacity:.25">
+              <path d="M306.6499023,498.0004883c-16.0053711,0-30.0776367-12.0200195-32.7338867-27.9594727c-0.0092773-0.0537109-0.0175781-0.1074219-0.0258789-0.1616211L255.7749023,348.996582l-18.1147461,120.8828125c-2.4975586,16.2329102-16.6162109,27.9047852-32.6259766,27.90625c-1.6074219,0-3.230957-0.1176758-4.8671875-0.3598633c-17.8789062-2.75-30.21875-19.5668945-27.5625-37.4956055l24.1435547-162.503418l-2.5239258-96.7412109h-86.4067383c-8.362793,0-16.171875-3.3339844-21.9882812-9.387207c-5.7592773-5.9946289-8.8720703-14.1889648-8.5405273-22.4829102c0.6821289-16.3676758,14.7958984-29.6704102,31.4624023-29.6704102h294.9814453c17.0952148,0,31.003418,14.1176758,31.003418,31.4702148c0,0.1386719-0.0029297,0.277832-0.0087891,0.4165039c-0.6811523,16.3510742-14.7949219,29.6538086-31.4614258,29.6538086h-85.9394531l-2.5234375,96.7416992l24.1425781,162.4990234c2.6132812,17.644043-9.1694336,34.1274414-26.4169922,37.309082C310.1523438,498.0004883,307.9545898,498.0004883,306.6499023,498.0004883z"></path>
+              <path d="M255.7749023,125.480957c-30.7353516,0-55.7407227-25.0053711-55.7407227-55.7407227s25.0053711-55.7407227,55.7407227-55.7407227s55.7407227,25.0053711,55.7407227,55.7407227S286.5102539,125.480957,255.7749023,125.480957z M255.7749023,33.9995117c-19.7075195,0-35.7407227,16.0332031-35.7407227,35.7407227s16.0332031,35.7407227,35.7407227,35.7407227s35.7407227-16.0332031,35.7407227-35.7407227S275.4824219,33.9995117,255.7749023,33.9995117z"></path>
+            </g>
+          </svg>
+        </div>
+        <!-- controls -->
+        <div class="aim-info">
+          <div class="aim-stat-row">
+            <span class="aim-label">Target area:</span>
+            <span class="aim-pct" id="aimPct">100%</span>
+            <span class="aim-penalty" id="aimPenalty"></span>
+          </div>
+          <div class="aim-zone-toggles" id="aimToggles"></div>
+          <button class="aim-all-btn" onclick="resetAimZones()">reset to all zones</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="attack-controls">
+      <div class="ctrl-field">
+        <span class="ctrl-label">Weapon skill</span>
+        <select class="ctrl-select" id="ctrlSkill" onchange="arenaSkillChanged(this.value)">
+          <option value="">— select attacker first —</option>
+        </select>
+      </div>
+      <div class="ctrl-field">
+        <span class="ctrl-label">Weapon preset</span>
+        <select class="ctrl-select" id="ctrlWeapon" onchange="arenaWeaponChanged(this.value)">
+          <option value="">— select attacker first —</option>
+        </select>
+      </div>
+      <div class="ctrl-field" id="ctrlAmmoWrap" style="display:none">
+        <span class="ctrl-label">Ammo</span>
+        <div class="arena-ammo">
+          <span class="arena-ammo-count" id="ctrlAmmoCnt">—</span>
+          <button class="arena-ammo-reload" id="ctrlAmmoReload" onclick="arenaReload()">↺</button>
+        </div>
+      </div>
+      <div class="ctrl-field">
+        <span class="ctrl-label">Bonus / Penalty</span>
+        <input type="number" class="ctrl-input" id="ctrlBonus" value="0" step="1">
+      </div>
+      <div class="ctrl-field">
+        <span class="ctrl-label">Distance (m)</span>
+        <input type="number" class="ctrl-input" id="ctrlDist" value="0" min="0" step="1">
+      </div>
+      <div class="ctrl-field">
+        <button class="btn-attack" id="btnAttack" onclick="doAttack()" disabled>⚔ Attack</button>
+      </div>
+    </div>
+    <div class="combat-log" id="combatLog">
+      <div class="log-empty">No attacks yet.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ROSTER -->
+<div class="roster-wrap">
+  <div class="roster-grid">
+    <!-- PCs -->
+    <div>
+      <div class="roster-col-head">
+        <div class="roster-col-title pc">⬡ Player Characters</div>
+      </div>
+      <div id="pcRoster">
+        <div class="roster-empty" id="pcEmpty">No PCs added yet.</div>
+      </div>
+      <div class="roster-add-row">
+        <button class="btn-upload" ondragover="uploadDragOver(event)" ondragleave="uploadDragLeave(event)" ondrop="uploadDrop(event,'pc')" onclick="triggerUpload('pc')">⬆ Import .rptok</button>
+        <button class="btn-add"    onclick="addAdHoc('pc')">＋ Add manually</button>
+      </div>
+    </div>
+    <!-- Adversaries -->
+    <div>
+      <div class="roster-col-head">
+        <div class="roster-col-title adv">⬡ Adversaries</div>
+      </div>
+      <div id="advRoster">
+        <div class="roster-empty" id="advEmpty">No adversaries added yet.</div>
+      </div>
+      <div class="roster-add-row">
+        <button class="btn-upload adv" ondragover="uploadDragOver(event)" ondragleave="uploadDragLeave(event)" ondrop="uploadDrop(event,'adv')" onclick="triggerUpload('adv')">⬆ Import .rptok</button>
+        <button class="btn-add adv"   onclick="addAdHoc('adv')">＋ Add manually</button>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<input type="file" id="hiddenFileInput" accept=".rptok" multiple style="display:none">
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+/* ══════════════════════════════════════
+   CONSTANTS
+══════════════════════════════════════ */
+const WEAPON_PRESETS = [
+  { name:'Unarmed',          skill:'Waffenlos',      weight:null,       hand:2, bep:2,  range:null,   rate:'4s',  clip:null,       ammo:null,   nozzle:null },
+  { name:'Dagger',           skill:'Kurzwaffen',     weight:'300g',     hand:1, bep:5,  range:'5m',   rate:'4s',  clip:null,       ammo:null,   nozzle:null },
+  { name:'Sword',            skill:'Langwaffen',     weight:'1.3kg',    hand:1, bep:7,  range:null,   rate:'4s',  clip:null,       ammo:null,   nozzle:null },
+  { name:'Club',             skill:'Langwaffen',     weight:'1.2kg',    hand:1, bep:6,  range:null,   rate:'4s',  clip:null,       ammo:null,   nozzle:null },
+  { name:'Axe',              skill:'Langwaffen',     weight:'1.1kg',    hand:1, bep:6,  range:'5m',   rate:'4s',  clip:null,       ammo:'1kg',   nozzle:'6m/s' },
+  { name:'Bow',              skill:'Bögen',          weight:'1.5kg',    hand:2, bep:8,  range:'20m',  rate:'6s',  clip:20,         ammo:'80g',   nozzle:'100m/s' },
+  { name:'Light Pistol',     skill:'Geschosswaffen', weight:'1kg',      hand:1, bep:6,  range:'20m',  rate:'2s',  clip:20,         ammo:'10g',   nozzle:'600m/s' },
+  { name:'Heavy Pistol',     skill:'Geschosswaffen', weight:'2kg',      hand:1, bep:18, range:'20m',  rate:'3s',  clip:10,         ammo:'20g',   nozzle:'900m/s' },
+  { name:'Light Rifle',      skill:'Geschosswaffen', weight:'4kg',      hand:2, bep:12, range:'40m',  rate:'2s',  clip:30,         ammo:'20g',   nozzle:'600m/s' },
+  { name:'Heavy Rifle',      skill:'Geschosswaffen', weight:'6kg',      hand:2, bep:24, range:'40m',  rate:'4s',  clip:20,         ammo:'40g',   nozzle:'600m/s' },
+  { name:'Machine Gun',      skill:'Montierte',      weight:'25kg',     hand:2, bep:36, range:'40m',  rate:'1s',  clip:120,        ammo:'40g',   nozzle:'900m/s' },
+  { name:'Grenade Launcher', skill:'Tragbare',       weight:'3kg',      hand:2, bep:50, range:'40m',  rate:'12s', clip:1,          ammo:'500g',  nozzle:'100m/s' },
+  { name:'Energy Weapon',    skill:'Energiewaffen',  weight:'2.5/(kWs)', hand:2, bep:'10/(kWs)', range:'50m', rate:'1s', clip:'see below', ammo:'see below', nozzle:'Light' },
+];
+
+const COMBAT_SKILLS = [
+  { group:'Fernkampfwaffen', skills:['Bögen','Geschosswaffen','Energiewaffen'] },
+  { group:'Nahkampfwaffen',  skills:['Waffenlos','Kurzwaffen','Langwaffen'] },
+  { group:'Artillerie',      skills:['Tragbare','Montierte','Eingebettete'] },
+];
+
+const ALL_SKILL_KEYS = new Set([
+  'Bögen','Geschosswaffen','Energiewaffen','Waffenlos','Kurzwaffen','Langwaffen',
+  'Tragbare','Montierte','Eingebettete',
+  'Feinmechanik','Gerätegebrauch','Instrument spielen','Klettern','Rennen','Stärke',
+  'Schleichen','Unverdächtig','Verstecken','Verständnis','Vorhersage','Wissen',
+  'Empathie','Höflichkeit','Redner','Aufmerksamkeit','Beobachten','Initiative',
+  'Computer','Raumfahrt','Fahrzeuge','Chemie','Erste Hilfe','Diagnosen','Therapien',
+  'Elektronik','Gadgets','Ersatzteile','Kleinfahrzeuge','Großfahrzeuge','Raumfahrzeuge',
+  'Bilanz','Energie','Logistik'
+]);
+
+const ARMOR_ZONE_DEFS = [
+  { key:'torso', label:'TORSO', color:'var(--armor-torso)', dotColor:'#268bd2', pct:'40%' },
+  { key:'legs',  label:'LEGS',  color:'var(--armor-legs)',  dotColor:'#859900', pct:'30%' },
+  { key:'arms',  label:'ARMS',  color:'var(--armor-arms)',  dotColor:'#2aa198', pct:'20%' },
+  { key:'head',  label:'HEAD',  color:'var(--armor-head)',  dotColor:'#dc322f', pct:'10%' },
+];
+
+const ARMOR_MATERIALS = {
+  leather:  { label:'Leather',  value:3  },
+  plasteel: { label:'Plasteel', value:12 },
+};
+
+function rateToAttacks(rate) {
+  // 4s round: 1s→4 attacks, 2s→2, 3s or 4s→1, 6s+→0
+  if (!rate) return 1;
+  const s = parseInt(String(rate), 10);
+  if (isNaN(s))   return 1;
+  if (s <= 1)     return 4;
+  if (s === 2)    return 2;
+  if (s <= 4)     return 1;
+  return 0;
+}
+const SILHOUETTE_PATHS = `
+  <ellipse class="a-hit-zone" data-zone="head"  style="--zone-color:var(--armor-head)"  cx="255.8" cy="68"  rx="82"  ry="66"></ellipse>
+  <rect    class="a-hit-zone" data-zone="arms"  style="--zone-color:var(--armor-arms)"  x="28"    y="132" width="458" height="74" rx="16"></rect>
+  <rect    class="a-hit-zone" data-zone="torso" style="--zone-color:var(--armor-torso)" x="148"   y="204" width="216" height="108" rx="18"></rect>
+  <rect    class="a-hit-zone" data-zone="legs"  style="--zone-color:var(--armor-legs)"  x="148"   y="310" width="216" height="192" rx="20"></rect>
+  <g style="fill:var(--text-head);pointer-events:none">
+    <path d="M306.6499023,498.0004883c-16.0053711,0-30.0776367-12.0200195-32.7338867-27.9594727c-0.0092773-0.0537109-0.0175781-0.1074219-0.0258789-0.1616211L255.7749023,348.996582l-18.1147461,120.8828125c-2.4975586,16.2329102-16.6162109,27.9047852-32.6259766,27.90625c-1.6074219,0-3.230957-0.1176758-4.8671875-0.3598633c-17.8789062-2.75-30.21875-19.5668945-27.5625-37.4956055l24.1435547-162.503418l-2.5239258-96.7412109h-86.4067383c-8.362793,0-16.171875-3.3339844-21.9882812-9.387207c-5.7592773-5.9946289-8.8720703-14.1889648-8.5405273-22.4829102c0.6821289-16.3676758,14.7958984-29.6704102,31.4624023-29.6704102h294.9814453c17.0952148,0,31.003418,14.1176758,31.003418,31.4702148c0,0.1386719-0.0029297,0.277832-0.0087891,0.4165039c-0.6811523,16.3510742-14.7949219,29.6538086-31.4614258,29.6538086h-85.9394531l-2.5234375,96.7416992l24.1425781,162.4990234c2.6132812,17.644043-9.1694336,34.1274414-26.4169922,37.309082C310.1523438,498.0004883,307.9545898,498.0004883,306.6499023,498.0004883z"></path>
+    <path d="M255.7749023,125.480957c-30.7353516,0-55.7407227-25.0053711-55.7407227-55.7407227s25.0053711-55.7407227,55.7407227-55.7407227s55.7407227,25.0053711,55.7407227,55.7407227S286.5102539,125.480957,255.7749023,125.480957z M255.7749023,33.9995117c-19.7075195,0-35.7407227,16.0332031-35.7407227,35.7407227s16.0332031,35.7407227,35.7407227,35.7407227s35.7407227-16.0332031,35.7407227-35.7407227S275.4824219,33.9995117,255.7749023,33.9995117z"></path>
+  </g>
+`;
+
+/* ══════════════════════════════════════
+   STATE
+══════════════════════════════════════ */
+let combatants = [];
+let attackerID = null;
+let targetID   = null;
+let roundNum   = 1;
+let logLines   = [];
+let nextID     = 1;
+let pairMemory = {};   // "a:t" → { bonus, dist }
+let pendingSide = null;
+let dragSrcID  = null; // id of card being dragged
+// Aim zone selection: which zones the attacker is targeting
+let aimZones = new Set(['torso','legs','arms','head']);
+
+/* ══════════════════════════════════════
+   COMBATANT MODEL
+══════════════════════════════════════ */
+function makeCombatant(side, opts={}) {
+  const defaultWeapon = WEAPON_PRESETS.find(p=>p.name==='Light Pistol') || WEAPON_PRESETS[0];
+  return {
+    id:              nextID++,
+    side,
+    name:            opts.name    || (side==='pc' ? 'New Character' : 'New Adversary'),
+    portrait:        opts.portrait || null,
+    skills:          opts.skills   || {},
+    activeSkillKey:  opts.activeSkillKey || defaultWeapon.skill || null,
+    weapon: {
+      name:  opts.weaponName  || 'Light Pistol',
+      bep:   opts.weaponBep   ?? defaultWeapon.bep,
+      range: opts.weaponRange ?? (typeof defaultWeapon.range==='number' ? defaultWeapon.range : parseInt(String(defaultWeapon.range).replace(/[^\d]/g,''),10) || 0),
+      skill: opts.weaponSkill ?? defaultWeapon.skill,
+      weight: opts.weaponWeight ?? defaultWeapon.weight,
+      hand: opts.weaponHand ?? defaultWeapon.hand,
+      rate: opts.weaponRate ?? defaultWeapon.rate,
+      clip: opts.weaponClip ?? defaultWeapon.clip,
+      ammo: opts.weaponAmmo ?? defaultWeapon.ammo,
+      nozzle: opts.weaponNozzle ?? defaultWeapon.nozzle,
+    },
+    attacksPerRound: opts.attacksPerRound ?? rateToAttacks(opts.weaponRate ?? defaultWeapon.rate),
+    attacksUsed:     0,
+    ammoLeft:        (()=>{ const cl = opts.weaponClip ?? defaultWeapon.clip; return (cl != null && typeof cl === 'number') ? cl : null; })(),
+    armor: {
+      torso: opts.armorTorso ?? 0,
+      legs:  opts.armorLegs  ?? 0,
+      arms:  opts.armorArms  ?? 0,
+      head:  opts.armorHead  ?? 0,
+      // internal: parts per zone for calculator
+      parts: { torso:[], legs:[], arms:[], head:[] },
+    },
+    armorActiveZone: 'torso',
+    damage:          opts.damage ?? 0,
+    dead:            false,
+    expanded:        opts.expanded ?? false,
+    armorOpen:       false,
+  };
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function countName(base) {
+  const trimmed = String(base || '').trim();
+  if (!trimmed) return 'Clone';
+
+  const root = trimmed.replace(/\s+\d+$/, '').trim();
+  const pattern = new RegExp('^' + escapeRegExp(root) + '(?:\\s+(\\d+))?$');
+  let maxSuffix = 0;
+  let matched = false;
+
+  for (const combatant of combatants) {
+    const name = String(combatant.name || '').trim();
+    const match = name.match(pattern);
+    if (!match) continue;
+    matched = true;
+    const suffix = match[1] ? parseInt(match[1], 10) : 1;
+    if (suffix > maxSuffix) maxSuffix = suffix;
+  }
+
+  if (!matched) return trimmed;
+  return `${root} ${maxSuffix + 1}`;
+}
+
+/* ══════════════════════════════════════
+   RPTOK PARSING
+══════════════════════════════════════ */
+function decodeUtf8(buf) {
+  const dec = new TextDecoder('utf-8', {fatal:false});
+  let t = dec.decode(buf);
+  if (t.charCodeAt(0)===0xFEFF) t=t.slice(1);
+  return t;
+}
+function parseSkillVal(raw) {
+  if (!raw) return null;
+  const m = String(raw).trim().match(/-?\d+(?:[.,]\d+)?/g);
+  if (!m) return null;
+  const v = Number(m[m.length-1].replace(',','.'));
+  return (!isNaN(v) && v>0) ? v : null;
+}
+function decodeArmor(raw) {
+  const r=[0,0,0,0];
+  if (!raw) return r;
+  String(raw).split(',').forEach((p,i)=>{ const n=parseInt(p.trim(),10); if(i<4&&Number.isFinite(n)&&n>=0) r[i]=n; });
+  return r;
+}
+
+async function parseRptok(file, side) {
+  const buf = await file.arrayBuffer();
+  const zip = await JSZip.loadAsync(buf);
+  const xmlEntry = zip.file('content.xml');
+  if (!xmlEntry) throw new Error('No content.xml');
+  const xmlText = decodeUtf8(await xmlEntry.async('arraybuffer'));
+  const doc = new DOMParser().parseFromString(xmlText, 'text/xml');
+  if (doc.querySelector('parsererror')) throw new Error('XML parse error');
+
+  const getText = tag => { const el=doc.querySelector(tag); return el?el.textContent.trim():''; };
+  const name = countName(getText('name') || file.name.replace(/\.rptok$/i,''));
+
+  const skills = {};
+  let armorValue='', weaponName='';
+  doc.querySelectorAll('propertyMapCI > store > entry').forEach(entry => {
+    const kv  = entry.querySelector('net\\.rptools\\.CaseInsensitiveHashMap_-KeyValue');
+    if (!kv) return;
+    const key = kv.querySelector('key')?.textContent?.trim()||'';
+    const val = kv.querySelector('value')?.textContent?.trim()||'';
+    if (ALL_SKILL_KEYS.has(key)) { const v=parseSkillVal(val); if(v!==null) skills[key]=v; }
+    if (key==='Rüstung')     armorValue  = val;
+    if (key==='Schusswaffe') weaponName = val;
+  });
+
+  const healthNode = Array.from(doc.querySelectorAll('state > entry'))
+    .find(e=>e.querySelector('string')?.textContent?.trim()==='Health')
+    ?.querySelector('big-decimal');
+  const health = healthNode ? Number(healthNode.textContent.trim()) : 1;
+  const damage = Math.round((1-Math.min(1,Math.max(0,health)))*20);
+
+  const av = decodeArmor(armorValue);
+
+  let portrait = null;
+  const pngFile = Object.keys(zip.files).find(n=>n.endsWith('.png'));
+  if (pngFile) { const blob=await zip.file(pngFile).async('blob'); portrait=URL.createObjectURL(blob); }
+
+  // First combat skill with a value
+  let activeSkillKey = null;
+  for (const g of COMBAT_SKILLS) for (const sk of g.skills) if (skills[sk]!=null) { activeSkillKey=sk; break; }
+
+  // Match weapon preset
+  let weaponName2='Light Pistol', weaponBep=6, weaponRange=20, weaponSkill='', weaponWeight='', weaponHand='', weaponRate='', weaponClip='', weaponAmmo='', weaponNozzle='';
+  if (weaponName) {
+    const p = WEAPON_PRESETS.find(p => weaponName.toLowerCase().includes(p.name.toLowerCase().split(' ')[0].toLowerCase()));
+    if (p) {
+      weaponName2=p.name;
+      weaponBep=p.bep;
+      weaponRange=typeof p.range==='number' ? p.range : parseInt(String(p.range).replace(/[^\d]/g,''),10) || 0;
+      weaponSkill=p.skill;
+      weaponWeight=p.weight;
+      weaponHand=p.hand;
+      weaponRate=p.rate;
+      weaponClip=p.clip;
+      weaponAmmo=p.ammo;
+      weaponNozzle=p.nozzle;
+      activeSkillKey=p.skill || activeSkillKey;
+    }
+    else   { weaponName2=weaponName; }
+  }
+
+  return makeCombatant(side, {
+    name, portrait, skills, activeSkillKey, damage,
+    weaponName:weaponName2, weaponBep, weaponRange, weaponSkill, weaponWeight, weaponHand, weaponRate, weaponClip, weaponAmmo, weaponNozzle,
+    armorTorso:av[0], armorLegs:av[1], armorArms:av[2], armorHead:av[3],
+    expanded:true,
+  });
+}
+
+/* ══════════════════════════════════════
+   UPLOAD
+══════════════════════════════════════ */
+function triggerUpload(side) {
+  pendingSide = side;
+  const inp = document.getElementById('hiddenFileInput');
+  inp.value='';
+  inp.onchange = () => handleFiles(Array.from(inp.files), side);
+  inp.click();
+}
+
+async function handleFiles(files, side) {
+  for (const f of files) {
+    if (!f.name.endsWith('.rptok')) { showToast('Not a .rptok file: '+f.name,'dead'); continue; }
+    try {
+      const c = await parseRptok(f, side);
+      combatants.push(c);
+      renderRoster();
+      renderAttackSlots();
+      showToast(`${c.name} joined the fray.`);
+    } catch(e) { showToast('Failed: '+e.message,'dead'); }
+  }
+}
+
+/* drag .rptok files onto the import button */
+function uploadDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('drop-target-active'); }
+function uploadDragLeave(e) { e.currentTarget.classList.remove('drop-target-active'); }
+function uploadDrop(e, side) {
+  e.preventDefault(); e.currentTarget.classList.remove('drop-target-active');
+  handleFiles(Array.from(e.dataTransfer.files), side);
+}
+
+function addAdHoc(side) {
+  const c = makeCombatant(side, {expanded:true});
+  combatants.push(c);
+  renderRoster();
+  renderAttackSlots();
+}
+
+/* ══════════════════════════════════════
+   DICE
+══════════════════════════════════════ */
+function p5() { let r=[],v=Math.floor(Math.random()*5)+1; while(v!==1){r.push(v);v=Math.floor(Math.random()*5)+1;} return r.length; }
+function rollN5() { return p5()-p5(); }
+
+function getHitZone() {
+  // Use only the aimed zones, weighted by their base percentages
+  const active = ARMOR_ZONE_DEFS.filter(z=>aimZones.has(z.key));
+  const total = active.reduce((s,z)=>s+BASE_PCT[z.key],0);
+  const r = Math.random()*total;
+  let cum=0;
+  for(const z of active) { cum+=BASE_PCT[z.key]; if(r<cum) return z.key; }
+  return active[active.length-1].key;
+}
+
+/* ── AIM ZONE HELPERS ── */
+const BASE_PCT = { torso:40, legs:30, arms:20, head:10 };
+
+function aimTotalPct() {
+  let t=0;
+  aimZones.forEach(k=>{ t+=BASE_PCT[k]||0; });
+  return t;
+}
+
+function aimPenaltyVal() {
+  const pct=aimTotalPct();
+  if(pct>=100) return 0;
+  if(pct<=0)   return 0;
+  return Math.round(5*Math.log2(100/pct));
+}
+
+function toggleAimZone(key) {
+  if(aimZones.has(key)) {
+    if(aimZones.size<=1) return; // must keep at least one
+    aimZones.delete(key);
+  } else {
+    aimZones.add(key);
+  }
+  renderAimUI();
+}
+
+function resetAimZones() {
+  aimZones=new Set(['torso','legs','arms','head']);
+  renderAimUI();
+}
+
+let aimOpen = false;
+
+function toggleAimPanel() {
+  aimOpen = !aimOpen;
+  const ed  = document.getElementById('aimEditor');
+  const chev= document.getElementById('aimChevron');
+  if(ed)   ed.classList.toggle('open', aimOpen);
+  if(chev) chev.classList.toggle('open', aimOpen);
+}
+
+function renderAimUI() {
+  // Update figure zones
+  const fig = document.getElementById('aimFig');
+  if(fig) fig.querySelectorAll('.aim-zone').forEach(el=>{
+    el.classList.toggle('selected', aimZones.has(el.dataset.zone));
+  });
+
+  // Update toggle buttons
+  const tog = document.getElementById('aimToggles');
+  if(tog) {
+    tog.innerHTML = ARMOR_ZONE_DEFS.map(z=>{
+      const sel = aimZones.has(z.key);
+      const borderColor = sel ? z.color : 'var(--border)';
+      const bgColor     = sel ? `color-mix(in srgb,${z.color} 15%,transparent)` : 'transparent';
+      return `<button class="aim-zone-btn${sel?' selected':''}"
+        style="border-color:${borderColor};background:${bgColor}"
+        onclick="toggleAimZone('${z.key}')">
+        <span class="aim-dot" style="background:${z.color}"></span>
+        ${z.label.charAt(0)}${z.label.slice(1).toLowerCase()}
+      </button>`;
+    }).join('');
+  }
+
+  // pct + penalty
+  const pct = aimTotalPct();
+  const pen = aimPenaltyVal();
+
+  const pctEl = document.getElementById('aimPct');
+  if(pctEl) pctEl.textContent = pct + '%';
+
+  const penEl = document.getElementById('aimPenalty');
+  if(penEl) penEl.textContent = pen > 0 ? `− ${pen} (aim)` : '';
+
+  // header summary (always visible)
+  const hdrPct = document.getElementById('aimPctHeader');
+  if(hdrPct) {
+    hdrPct.textContent = pct + '%';
+    hdrPct.style.color = pct < 100 ? 'var(--amber)' : 'var(--text-dim)';
+  }
+  const hdrPen = document.getElementById('aimPenaltyHeader');
+  // rebuild summary span if penalty exists
+  const sumEl = document.getElementById('aimSummary');
+  if(sumEl) {
+    sumEl.innerHTML = `<span id="aimPctHeader" style="font-size:11px;font-family:'JetBrains Mono',monospace;font-weight:700;color:${pct<100?'var(--amber)':'var(--text-dim)'}">${pct}%</span>`
+      + (pen > 0 ? `<span style="font-size:10px;color:var(--amber);font-family:'JetBrains Mono',monospace"> − ${pen}</span>` : '');
+  }
+}
+
+function rangePenalty(w,dist) {
+  if(!w.range||w.range<=0||dist<=0) return 0;
+  return Math.round(Math.max(0, dist/w.range-1)*5);
+}
+
+/* ══════════════════════════════════════
+   ROLE SELECTION
+══════════════════════════════════════ */
+function setRole(id, role) {
+  const c = combatants.find(x=>x.id===id);
+  if (!c || c.dead) return;
+  if (role==='attacker') {
+    if (attackerID===id) attackerID=null;
+    else { if(targetID===id) targetID=null; attackerID=id; }
+  } else {
+    if (targetID===id) targetID=null;
+    else { if(attackerID===id) attackerID=null; targetID=id; }
+  }
+  // load pair memory
+  if (attackerID && targetID) {
+    const m = pairMemory[pairKey(attackerID,targetID)] || {};
+    document.getElementById('ctrlBonus').value = m.bonus ?? 0;
+    document.getElementById('ctrlDist').value  = m.dist  ?? 0;
+  }
+  renderArena(); renderRoster();
+}
+
+function clearRole(role) {
+  if (role==='attacker') attackerID=null; else targetID=null;
+  renderArena(); renderRoster();
+}
+
+function swapRoles() {
+  [attackerID,targetID]=[targetID,attackerID];
+  const b=document.getElementById('ctrlBonus');
+  b.value=-(parseInt(b.value)||0);
+  renderArena(); renderRoster();
+}
+
+function pairKey(a,b){return `${a}:${b}`;}
+
+/* ══════════════════════════════════════
+   DRAG & DROP (card → arena slot)
+══════════════════════════════════════ */
+function cardDragStart(e, id) {
+  dragSrcID = id;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', String(id));
+  setTimeout(()=>{
+    const card = document.querySelector(`[data-cid="${id}"]`);
+    if(card) card.classList.add('drag-source');
+  },0);
+}
+function cardDragEnd(e, id) {
+  const card = document.querySelector(`[data-cid="${id}"]`);
+  if(card) card.classList.remove('drag-source');
+  dragSrcID = null;
+}
+
+/* Portrait click: first click → attacker, second click (different card) → target.
+   Clicking the current attacker clears attacker; clicking current target clears target. */
+function portraitClick(id) {
+  const c = combatants.find(x=>x.id===id);
+  if (!c || c.dead) return;
+  if (attackerID===id) { clearRole('attacker'); return; }
+  if (targetID===id)   { clearRole('target');   return; }
+  if (!attackerID) { setRole(id,'attacker'); }
+  else             { setRole(id,'target');   }
+}
+
+/* Header click (excluding portrait and card-actions) → expand/collapse */
+function headerClick(e, id) {
+  toggleExpand(id);
+}
+
+function arenaZoneDragOver(e, role) {
+  if (dragSrcID===null) return;
+  e.preventDefault(); e.dataTransfer.dropEffect='move';
+  e.currentTarget.classList.add('droppable-over');
+}
+function arenaZoneDragLeave(e) { e.currentTarget.classList.remove('droppable-over'); }
+function arenaZoneDrop(e, role) {
+  e.preventDefault(); e.currentTarget.classList.remove('droppable-over');
+  const id = parseInt(e.dataTransfer.getData('text/plain'),10);
+  if (!isNaN(id)) setRole(id, role);
+}
+
+/* ══════════════════════════════════════
+   ATTACK
+══════════════════════════════════════ */
+function doAttack() {
+  const att = combatants.find(c=>c.id===attackerID);
+  const def = combatants.find(c=>c.id===targetID);
+  if (!att||!def) return;
+
+  const skillKey = document.getElementById('ctrlSkill').value;
+  const skillVal = att.skills[skillKey] ?? 0;
+  const bonus    = parseInt(document.getElementById('ctrlBonus').value)||0;
+  const dist     = parseInt(document.getElementById('ctrlDist').value)||0;
+  const damagePen = Math.max(0, att.damage || 0);
+  const distPen  = rangePenalty(att.weapon, dist);
+  const aimPen   = aimPenaltyVal();
+
+  pairMemory[pairKey(attackerID,targetID)] = {bonus, dist};
+
+  const p5Plus  = p5();
+  const p5Minus = p5();
+  const n5      = p5Plus - p5Minus;
+  const result  = skillVal - damagePen + bonus + n5 - distPen - aimPen;
+  const hit    = result > 0;
+
+  let dmg=0, armorBep=0, zone='';
+  if (hit) {
+    zone     = getHitZone();
+    armorBep = def.armor[zone];
+    dmg      = Math.max(0, Math.round(result/5) + att.weapon.bep - armorBep);
+    def.damage = Math.min(20, def.damage + dmg);
+    if (def.damage>=20) def.dead=true;
+  }
+  att.attacksUsed = Math.min(att.attacksPerRound, att.attacksUsed+1);
+
+  // count ammo down
+  if (att.ammoLeft !== null && att.ammoLeft > 0) att.ammoLeft--;
+
+  const damageStr = damagePen>0 ? ` -${damagePen} (damage)` : '';
+  const bonusStr  = bonus!==0 ? (bonus>0 ? ` +${bonus} (bonus)` : ` ${bonus} (penalty)`) : '';
+  const distStr   = distPen>0 ? ` -${distPen} (distance)` : '';
+  const aimStr    = aimPen>0  ? ` -${aimPen} (aim)` : '';
+  const skillStr  = `${skillVal} (skill)`;
+
+  let lineText, lineType;
+  if (!hit) {
+    lineText = `${att.name} → ${def.name}: ${skillStr}${damageStr}${bonusStr}${aimStr}${distStr} + ${p5Plus} - ${p5Minus} = ${result} — MISS`;
+    lineType = 'miss';
+  } else {
+    lineText = `${att.name} → ${def.name}: ${skillStr}${damageStr}${bonusStr}${aimStr}${distStr} + ${p5Plus} - ${p5Minus} = ${result} → ${result}/5 + ${att.weapon.bep} (weapon) - ${armorBep} (${zone}) = ${dmg} damage`;
+    lineType = 'hit';
+  }
+  logLines.push({ type:lineType, text:lineText, isAdv:att.side==='adv', dead:def.dead ? def.name : null });
+
+  renderLog(); renderArena(); renderRoster(); updateArenaControls();
+
+  if (def.dead) {
+    showToast(`${def.name} is down!`, 'dead');
+    if (targetID===def.id) targetID=null;
+    renderArena(); renderRoster();
+  } else if (hit) {
+    showToast(`Hit! ${dmg} damage to ${def.name} (${zone}).`, 'hit');
+  } else {
+    showToast(`Miss. Result: ${result}.`, 'miss');
+  }
+}
+
+/* ══════════════════════════════════════
+   ROUND
+══════════════════════════════════════ */
+function nextRound() {
+  roundNum++;
+  document.getElementById('roundNum').textContent = roundNum;
+  combatants.forEach(c=>{ if(!c.dead) c.attacksUsed=0; });
+  logLines.push({ type:'round', text:`── Round ${roundNum} ──` });
+  renderLog(); renderRoster(); renderAttackSlots();
+}
+
+function resetRound() {
+  roundNum=1;
+  document.getElementById('roundNum').textContent = roundNum;
+  combatants.forEach(c=>{ c.attacksUsed=0; });
+  logLines.push({ type:'round', text:`── Reset to Round 1 ──` });
+  renderLog(); renderRoster(); renderAttackSlots();
+}
+
+/* ══════════════════════════════════════
+   RENDER ARENA
+══════════════════════════════════════ */
+function renderArena() {
+  renderArenaSlot('arenaAttacker', combatants.find(c=>c.id===attackerID), 'attacker');
+  renderArenaSlot('arenaTarget',   combatants.find(c=>c.id===targetID),   'target');
+  updateArenaControls();
+  renderAttackSlots();
+}
+
+function renderArenaSlot(elId, c, role, icon) {
+  const el = document.getElementById(elId);
+  if (!c) {
+    el.className='arena-combatant empty';
+    el.innerHTML=`<span>Double-click or drag a combatant<br>to set as ${role}</span>`;
+    return;
+  }
+  const hp=Math.max(0,1-c.damage/20), hpPct=Math.round(hp*100);
+  const col=hp>.6?'var(--green)':hp>.3?'var(--amber)':'var(--red)';
+  el.className=`arena-combatant ${role}`;
+  el.innerHTML=`
+    <div class="arena-comb-role ${role}">${role.toUpperCase()} — click to clear</div>
+    <div class="arena-comb-name">${esc(c.name)}</div>
+    <div class="hp-bar-track"><div class="hp-bar-fill" style="width:${hpPct}%;background:${col}"></div></div>
+    <div class="hp-bar-label">damage ${c.damage}</div>
+  `;
+}
+
+function updateArenaControls() {
+  const att = combatants.find(c=>c.id===attackerID);
+  const def = combatants.find(c=>c.id===targetID);
+  const skillSel  = document.getElementById('ctrlSkill');
+  const weaponSel = document.getElementById('ctrlWeapon');
+  const btn       = document.getElementById('btnAttack');
+
+  if (!att) {
+    skillSel.innerHTML  = '<option value="">— select attacker first —</option>';
+    weaponSel.innerHTML = '<option value="">— select attacker first —</option>';
+    btn.disabled=true; return;
+  }
+
+  const savedSk = att.activeSkillKey;
+  skillSel.innerHTML = COMBAT_SKILLS.map(g=>
+    `<optgroup label="${g.group}">${g.skills.map(sk=>{
+      const v=att.skills[sk];
+      return `<option value="${sk}" ${savedSk===sk?'selected':''}>${sk}${v!=null?' ('+v+')':' —'}</option>`;
+    }).join('')}</optgroup>`
+  ).join('');
+
+  weaponSel.innerHTML = WEAPON_PRESETS.map(p=>
+    `<option value="${p.name}" ${att.weapon.name===p.name?'selected':''}>${p.name}</option>`
+  ).join('');
+
+  btn.disabled = !def || att.dead || def.dead;
+
+  // ammo display
+  const ammoWrap = document.getElementById('ctrlAmmoWrap');
+  const ammoCnt  = document.getElementById('ctrlAmmoCnt');
+  if (att.ammoLeft !== null) {
+    ammoWrap.style.display = '';
+    const low = att.ammoLeft <= Math.ceil((att.weapon.clip||1)/4);
+    ammoCnt.textContent = `${att.ammoLeft} / ${att.weapon.clip}`;
+    ammoCnt.className = 'arena-ammo-count' + (att.ammoLeft===0?' empty':low?' low':'');
+  } else {
+    ammoWrap.style.display = 'none';
+  }
+}
+
+function arenaSkillChanged(sk) {
+  const att=combatants.find(c=>c.id===attackerID);
+  if(att){ att.activeSkillKey=sk; updateCardSub(att); }
+}
+function arenaWeaponChanged(name) {
+  const p=WEAPON_PRESETS.find(p=>p.name===name);
+  const att=combatants.find(c=>c.id===attackerID);
+  if(!att||!p||p.bep===null) return;
+  att.weapon={name:p.name,bep:p.bep,range:typeof p.range==='number' ? p.range : parseInt(String(p.range).replace(/[^\d]/g,''),10) || 0,skill:p.skill,weight:p.weight,hand:p.hand,rate:p.rate,clip:p.clip,ammo:p.ammo,nozzle:p.nozzle};
+  att.ammoLeft = (p.clip != null && typeof p.clip === 'number') ? p.clip : null;
+  att.attacksPerRound = rateToAttacks(p.rate);
+  att.attacksUsed = Math.min(att.attacksUsed, att.attacksPerRound);
+  att.activeSkillKey = p.skill || att.activeSkillKey;
+  updateCardSub(att);
+  refreshCardBody(att);
+  refreshPipRow(att);
+  updateArenaControls();
+}
+
+/* ══════════════════════════════════════
+   RENDER ATTACK SLOTS
+══════════════════════════════════════ */
+function renderAttackSlots() {
+  const row=document.getElementById('attackSlotsRow');
+  const selected=[attackerID,targetID].filter(Boolean).map(id=>combatants.find(c=>c.id===id)).filter(Boolean);
+
+  if(!selected.length){
+    row.innerHTML='<span class="slots-label">Attacks:</span><span class="log-empty" style="font-size:11px">Select attacker / target to track attacks.</span>';
+    return;
+  }
+
+  const maxA=Math.max(...selected.map(c=>c.attacksPerRound));
+  const slots=[];
+  for(let i=0;i<maxA;i++) {
+    selected.forEach(c=>{ if(i<c.attacksPerRound) slots.push({c,i}); });
+  }
+  row.innerHTML='<span class="slots-label">Attacks:</span>'+slots.map(({c,i})=>{
+    const cls=c.attacksUsed>i?'done':(c.id===attackerID&&c.attacksUsed===i?'active':'pending');
+    return `<span class="attack-slot ${cls}">${esc(c.name)} ${i+1}/${c.attacksPerRound}</span>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════
+   RENDER LOG
+══════════════════════════════════════ */
+function renderLog() {
+  const el=document.getElementById('combatLog');
+  if(!logLines.length){ el.innerHTML='<div class="log-empty">No attacks yet.</div>'; return; }
+  el.innerHTML=logLines.map(l=>{
+    if(l.type==='round') return `<div class="log-round-sep">${l.text}</div>`;
+    const cls=l.type==='hit'?(l.isAdv?'log-hit-adv':'log-hit'):'log-miss';
+    const dead=l.dead?` <span class="log-dead">· ${esc(l.dead)} is down!</span>`:'';
+    return `<div class="log-entry ${cls}">${l.text}${dead}</div>`;
+  }).join('');
+  el.scrollTop=el.scrollHeight;
+}
+
+/* ══════════════════════════════════════
+   RENDER ROSTER
+══════════════════════════════════════ */
+function renderRoster() {
+  renderSide('pcRoster','pcEmpty','pc');
+  renderSide('advRoster','advEmpty','adv');
+}
+
+function renderSide(rosterId, emptyId, side) {
+  const roster=document.getElementById(rosterId);
+  // Remove existing cards
+  [...roster.querySelectorAll('.combatant-card')].forEach(el=>el.remove());
+  const sc=combatants.filter(c=>c.side===side);
+  const empty=document.getElementById(emptyId);
+  if(!sc.length){ if(empty) empty.style.display=''; return; }
+  if(empty) empty.style.display='none';
+  sc.forEach(c=>roster.appendChild(buildCard(c,side)));
+}
+
+function buildCard(c, side) {
+  const div=document.createElement('div');
+  div.setAttribute('data-cid', c.id);
+  let cls=`combatant-card ${side}-card`;
+  if(c.id===attackerID) cls+=' selected-attacker';
+  if(c.id===targetID)   cls+=' selected-target';
+  if(c.dead)            cls+=' dead-card';
+  div.className=cls;
+
+  const hp=Math.max(0,1-c.damage/20), hpPct=Math.round(hp*100);
+  const col=hp>.6?'var(--green)':hp>.3?'var(--amber)':'var(--red)';
+  const skillSub = c.activeSkillKey
+    ? `${c.activeSkillKey}${c.skills[c.activeSkillKey]!=null?' ('+c.skills[c.activeSkillKey]+')':' —'}`
+    : 'No skill selected';
+  const roleHint = c.id===attackerID ? ' · ⚔ ATTACKER' : c.id===targetID ? ' · 🎯 TARGET' : ' · click portrait to select';
+  const portHtml = c.portrait
+    ? `<img class="card-portrait" src="${c.portrait}" alt="">`
+    : `<div class="card-portrait-placeholder">👤</div>`;
+
+  const pipCls = side==='adv' ? 'adv' : '';
+  const pipsHtml = c.attacksPerRound === 0
+    ? `<span class="card-atk-none">0 attacks / round</span>`
+    : Array.from({length:c.attacksPerRound},(_,i)=>
+        `<div class="card-atk-pip${i<c.attacksUsed?' used '+pipCls:''}" onclick="event.stopPropagation();togglePip(${c.id},${i})" title="${i<c.attacksUsed?'Used':'Available'}"></div>`
+      ).join('');
+  const resetHtml = c.attacksPerRound > 0 && c.attacksUsed > 0
+    ? `<span class="card-atk-reset" onclick="event.stopPropagation();resetPips(${c.id})">reset</span>` : '';
+
+  div.innerHTML=`
+    <div class="card-header" draggable="true"
+         ondragstart="cardDragStart(event,${c.id})" ondragend="cardDragEnd(event,${c.id})"
+         onclick="headerClick(event,${c.id})">
+      <div class="card-portrait-wrap" title="Click to set attacker / target" onclick="event.stopPropagation();portraitClick(${c.id})" style="cursor:pointer;flex-shrink:0">
+        ${portHtml}
+      </div>
+      <div class="card-name-block">
+        <div class="card-name" id="cname-${c.id}">${esc(c.name)}</div>
+        <div class="card-sub"  id="csub-${c.id}">${esc(skillSub)} · ${esc(c.weapon.name)}${roleHint}</div>
+      </div>
+      <div class="card-actions" onclick="event.stopPropagation()">
+        <button class="card-btn btn-cln" title="Clone" onclick="cloneCombatant(${c.id})">⊕</button>
+        <button class="card-btn${c.dead?' is-target':''}" title="${c.dead?'Revive':'Mark dead'}" onclick="toggleDead(${c.id})">${c.dead?'💊':'💀'}</button>
+        <button class="card-btn btn-del" title="Remove" onclick="removeCombatant(${c.id})">×</button>
+      </div>
+    </div>
+    <div class="card-hp-bar">
+      <div class="card-hp-track"><div class="card-hp-fill" style="width:${hpPct}%;background:${col}"></div></div>
+    </div>
+    <div class="card-atk-row" id="pips-${c.id}" onclick="event.stopPropagation()">
+      <div class="card-atk-pips">${pipsHtml}</div>
+      ${resetHtml}
+    </div>
+    <div class="card-body${c.expanded?' open':''}" id="cbody-${c.id}">
+      ${buildCardBody(c,side)}
+    </div>
+  `;
+  return div;
+}
+
+function buildCardBody(c, side) {
+  const skillOpts = COMBAT_SKILLS.map(g=>
+    `<optgroup label="${g.group}">${g.skills.map(sk=>{
+      const v=c.skills[sk];
+      return `<option value="${sk}" ${c.activeSkillKey===sk?'selected':''}>${sk}${v!=null?' ('+v+')':' —'}</option>`;
+    }).join('')}</optgroup>`
+  ).join('');
+
+  const weaponOpts = WEAPON_PRESETS.map(p=>
+    `<option value="${p.name}" ${c.weapon.name===p.name?'selected':''}>${p.name}</option>`
+  ).join('');
+
+  const pipCls = side==='adv'?'adv':'';
+  const pips   = Array.from({length:c.attacksPerRound},(_,i)=>
+    `<div class="atk-pip${i<c.attacksUsed?' used '+pipCls:''}" onclick="togglePip(${c.id},${i})" title="${i<c.attacksUsed?'Used':'Available'}"></div>`
+  ).join('');
+
+  // armor summary chips
+  const armChips = ARMOR_ZONE_DEFS.map(z=>
+    `<span class="asv asv-${z.key[0]}" id="achip-${c.id}-${z.key}">${c.armor[z.key]}</span>`
+  ).join('');
+
+  return `
+    <div class="field-group">
+      <div class="field-group-title">Identity</div>
+      <div class="field-row">
+        <div class="f"><label>Name</label>
+          <input type="text" value="${esc(c.name)}"
+            oninput="setField(${c.id},'name',this.value)">
+        </div>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <div class="field-group-title">Combat Skill</div>
+      <div class="field-row">
+        <div class="f"><label>Active skill</label>
+          <select onchange="setField(${c.id},'activeSkillKey',this.value)">${skillOpts}</select>
+        </div>
+        <div class="f" style="max-width:80px"><label>Value</label>
+          <input type="number" min="0" step="1"
+            value="${c.activeSkillKey&&c.skills[c.activeSkillKey]!=null?c.skills[c.activeSkillKey]:''}"
+            placeholder="—"
+            onchange="setSkillVal(${c.id},this.value)">
+        </div>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <div class="field-group-title">Weapon</div>
+      <div class="field-row">
+        <div class="f"><label>Preset</label>
+          <select onchange="applyPreset(${c.id},this.value)">${weaponOpts}</select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="f"><label>Name</label>
+          <input type="text" id="wname-${c.id}" value="${esc(c.weapon.name)}"
+            oninput="setWeapon(${c.id},'name',this.value)">
+        </div>
+        <div class="f" style="max-width:60px"><label>BEP</label>
+          <input type="number" id="wbep-${c.id}" min="0" step="1" value="${c.weapon.bep}"
+            oninput="setWeapon(${c.id},'bep',+this.value)">
+        </div>
+        <div class="f" style="max-width:70px"><label>Range (m)</label>
+          <input type="number" id="wrange-${c.id}" min="0" step="1" value="${c.weapon.range}"
+            oninput="setWeapon(${c.id},'range',+this.value)">
+        </div>
+        <div class="f" style="max-width:60px"><label>Clip</label>
+          ${c.weapon.clip === null
+            ? `<input type="text" value="—" disabled style="opacity:.4;cursor:not-allowed">`
+            : `<input type="number" id="wclip-${c.id}" min="1" step="1" value="${typeof c.weapon.clip==='number'?c.weapon.clip:''}" placeholder="?" oninput="setClip(${c.id},+this.value)">`
+          }
+        </div>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <div class="field-group-title">Combat Parameters</div>
+      <div class="field-row">
+        <div class="f"><label>Attacks / round (Rate: ${c.weapon.rate||'—'})</label>
+          <input type="number" id="watk-${c.id}" min="0" max="10" step="1" value="${c.attacksPerRound}"
+            oninput="setAtkPerRound(${c.id},+this.value)">
+        </div>
+        <div class="f"><label>Damage taken</label>
+          <input type="number" min="0" max="20" step="1" value="${c.damage}"
+            oninput="setDmg(${c.id},+this.value)">
+        </div>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <div class="armor-toggle-row" onclick="toggleArmorPanel(${c.id})">
+        <span class="armor-toggle-label">Armor (BEP)</span>
+        <div class="armor-summary-inline" id="asum-${c.id}">${armChips}</div>
+        <span class="armor-chevron${c.armorOpen?' open':''}" id="achev-${c.id}">▶</span>
+      </div>
+      <div class="armor-editor${c.armorOpen?' open':''}" id="aeditor-${c.id}">
+        ${buildArmorEditor(c)}
+      </div>
+    </div>
+  `;
+}
+
+function buildArmorEditor(c) {
+  const activeZ = c.armorActiveZone || 'torso';
+  const def = ARMOR_ZONE_DEFS.find(d=>d.key===activeZ);
+  const zData = c.armor;
+
+  // zone panel
+  const zonePanel = `
+    <div class="armor-zone-panel" id="azp-${c.id}" style="--azp-color:${def.color}">
+      <div class="azp-head">
+        <span class="azp-name" id="azpname-${c.id}">${def.label}</span>
+        <span class="azp-total" id="azptotal-${c.id}" style="color:${def.color}">${zData[activeZ]}</span>
+        <span class="azp-breakdown" id="azpbreak-${c.id}">${(c.armor.parts[activeZ]||[]).length>1?(c.armor.parts[activeZ].map(p=>p.value).join(' + ')):''}</span>
+      </div>
+      <input type="number" min="0" class="azp-input" id="azpinput-${c.id}" value="${zData[activeZ]}"
+        oninput="armorSetManual(${c.id},this.value)">
+      <div class="azp-buttons">
+        <button class="azp-mat-btn leather"  onclick="armorAddMat(${c.id},'leather')">+ Leather 3</button>
+        <button class="azp-mat-btn plasteel" onclick="armorAddMat(${c.id},'plasteel')">+ Plasteel 12</button>
+        <button class="azp-mat-btn clear"    onclick="armorClear(${c.id})">Clear</button>
+      </div>
+      <div class="azp-pct-note">Hit chance: torso 40% · legs 30% · arms 20% · head 10%</div>
+    </div>
+  `;
+
+  // silhouette
+  const silhouette = `
+    <div>
+      <svg class="a-fig" viewBox="0 0 512 640" xmlns="http://www.w3.org/2000/svg"
+           id="afig-${c.id}">${SILHOUETTE_PATHS}</svg>
+      <div class="armor-legend" id="aleg-${c.id}">
+        ${ARMOR_ZONE_DEFS.map(z=>`
+          <button class="a-legend-item${z.key===activeZ?' active':''}" data-zone="${z.key}"
+                  style="--dot-color:${z.color}" onclick="armorSetZone(${c.id},'${z.key}')">
+            <span class="a-legend-dot"></span>${z.label.slice(0,1)}&nbsp;<span class="a-legend-val" id="alegval-${c.id}-${z.key}">${zData[z.key]}</span>
+          </button>`).join('')}
+      </div>
+    </div>
+  `;
+
+  // wire zones after render
+  setTimeout(()=>wireArmorFig(c.id), 0);
+
+  return `<div class="armor-collapse-inner">${silhouette}${zonePanel}</div>`;
+}
+
+function wireArmorFig(cid) {
+  const fig = document.getElementById('afig-'+cid);
+  if (!fig) return;
+  fig.querySelectorAll('.a-hit-zone').forEach(el=>{
+    el.addEventListener('click', ()=>armorSetZone(cid, el.dataset.zone));
+  });
+  refreshArmorFigZones(cid);
+}
+
+/* ══════════════════════════════════════
+   ARMOR INTERACTIONS
+══════════════════════════════════════ */
+function toggleArmorPanel(cid) {
+  const c=combatants.find(x=>x.id===cid); if(!c) return;
+  c.armorOpen=!c.armorOpen;
+  const ed=document.getElementById('aeditor-'+cid);
+  const ch=document.getElementById('achev-'+cid);
+  if(ed){ ed.classList.toggle('open',c.armorOpen); if(c.armorOpen&&!ed.innerHTML.trim()) ed.innerHTML=buildArmorEditor(c); }
+  if(ch) ch.classList.toggle('open',c.armorOpen);
+}
+
+function armorSetZone(cid, zoneKey) {
+  const c=combatants.find(x=>x.id===cid); if(!c) return;
+  c.armorActiveZone=zoneKey;
+  refreshArmorPanel(cid);
+}
+
+function armorAddMat(cid, matKey) {
+  const c=combatants.find(x=>x.id===cid); if(!c) return;
+  const mat=ARMOR_MATERIALS[matKey], z=c.armorActiveZone;
+  c.armor[z]=Math.min(999,c.armor[z]+mat.value);
+  if(!c.armor.parts[z]) c.armor.parts[z]=[];
+  c.armor.parts[z].push({label:mat.label,value:mat.value});
+  refreshArmorAll(cid);
+}
+
+function armorClear(cid) {
+  const c=combatants.find(x=>x.id===cid); if(!c) return;
+  const z=c.armorActiveZone;
+  c.armor[z]=0; c.armor.parts[z]=[];
+  refreshArmorAll(cid);
+}
+
+function armorSetManual(cid, rawVal) {
+  const c=combatants.find(x=>x.id===cid); if(!c) return;
+  const v=Math.max(0,Math.min(999,parseInt(rawVal,10)||0));
+  c.armor[c.armorActiveZone]=v; c.armor.parts[c.armorActiveZone]=[];
+  refreshArmorPanel(cid); // only panel, not input (user is typing)
+  updateArmorChips(cid);
+}
+
+function refreshArmorAll(cid) { refreshArmorPanel(cid); updateArmorChips(cid); }
+
+function refreshArmorPanel(cid) {
+  const c=combatants.find(x=>x.id===cid); if(!c) return;
+  const z=c.armorActiveZone, def=ARMOR_ZONE_DEFS.find(d=>d.key===z);
+  const panel=document.getElementById('azp-'+cid); if(panel) panel.style.setProperty('--azp-color',def.color);
+  const nm=document.getElementById('azpname-'+cid); if(nm) nm.textContent=def.label;
+  const tot=document.getElementById('azptotal-'+cid); if(tot){tot.textContent=c.armor[z];tot.style.color=def.color;}
+  const brk=document.getElementById('azpbreak-'+cid);
+  if(brk){ const pts=c.armor.parts[z]||[]; brk.textContent=pts.length>1?pts.map(p=>p.value).join(' + '):''; }
+  const inp=document.getElementById('azpinput-'+cid); if(inp&&document.activeElement!==inp) inp.value=c.armor[z];
+  // update legend items
+  const legEl=document.getElementById('aleg-'+cid);
+  if(legEl) legEl.querySelectorAll('.a-legend-item').forEach(btn=>{
+    btn.classList.toggle('active', btn.dataset.zone===z);
+    const valEl=document.getElementById('alegval-'+cid+'-'+btn.dataset.zone);
+    if(valEl) valEl.textContent=c.armor[btn.dataset.zone];
+  });
+  refreshArmorFigZones(cid);
+}
+
+function refreshArmorFigZones(cid) {
+  const c=combatants.find(x=>x.id===cid); if(!c) return;
+  const fig=document.getElementById('afig-'+cid); if(!fig) return;
+  fig.querySelectorAll('.a-hit-zone').forEach(el=>{
+    const k=el.dataset.zone;
+    el.classList.toggle('active', k===c.armorActiveZone);
+    const capped=Math.min(c.armor[k]||0, 30);
+    el.style.fillOpacity=(0.08+(capped/30)*0.30).toFixed(2);
+  });
+}
+
+function updateArmorChips(cid) {
+  const c=combatants.find(x=>x.id===cid); if(!c) return;
+  ARMOR_ZONE_DEFS.forEach(z=>{
+    const chip=document.getElementById(`achip-${cid}-${z.key}`);
+    if(chip) chip.textContent=c.armor[z.key];
+  });
+}
+
+/* ══════════════════════════════════════
+   CARD FIELD HELPERS
+══════════════════════════════════════ */
+function toggleExpand(cid) {
+  const c=combatants.find(x=>x.id===cid); if(!c) return;
+  c.expanded=!c.expanded;
+  const body=document.getElementById('cbody-'+cid); if(body) body.classList.toggle('open',c.expanded);
+}
+
+function setField(cid, key, val) {
+  const c=combatants.find(x=>x.id===cid); if(!c) return;
+  c[key]=val;
+  if(key==='name') { updateCardName(c); renderAttackSlots(); renderArena(); }
+  if(key==='activeSkillKey') {
+    updateCardSub(c);
+    // Update the Value input to show the new skill's current value
+    const valInp = document.querySelector(`#cbody-${cid} input[placeholder="—"]`);
+    if (valInp) valInp.value = (c.skills[val] != null) ? c.skills[val] : '';
+    if(cid===attackerID) updateArenaControls();
+  }
+}
+
+function setSkillVal(cid, val) {
+  const c=combatants.find(x=>x.id===cid); if(!c||!c.activeSkillKey) return;
+  const n=parseInt(val,10); if(isNaN(n)) return;
+  c.skills[c.activeSkillKey]=n; updateCardSub(c);
+  if(cid===attackerID) updateArenaControls();
+}
+
+function setWeapon(cid, key, val) {
+  const c=combatants.find(x=>x.id===cid); if(!c) return;
+  c.weapon[key]=val; updateCardSub(c);
+  if(cid===attackerID) updateArenaControls();
+}
+
+function setClip(cid, val) {
+  const c=combatants.find(x=>x.id===cid); if(!c) return;
+  if(isNaN(val)||val<1) return;
+  c.weapon.clip = val;
+  c.ammoLeft = val;
+  if(cid===attackerID) updateArenaControls();
+}
+
+
+function setAtkPerRound(cid, val) {
+  const c=combatants.find(x=>x.id===cid); if(!c) return;
+  c.attacksPerRound = Math.max(0, Math.round(val)||0);
+  c.attacksUsed = Math.min(c.attacksUsed, c.attacksPerRound);
+  renderAttackSlots();
+  refreshPipRow(c);
+}
+
+function setDmg(cid, val) {
+  const c=combatants.find(x=>x.id===cid); if(!c) return;
+  c.damage=Math.min(20,Math.max(0,val));
+  if(c.damage>=20) c.dead=true;
+  // update hp bar on card
+  const hp=Math.max(0,1-c.damage/20), hpPct=Math.round(hp*100);
+  const col=hp>.6?'var(--green)':hp>.3?'var(--amber)':'var(--red)';
+  const fill=document.querySelector(`[data-cid="${cid}"] .card-hp-fill`);
+  const lbl =document.querySelector(`[data-cid="${cid}"] .card-hp-label`);
+  if(fill){fill.style.width=hpPct+'%';fill.style.backgroundColor=col;}
+  if(lbl) lbl.textContent=`damage ${c.damage}`;
+  renderArena();
+}
+
+function applyPreset(cid, name) {
+  const c=combatants.find(x=>x.id===cid); if(!c) return;
+  const p=WEAPON_PRESETS.find(p=>p.name===name); if(!p||p.bep===null) return;
+  c.weapon={name:p.name,bep:p.bep,range:typeof p.range==='number' ? p.range : parseInt(String(p.range).replace(/[^\d]/g,''),10) || 0,skill:p.skill,weight:p.weight,hand:p.hand,rate:p.rate,clip:p.clip,ammo:p.ammo,nozzle:p.nozzle};
+  c.ammoLeft = (p.clip != null && typeof p.clip === 'number') ? p.clip : null;
+  c.attacksPerRound = rateToAttacks(p.rate);
+  c.attacksUsed = Math.min(c.attacksUsed, c.attacksPerRound);
+  c.activeSkillKey=p.skill || c.activeSkillKey;
+  // update visible weapon inputs
+  const wn=document.getElementById('wname-'+cid);  if(wn)  wn.value=p.name;
+  const wb=document.getElementById('wbep-'+cid);   if(wb)  wb.value=p.bep;
+  const wr=document.getElementById('wrange-'+cid); if(wr)  wr.value=p.range;
+  updateCardSub(c);
+  refreshCardBody(c);
+  refreshPipRow(c);
+  if(cid===attackerID) updateArenaControls();
+}
+
+function reloadAmmo(cid) {
+  const c=combatants.find(x=>x.id===cid); if(!c) return;
+  c.ammoLeft = (c.weapon.clip != null && typeof c.weapon.clip === 'number') ? c.weapon.clip : null;
+}
+
+function arenaReload() {
+  const att=combatants.find(c=>c.id===attackerID); if(!att) return;
+  att.ammoLeft = (att.weapon.clip != null && typeof att.weapon.clip === 'number') ? att.weapon.clip : null;
+  updateArenaControls();
+}
+
+
+function updateCardName(c) {
+  const el=document.getElementById('cname-'+c.id); if(el) el.textContent=c.name;
+}
+function updateCardSub(c) {
+  const sk=c.activeSkillKey, sv=sk?c.skills[sk]:null;
+  const roleHint = c.id===attackerID ? ' · ⚔ ATTACKER' : c.id===targetID ? ' · 🎯 TARGET' : ' · click portrait to select';
+  const txt=(sk?`${sk}${sv!=null?' ('+sv+')':' —'}`:'No skill')+' · '+c.weapon.name+roleHint;
+  const el=document.getElementById('csub-'+c.id); if(el) el.textContent=txt;
+}
+function refreshCardBody(c) {
+  const body=document.getElementById('cbody-'+c.id); if(!body) return;
+  body.innerHTML=buildCardBody(c,c.side);
+}
+
+/* ══════════════════════════════════════
+   PIP TRACKER
+══════════════════════════════════════ */
+function togglePip(cid, idx) {
+  const c=combatants.find(x=>x.id===cid); if(!c) return;
+  c.attacksUsed = idx<c.attacksUsed ? idx : idx+1;
+  renderAttackSlots();
+  refreshPipRow(c);
+}
+
+function resetPips(cid) {
+  const c=combatants.find(x=>x.id===cid); if(!c) return;
+  c.attacksUsed=0; renderAttackSlots();
+  refreshPipRow(c);
+}
+
+function refreshPipRow(c) {
+  const row=document.getElementById('pips-'+c.id); if(!row) return;
+  const pipCls=c.side==='adv'?'adv':'';
+  const pipsHtml = c.attacksPerRound === 0
+    ? `<span class="card-atk-none">0 attacks / round</span>`
+    : Array.from({length:c.attacksPerRound},(_,i)=>
+        `<div class="card-atk-pip${i<c.attacksUsed?' used '+pipCls:''}" onclick="event.stopPropagation();togglePip(${c.id},${i})"></div>`
+      ).join('');
+  const resetHtml = c.attacksPerRound > 0 && c.attacksUsed > 0
+    ? `<span class="card-atk-reset" onclick="event.stopPropagation();resetPips(${c.id})">reset</span>` : '';
+  row.innerHTML=`<div class="card-atk-pips">${pipsHtml}</div>${resetHtml}`;
+}
+
+/* ══════════════════════════════════════
+   COMBATANT MANAGEMENT
+══════════════════════════════════════ */
+function cloneCombatant(cid) {
+  const c=combatants.find(x=>x.id===cid); if(!c) return;
+  const clone=JSON.parse(JSON.stringify(c));
+  clone.id=nextID++; clone.damage=0; clone.dead=false;
+  clone.attacksUsed=0; clone.expanded=false;
+  clone.name=countName(c.name);
+  // restore portrait object URL (can't clone blob URL; reuse same URL string)
+  clone.portrait=c.portrait;
+  combatants.push(clone);
+  renderRoster(); renderAttackSlots();
+  showToast(`Cloned as "${clone.name}".`);
+}
+
+function toggleDead(cid) {
+  const c=combatants.find(x=>x.id===cid); if(!c) return;
+  c.dead=!c.dead;
+  if(c.dead){ if(attackerID===cid) attackerID=null; if(targetID===cid) targetID=null; }
+  renderArena(); renderRoster();
+}
+
+function removeCombatant(cid) {
+  if(attackerID===cid) attackerID=null; if(targetID===cid) targetID=null;
+  combatants=combatants.filter(c=>c.id!==cid);
+  renderArena(); renderRoster(); renderAttackSlots();
+}
+
+/* ══════════════════════════════════════
+   UTILITIES
+══════════════════════════════════════ */
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+let toastTimer=null;
+function showToast(msg,type=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast show'+(type?' '+type:'');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.className='toast',2800);
+}
+
+/* ══════════════════════════════════════
+   INIT
+══════════════════════════════════════ */
+renderLog(); renderArena(); renderAimUI();
+</script>
+</body>
+</html>

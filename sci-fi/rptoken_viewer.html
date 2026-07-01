@@ -1,0 +1,1945 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPToken Viewer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg-deep:   #0d1117;
+    --bg-panel:  #161b22;
+    --bg-card:   #1c2330;
+    --border:    #2d3748;
+    --accent:    #f0a500;
+    --accent2:   #4e8fcf;
+    --text:      #c9d1d9;
+    --text-dim:  #6e7681;
+    --text-head: #e6edf3;
+    --green:     #3fb950;
+    --red:       #f85149;
+    /* Armor zone colors */
+    --armor-torso: #268bd2;
+    --armor-legs:  #859900;
+    --armor-arms:  #2aa198;
+    --armor-head:  #dc322f;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg-deep);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(circle at 20% 50%, rgba(78,143,207,0.06) 0%, transparent 50%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cpath d='M28 66L0 50V18L28 2l28 16v32L28 66zM28 98L0 82V50l28-16 28 16v32L28 98z' fill='none' stroke='%232d3748' stroke-width='0.5' opacity='0.4'/%3E%3C/svg%3E");
+    background-size: auto, 56px 100px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px 20px;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 28px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .header-logo svg { width: 36px; height: 36px; }
+  .header-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-head);
+    letter-spacing: .04em;
+  }
+  .header-title span { color: var(--accent); }
+  .header-sub {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 1px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .header-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+
+  /* ── UPLOAD ── */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+    background: rgba(22,27,34,.5);
+    margin-bottom: 28px;
+  }
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--accent);
+    background: rgba(240,165,0,.04);
+  }
+  .upload-zone input[type=file] { display: none; }
+  .upload-icon { font-size: 40px; margin-bottom: 12px; opacity: .6; }
+  .upload-label {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-head);
+  }
+  .upload-hint { font-size: 12px; color: var(--text-dim); margin-top: 6px; }
+  .upload-hint kbd {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent);
+  }
+
+  /* ── CHAR SHEET ── */
+  .char-sheet { display: none; }
+  .char-sheet.visible { display: block; }
+
+  /* ── TOP ROW ── */
+  .top-row {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+  @media (max-width: 600px) { .top-row { grid-template-columns: 1fr; } }
+
+  .portrait-wrap { position: relative; height: 200px; }
+  .portrait-hex {
+    width: 180px; height: 180px;
+    clip-path: polygon(50% 0%,95% 25%,95% 75%,50% 100%,5% 75%,5% 25%);
+    overflow: hidden;
+    background: transparent;
+    margin: 0 auto;
+    position: relative; z-index: 1;
+  }
+  .portrait-hex img { width: 100%; height: 100%; object-fit: cover; object-position: center top; border-radius: 0; }
+
+  .identity-panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+  }
+  .char-name {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 32px; font-weight: 700;
+    color: var(--text-head);
+    line-height: 1; margin-bottom: 4px;
+  }
+  .char-type-badge {
+    display: inline-block;
+    background: rgba(78,143,207,.15);
+    border: 1px solid rgba(78,143,207,.4);
+    color: var(--accent2);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 2px 10px; border-radius: 20px;
+    margin-bottom: 14px;
+  }
+  .identity-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .identity-item {
+    background: var(--bg-card); border-radius: 6px; padding: 8px 10px;
+    min-width: 140px;
+  }
+  .identity-item label {
+    font-size: 10px; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: .08em;
+    font-family: 'JetBrains Mono', monospace;
+    display: block; margin-bottom: 3px;
+  }
+  .identity-item .val { font-size: 15px; font-weight: 500; color: var(--text-head); font-family: 'Rajdhani', sans-serif; }
+  .identity-item .val.accent { color: var(--accent); }
+
+  .status-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .badge {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11px; padding: 3px 10px; border-radius: 20px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .badge.active { background: rgba(248,81,73,.12); border: 1px solid rgba(248,81,73,.35); color: var(--red); }
+  .badge.inactive { background: rgba(110,118,129,.1); border: 1px solid var(--border); color: var(--text-dim); }
+  .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .identity-inline {
+    min-width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(180px, 1fr));
+    gap: 20px;
+    align-items: center;
+  }
+  .identity-inline-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .identity-inline-item .val.changed {
+    color: var(--green);
+    font-weight: 700;
+    text-shadow: 0 0 8px rgba(63,185,80,.25);
+  }
+  .damage-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 2px;
+  }
+
+  /* ── SECTION HEADER ── */
+  .section-header {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 16px; font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: .12em;
+    margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-header::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* ── SKILLS ── */
+  .skills-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 860px) {
+    .skills-columns { grid-template-columns: 1fr; }
+  }
+  .skill-table-wrap {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .table-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-head);
+    padding: 12px 14px;
+    background: linear-gradient(90deg, rgba(78,143,207,.16), rgba(240,165,0,.08));
+    border-bottom: 1px solid var(--border);
+  }
+  .table-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .title-points {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+  }
+  .points-input {
+    width: 64px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-head);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    padding: 4px 6px;
+    text-align: right;
+    outline: none;
+  }
+  .points-input:focus { border-color: var(--accent2); }
+  .points-balance {
+    min-width: 88px;
+    text-align: right;
+  }
+  .points-balance.overdrawn { color: var(--red); }
+  .skill-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+  .skill-table td {
+    border-bottom: 1px solid rgba(45,55,72,.55);
+    padding: 8px 10px;
+    vertical-align: middle;
+  }
+  .skill-table tr:last-child td { border-bottom: none; }
+  .skill-col-name { width: 48%; font-size: 14px; color: var(--text-head); }
+  .skill-col-val { width: 52%; }
+  .group-row td {
+    background: rgba(110,118,129,.08);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .group-row .skill-col-name { color: var(--text-head); }
+  .group-row .skill-col-val { color: var(--text-dim); }
+  .skill-row:hover td { background: rgba(78,143,207,.05); }
+  .skill-row .skill-name-label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  /* ── COMBINE TOGGLE (replaces checkbox) ── */
+  .combine-check { display: none; } /* hidden native input, kept for JS compatibility */
+
+  .skill-col-name {
+    cursor: pointer;
+    user-select: none;
+  }
+  .skill-name-label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    width: 100%;
+    cursor: pointer;
+  }
+  .combine-pip {
+    flex-shrink: 0;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    transition: background .15s, border-color .15s, box-shadow .15s;
+  }
+  .skill-row.selected td { background: rgba(78,143,207,.09); }
+  .skill-row.selected .combine-pip {
+    background: var(--accent2);
+    border-color: var(--accent2);
+    box-shadow: 0 0 6px rgba(78,143,207,.5);
+  }
+  .skill-row.selected .skill-col-name {
+    color: #e6edf3;
+  }
+  .skill-row:hover .combine-pip {
+    border-color: var(--accent2);
+  }
+  .skill-cell-right {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  .skill-value-display {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    color: var(--accent);
+    min-width: 32px;
+    text-align: right;
+  }
+  .skill-value-display.null-val { color: var(--text-dim); }
+  .skill-value-display.changed {
+    color: var(--green);
+    font-weight: 700;
+    text-shadow: 0 0 8px rgba(63,185,80,.25);
+  }
+  .skill-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .icon-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text);
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    line-height: 1;
+  }
+  .icon-btn:hover { background: var(--border); }
+  .btn-roll {
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    border: 1px solid rgba(240,165,0,.3);
+    cursor: pointer;
+    background: rgba(240,165,0,.07);
+    color: var(--accent);
+  }
+  .btn-roll:hover { background: rgba(240,165,0,.15); }
+
+  /* ── DICE ROLLER ── */
+  .roll-panel {
+    background: var(--bg-panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 20px 24px; margin-bottom: 20px;
+  }
+  .roll-config { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 10px; }
+  .roll-config label {
+    font-size: 12px; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: .08em;
+    font-family: 'JetBrains Mono', monospace;
+    display: block; margin-bottom: 4px;
+  }
+  .roll-config select, .roll-config input {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text-head);
+    font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    padding: 6px 10px; outline: none;
+  }
+  .roll-config select:focus, .roll-config input:focus { border-color: var(--accent2); }
+  .btn-primary {
+    padding: 8px 20px; border-radius: 6px; font-size: 13px;
+    font-family: 'Rajdhani', sans-serif; font-weight: 600; letter-spacing: .06em;
+    border: 1px solid var(--accent); cursor: pointer;
+    background: rgba(240,165,0,.1); color: var(--accent);
+    transition: background .15s;
+  }
+  .btn-primary:hover { background: rgba(240,165,0,.2); }
+  .btn-download {
+    padding: 8px 18px; border-radius: 6px; font-size: 13px;
+    font-family: 'Rajdhani', sans-serif; font-weight: 600; letter-spacing: .06em;
+    border: 1px solid var(--green); cursor: pointer;
+    background: rgba(63,185,80,.1); color: var(--green);
+    transition: background .15s;
+    white-space: nowrap;
+  }
+  .btn-download:hover { background: rgba(63,185,80,.2); }
+  .btn-load {
+    padding: 8px 16px; border-radius: 6px; font-size: 13px;
+    font-family: 'Rajdhani', sans-serif; font-weight: 600; letter-spacing: .06em;
+    border: 1px solid var(--border); cursor: pointer;
+    background: var(--bg-card); color: var(--text);
+    transition: background .15s;
+    white-space: nowrap;
+  }
+  .btn-load:hover { background: var(--border); }
+  .roll-log {
+    background: var(--bg-deep); border: 1px solid var(--border);
+    border-radius: 6px; padding: 12px 14px;
+    min-height: 80px; max-height: 200px; overflow-y: auto;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.8;
+  }
+  .roll-dimensions-wrap {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) 440px;
+    gap: 12px;
+    align-items: stretch;
+  }
+  @media (max-width: 980px) {
+    .roll-dimensions-wrap { grid-template-columns: 1fr; }
+  }
+  .dimensions-panel {
+    background: var(--bg-deep);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    box-shadow:
+      inset 0 0 0 1px rgba(78,143,207,.15),
+      0 0 12px rgba(78,143,207,.08);
+  }
+  .roll-log,
+  .dimensions-panel {
+    min-height: 350px;
+    height: 100%;
+  }
+  .dimensions-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--text-head);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+  }
+  .dim-value {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent);
+    font-size: 24px;
+    font-weight: 700;
+  }
+  .dim-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .dim-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text);
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1;
+  }
+  .dim-btn:hover { background: var(--border); }
+  .dim-slider {
+    flex: 1;
+    accent-color: var(--accent2);
+  }
+  .dim-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+  .dim-table td {
+    border-bottom: 1px solid rgba(45,55,72,.55);
+    padding: 5px 4px;
+    font-size: 14px;
+  }
+  .dim-table tr:last-child td { border-bottom: none; }
+  .dim-table td:first-child {
+    color: var(--text);
+    width: 30%;
+    font-family: 'Inter', sans-serif;
+  }
+  .dim-table td:last-child {
+    color: var(--accent);
+    text-align: right;
+    white-space: nowrap;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+  }
+
+  .notes-panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 20px;
+  }
+  .notes-label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 12px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .notes-input {
+    width: 100%;
+    min-height: 130px;
+    resize: vertical;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-deep);
+    color: var(--text-head);
+    padding: 10px 12px;
+    font-size: 14px;
+    line-height: 1.5;
+    font-family: 'JetBrains Mono', monospace;
+    outline: none;
+  }
+  .notes-input:focus { border-color: var(--accent2); }
+  .notes-input.changed {
+    border-color: var(--green);
+    box-shadow: 0 0 0 1px rgba(63,185,80,.3) inset;
+  }
+
+  /* ── WEAPON SELECTOR ── */
+  .weapon-select {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--accent);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 2px 6px;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236e7681'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 6px center;
+    padding-right: 22px;
+    transition: border-color .15s;
+  }
+  .weapon-select:focus { border-color: var(--accent2); }
+  .weapon-select.changed {
+    color: var(--green);
+    border-color: rgba(63,185,80,.5);
+    text-shadow: 0 0 8px rgba(63,185,80,.25);
+  }
+  .roll-entry { display: flex; gap: 10px; }
+  .roll-ts { color: var(--text-dim); }
+  .roll-desc { color: var(--text); flex: 1; }
+  .roll-result { font-weight: 500; }
+  .roll-result.success { color: var(--green); }
+  .roll-result.fail { color: var(--red); }
+  .roll-result.neutral { color: var(--accent); }
+  .combine-summary {
+    color: var(--text-dim);
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ── ARMOR COLLAPSIBLE ── */
+  .armor-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .armor-toggle-row label {
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    font-family: 'JetBrains Mono', monospace;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .armor-summary {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-head);
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+  .armor-summary-val {
+    font-weight: 600;
+    font-size: 13px;
+  }
+  .armor-summary-val.av-torso { color: var(--armor-torso); }
+  .armor-summary-val.av-legs  { color: var(--armor-legs); }
+  .armor-summary-val.av-arms  { color: var(--armor-arms); }
+  .armor-summary-val.av-head  { color: var(--armor-head); }
+  .armor-chevron {
+    font-size: 10px;
+    color: var(--text-dim);
+    transition: transform .2s;
+    margin-left: 2px;
+  }
+  .armor-chevron.open { transform: rotate(90deg); }
+
+  /* collapsible panel */
+  .armor-collapse {
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+  .armor-collapse-inner {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 18px;
+    align-items: start;
+  }
+  @media (max-width: 660px) {
+    .armor-collapse-inner { grid-template-columns: 1fr; }
+  }
+
+  /* silhouette column */
+  .armor-silhouette-wrap { position: relative; }
+  .armor-panel-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin: 0 0 8px;
+  }
+  #armorFigure { width: 100%; height: auto; display: block; max-width: 180px; margin: 0 auto; }
+  .a-hit-zone {
+    cursor: pointer;
+    fill: var(--zone-color);
+    fill-opacity: .08;
+    stroke: var(--zone-color);
+    stroke-opacity: 0;
+    stroke-width: 2;
+    transition: fill-opacity .15s, stroke-opacity .15s;
+  }
+  .a-hit-zone:hover { fill-opacity: .22; }
+  .a-hit-zone.active { fill-opacity: .38; stroke-opacity: .85; }
+
+  .armor-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2px 10px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+  .a-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-dim);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 3px 2px;
+  }
+  .a-legend-item:hover, .a-legend-item.active { color: var(--text-head); }
+  .a-legend-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--dot-color, var(--text-dim));
+    flex: none;
+  }
+  .a-legend-val { font-weight: 700; color: var(--text-head); }
+
+  /* zone control column */
+  .armor-zone-panel {
+    border-left: 3px solid var(--azp-color, var(--border));
+    padding-left: 16px;
+    transition: border-color .15s;
+  }
+  .azp-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .azp-name {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-head);
+    letter-spacing: .06em;
+  }
+  .azp-total {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--azp-color, var(--text-head));
+    min-width: 2ch;
+  }
+  .azp-breakdown {
+    font-size: 12px;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .azp-input {
+    width: 72px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-head);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    padding: 6px 10px;
+    outline: none;
+    margin-bottom: 12px;
+    display: block;
+    -moz-appearance: textfield;
+  }
+  .azp-input::-webkit-outer-spin-button,
+  .azp-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .azp-input:focus { border-color: var(--accent2); }
+  .azp-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .azp-mat-btn {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: .05em;
+    padding: 6px 11px;
+    border-radius: 5px;
+    cursor: pointer;
+    background: transparent;
+    transition: background .15s, color .15s;
+  }
+  .azp-mat-btn.leather  { border: 1px solid #b58900; color: #b58900; }
+  .azp-mat-btn.leather:hover  { background: #b58900; color: var(--bg-deep); }
+  .azp-mat-btn.plasteel { border: 1px solid var(--accent2); color: var(--accent2); }
+  .azp-mat-btn.plasteel:hover { background: var(--accent2); color: var(--bg-deep); }
+  .azp-mat-btn.clear    { border: 1px solid var(--text-dim); color: var(--text-dim); }
+  .azp-mat-btn.clear:hover    { background: var(--text-dim); color: var(--bg-deep); }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg-deep); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div>
+      <div class="header-title">RPToken <span>Viewer</span></div>
+      <div class="header-sub">MapTool .rptok · upload · edit · download</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn-load" onclick="showUpload()">⬆ Load token</button>
+      <button class="btn-download" id="btnDownload" onclick="downloadToken()" style="display:none">⬇ Download token</button>
+    </div>
+  </div>
+
+  <!-- UPLOAD ZONE -->
+  <div class="upload-zone" id="uploadZone">
+    <input type="file" id="fileInput" accept=".rptok">
+    <div class="upload-icon">⬡</div>
+    <div class="upload-label">Drop a .rptok file here</div>
+    <div class="upload-hint">or click to browse &nbsp;·&nbsp; accepts <kbd>.rptok</kbd> archives</div>
+  </div>
+
+  <!-- CHARACTER SHEET -->
+  <div class="char-sheet" id="charSheet">
+
+    <div class="top-row">
+      <div class="portrait-wrap">
+        <div class="portrait-hex"><img id="portrait" src="" alt="portrait"></div>
+      </div>
+      <div class="identity-panel">
+        <div class="char-name" id="charName">–</div>
+        <div class="char-type-badge" id="charType">–</div>
+        <div class="identity-grid" id="identityGrid"></div>
+        <div class="status-row" id="statusRow"></div>
+      </div>
+    </div>
+
+    <!-- ARMOR CALCULATOR (collapsible) -->
+    <div class="armor-collapse" id="armorCollapse" style="display:none">
+      <div class="armor-collapse-inner">
+        <!-- silhouette -->
+        <div class="armor-silhouette-wrap">
+          <p class="armor-panel-title">Tap a body part</p>
+          <svg id="armorFigure" viewBox="0 0 512 640" xmlns="http://www.w3.org/2000/svg">
+            <ellipse class="a-hit-zone" data-zone="head" style="--zone-color:var(--armor-head)" cx="255.8" cy="68" rx="82" ry="66"></ellipse>
+            <rect class="a-hit-zone" data-zone="arms" style="--zone-color:var(--armor-arms)" x="28" y="132" width="458" height="74" rx="16"></rect>
+            <rect class="a-hit-zone" data-zone="torso" style="--zone-color:var(--armor-torso)" x="148" y="204" width="216" height="108" rx="18"></rect>
+            <rect class="a-hit-zone" data-zone="legs" style="--zone-color:var(--armor-legs)" x="148" y="310" width="216" height="192" rx="20"></rect>
+            <g style="fill:var(--text-head);pointer-events:none">
+              <path d="M306.6499023,498.0004883c-16.0053711,0-30.0776367-12.0200195-32.7338867-27.9594727c-0.0092773-0.0537109-0.0175781-0.1074219-0.0258789-0.1616211L255.7749023,348.996582l-18.1147461,120.8828125c-2.4975586,16.2329102-16.6162109,27.9047852-32.6259766,27.90625c-1.6074219,0-3.230957-0.1176758-4.8671875-0.3598633c-17.8789062-2.75-30.21875-19.5668945-27.5625-37.4956055l24.1435547-162.503418l-2.5239258-96.7412109h-86.4067383c-8.362793,0-16.171875-3.3339844-21.9882812-9.387207c-5.7592773-5.9946289-8.8720703-14.1889648-8.5405273-22.4829102c0.6821289-16.3676758,14.7958984-29.6704102,31.4624023-29.6704102h294.9814453c17.0952148,0,31.003418,14.1176758,31.003418,31.4702148c0,0.1386719-0.0029297,0.277832-0.0087891,0.4165039c-0.6811523,16.3510742-14.7949219,29.6538086-31.4614258,29.6538086h-85.9394531l-2.5234375,96.7416992l24.1425781,162.4990234c2.6132812,17.644043-9.1694336,34.1274414-26.4169922,37.309082C310.1523438,498.0004883,307.9545898,498.0004883,306.6499023,498.0004883z M305.4584961,478.5825195c-0.0053711,0.0029297-0.0102539,0.0053711-0.015625,0.0078125C305.4482422,478.5878906,305.453125,478.5854492,305.4584961,478.5825195z M293.6557617,466.8232422c1.0966797,6.3774414,6.6708984,11.1772461,12.9941406,11.1772461c0.074707,0,0.1557617,0.0014648,0.2412109,0.0019531c0.5087891-0.1616211,1.0307617-0.2822266,1.5605469-0.3608398c3.4018555-0.5039062,6.3769531-2.293457,8.3764648-5.0385742c2.0239258-2.7783203,2.8525391-6.2382812,2.3334961-9.7416992l-24.2700195-163.3554688c-0.0849609-0.5727539-0.1201172-1.1518555-0.1049805-1.7304688l2.800293-107.3505859c0.1411133-5.4194336,4.5751953-9.7392578,9.996582-9.7392578h95.6821289c5.9140625,0,11.1166992-4.6889648,11.4682617-10.284668c-0.1098633-6.2260742-5.0029297-11.2558594-11.0014648-11.2558594H108.7509766c-5.9853516,0-11.2421875,4.8022461-11.4790039,10.4868164c-0.1162109,2.9091797,0.9414062,5.6889648,2.9794922,7.8095703c2.0097656,2.0922852,4.6967773,3.2441406,7.565918,3.2441406h96.1494141c5.4213867,0,9.8554688,4.3198242,9.996582,9.7392578l2.800293,107.3505859c0.0151367,0.5786133-0.0200195,1.1577148-0.1049805,1.7304688l-24.2705078,163.3598633c-1.0307617,6.9560547,3.8989258,13.7280273,10.7651367,14.7841797c6.9038086,1.0288086,13.6772461-3.9072266,14.7333984-10.7734375l24.2646484-161.9208984c0.0478516-0.3173828,0.1103516-0.6323242,0.1884766-0.9438477c1.621582-6.484375,7.0205078-10.8413086,13.4350586-10.8413086s11.8134766,4.3569336,13.4350586,10.8413086c0.078125,0.3115234,0.140625,0.6264648,0.1884766,0.9438477L293.6557617,466.8232422z M307.2998047,477.9907227h-0.0004883H307.2998047z M424.7358398,170.6152344h0.0097656H424.7358398z"></path>
+              <path d="M255.7749023,125.480957c-30.7353516,0-55.7407227-25.0053711-55.7407227-55.7407227s25.0053711-55.7407227,55.7407227-55.7407227s55.7407227,25.0053711,55.7407227,55.7407227S286.5102539,125.480957,255.7749023,125.480957z M255.7749023,33.9995117c-19.7075195,0-35.7407227,16.0332031-35.7407227,35.7407227s16.0332031,35.7407227,35.7407227,35.7407227s35.7407227-16.0332031,35.7407227-35.7407227S275.4824219,33.9995117,255.7749023,33.9995117z"></path>
+            </g>
+          </svg>
+          <div class="armor-legend">
+            <button class="a-legend-item" data-zone="torso" style="--dot-color:var(--armor-torso)"><span class="a-legend-dot"></span>TORSO&nbsp;<span class="a-legend-val" id="aleg-torso">0</span></button>
+            <button class="a-legend-item" data-zone="legs"  style="--dot-color:var(--armor-legs)"><span class="a-legend-dot"></span>LEGS&nbsp;<span class="a-legend-val" id="aleg-legs">0</span></button>
+            <button class="a-legend-item" data-zone="arms"  style="--dot-color:var(--armor-arms)"><span class="a-legend-dot"></span>ARMS&nbsp;<span class="a-legend-val" id="aleg-arms">0</span></button>
+            <button class="a-legend-item" data-zone="head"  style="--dot-color:var(--armor-head)"><span class="a-legend-dot"></span>HEAD&nbsp;<span class="a-legend-val" id="aleg-head">0</span></button>
+          </div>
+        </div>
+        <!-- zone control -->
+        <div class="armor-zone-panel" id="armorZonePanel">
+          <div class="azp-head">
+            <span class="azp-name" id="azp-name">TORSO</span>
+            <span class="azp-total" id="azp-total">0</span>
+            <span class="azp-breakdown" id="azp-breakdown"></span>
+          </div>
+          <input type="number" min="0" class="azp-input" id="azp-input" value="0">
+          <div class="azp-buttons">
+            <button class="azp-mat-btn leather" id="azp-leather">+ Leather 3</button>
+            <button class="azp-mat-btn plasteel" id="azp-plasteel">+ Plasteel 12</button>
+            <button class="azp-mat-btn clear" id="azp-clear">Clear</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DICE ROLLER -->
+    <div class="section-header">Skill Check</div>
+    <div class="roll-panel">
+      <div class="roll-config">
+        <button class="btn-primary" id="btnRollCombined" onclick="rollCombined()">⚄ Roll Selected</button>
+        <div class="combine-summary" id="combineSummary">Select one or more skills via checkboxes in the tables.</div>
+      </div>
+      <div class="roll-dimensions-wrap">
+        <div class="roll-log" id="rollLog">
+          <div data-placeholder="1" style="color:var(--text-dim);font-size:11px;">Roll results will appear here…</div>
+        </div>
+        <div class="dimensions-panel">
+          <div style="text-align:center; margin-bottom:4px;"><span class="dim-value" id="dim0">0</span></div>
+          <div class="dim-slider-row">
+            <button class="dim-btn" id="dimDecreaseBtn" type="button">-</button>
+            <input class="dim-slider" type="range" min="-50" max="50" value="0" id="dimRoll">
+            <button class="dim-btn" id="dimIncreaseBtn" type="button">+</button>
+          </div>
+          <table class="dim-table">
+            <tbody>
+              <tr><td>Accuracy</td><td id="dim1">-</td></tr>
+              <tr><td>Combat</td><td id="dim2">-</td></tr>
+              <tr><td>Healing</td><td id="dim3">-</td></tr>
+              <tr><td>Initiative</td><td id="dim4">-</td></tr>
+              <tr><td>Move</td><td id="dim5">-</td></tr>
+              <tr><td>Speed</td><td id="dim6">-</td></tr>
+              <tr><td>Yield</td><td id="dim7">-</td></tr>
+              <tr><td>Yield (T)</td><td id="dim8">-</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SKILLS -->
+    <div class="section-header">Skills</div>
+    <div class="skills-columns">
+      <div class="skill-table-wrap">
+        <div class="table-title">
+          <div class="table-title-row">
+            <span>Allgemein</span>
+            <div class="title-points">
+              <label>Restpunkte</label>
+              <span class="skill-value-display" id="pointsAllgemein">0</span>
+              <div class="skill-actions">
+                <button class="icon-btn" type="button" onclick="changeSkillPoints('Allgemein', 1)" title="Increase remaining points">▲</button>
+                <button class="icon-btn" type="button" onclick="changeSkillPoints('Allgemein', -1)" title="Decrease remaining points">▼</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <table class="skill-table" id="generalSkillsTable"></table>
+      </div>
+      <div class="skill-table-wrap">
+        <div class="table-title">
+          <div class="table-title-row">
+            <span>Speziell</span>
+            <div class="title-points">
+              <label>Restpunkte</label>
+              <span class="skill-value-display" id="pointsSpeziell">0</span>
+              <div class="skill-actions">
+                <button class="icon-btn" type="button" onclick="changeSkillPoints('Speziell', 1)" title="Increase remaining points">▲</button>
+                <button class="icon-btn" type="button" onclick="changeSkillPoints('Speziell', -1)" title="Decrease remaining points">▼</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <table class="skill-table" id="specialSkillsTable"></table>
+      </div>
+    </div>
+
+    <div class="section-header">Notes</div>
+    <div class="notes-panel">
+      <label class="notes-label" for="tokenNotes">Token Notes (Markdown)</label>
+      <textarea id="tokenNotes" class="notes-input" placeholder="No notes"></textarea>
+    </div>
+
+  </div>
+</div>
+
+<!-- JSZip from CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+/* ════════════════════════
+   STATE
+════════════════════════ */
+let skillsData     = {};   // key -> {key, display, value, originalValue, selected}
+let originalZip    = null; // JSZip of the loaded file
+let originalXml    = '';   // UTF-8 decoded content.xml
+let loadedFilename = '_Emily.rptok';
+let skillPointPools = { Allgemein: 0, Speziell: 0 };
+let originalSkillPointPools = { Allgemein: 0, Speziell: 0 };
+let damagePenalty = 0;
+let originalDamagePenalty = 0;
+let lastRolledResult = 0;
+let tokenNotes = '';
+let originalTokenNotes = '';
+let armorData = {
+  torso: { value: 0, originalValue: 0, parts: [] },
+  legs:  { value: 0, originalValue: 0, parts: [] },
+  arms:  { value: 0, originalValue: 0, parts: [] },
+  head:  { value: 0, originalValue: 0, parts: [] },
+};
+let armorActiveZone = 'torso';
+let armorPanelOpen  = false;
+let weaponValue     = '';
+let originalWeaponValue = '';
+
+const WEAPON_OPTIONS = [
+  'Unarmed',
+  'Dagger',
+  'Sword',
+  'Club',
+  'Axe',
+  'Bow',
+  'Light Pistol',
+  'Heavy Pistol',
+  'Light Rifle',
+  'Heavy Rifle',
+  'Machine Gun',
+  'Grenade Launcher',
+  'Energy Weapon',
+];
+
+const SKILL_COLUMNS = {
+  Allgemein: [
+    { group: 'Feinmotorik', skills: ['Feinmechanik', 'Gerätegebrauch', 'Instrument spielen'] },
+    { group: 'Grobmotorik', skills: ['Klettern', 'Rennen', 'Stärke'] },
+    { group: 'Heimlichkeit', skills: ['Schleichen', 'Unverdächtig', 'Verstecken'] },
+    { group: 'Intelligenz', skills: ['Verständnis', 'Vorhersage', 'Wissen'] },
+    { group: 'Soziales', skills: ['Empathie', 'Höflichkeit', 'Redner'] },
+    { group: 'Wahrnehmung', skills: ['Aufmerksamkeit', 'Beobachten', 'Initiative'] }
+  ],
+  Speziell: [
+    { group: 'Ingenieurswesen', skills: ['Computer', 'Raumfahrt', 'Fahrzeuge', 'Chemie'] },
+    { group: 'Medizin', skills: ['Erste Hilfe', 'Diagnosen', 'Therapien'] },
+    { group: 'Basteln', skills: ['Elektronik', 'Gadgets', 'Ersatzteile'] },
+    { group: 'Fahrzeuge lenken', skills: ['Kleinfahrzeuge', 'Großfahrzeuge', 'Raumfahrzeuge'] },
+    { group: 'Fernkampfwaffen', skills: ['Bögen', 'Geschosswaffen', 'Energiewaffen'] },
+    { group: 'Nahkampfwaffen', skills: ['Waffenlos', 'Kurzwaffen', 'Langwaffen'] },
+    { group: 'Artillerie', skills: ['Tragbare', 'Montierte', 'Eingebettete'] },
+    { group: 'Wirtschaften', skills: ['Bilanz', 'Energie', 'Logistik'] }
+  ]
+};
+
+const DISPLAY_NAME_OVERRIDES = {
+  'Instrument spielen': 'Instrument'
+};
+
+const KNOWN_SKILL_KEYS = new Set(
+  Object.values(SKILL_COLUMNS)
+    .flat()
+    .flatMap(g => g.skills)
+);
+
+const SKILL_COLUMN_BY_KEY = Object.fromEntries(
+  Object.entries(SKILL_COLUMNS).flatMap(([columnName, groups]) =>
+    groups.flatMap(group => group.skills.map(skillKey => [skillKey, columnName]))
+  )
+);
+
+const DIMENSION_MIN = -50;
+const DIMENSION_MAX = 50;
+
+const dimRoll = document.getElementById('dimRoll');
+const dimDecreaseBtn = document.getElementById('dimDecreaseBtn');
+const dimIncreaseBtn = document.getElementById('dimIncreaseBtn');
+const dim0 = document.getElementById('dim0');
+const dim1 = document.getElementById('dim1');
+const dim2 = document.getElementById('dim2');
+const dim3 = document.getElementById('dim3');
+const dim4 = document.getElementById('dim4');
+const dim5 = document.getElementById('dim5');
+const dim6 = document.getElementById('dim6');
+const dim7 = document.getElementById('dim7');
+const dim8 = document.getElementById('dim8');
+const tokenNotesInput = document.getElementById('tokenNotes');
+
+/* ════════════════════════
+   UPLOAD / DRAG-DROP
+════════════════════════ */
+const zone      = document.getElementById('uploadZone');
+const fileInput = document.getElementById('fileInput');
+
+zone.addEventListener('click',     () => fileInput.click());
+zone.addEventListener('dragover',  e  => { e.preventDefault(); zone.classList.add('dragover'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+zone.addEventListener('drop',      e  => { e.preventDefault(); zone.classList.remove('dragover'); const f = e.dataTransfer.files[0]; if (f) processFile(f); });
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) processFile(fileInput.files[0]); });
+
+function showUpload() {
+  document.getElementById('charSheet').classList.remove('visible');
+  document.getElementById('btnDownload').style.display = 'none';
+  zone.style.display = '';
+}
+
+/* ════════════════════════
+   PROCESS .rptok
+════════════════════════ */
+async function processFile(file) {
+  try {
+    loadedFilename = file.name;
+    const buf = await file.arrayBuffer();
+    const zip = await JSZip.loadAsync(buf);
+    originalZip = zip;
+
+    const xmlEntry = zip.file('content.xml');
+    if (!xmlEntry) {
+      throw new Error('Archive does not contain content.xml');
+    }
+
+    const xmlBuffer = await xmlEntry.async('arraybuffer');
+    const xmlText = decodeUtf8(xmlBuffer);
+    originalXml = xmlText;
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xmlText, 'text/xml');
+    const parserError = doc.querySelector('parsererror');
+    if (parserError) {
+      throw new Error('content.xml could not be parsed as XML (UTF-8).');
+    }
+
+    parseToken(doc);
+
+    // portrait
+    const pngFile = Object.keys(zip.files).find(n => n.endsWith('.png'));
+    if (pngFile) {
+      const blob = await zip.file(pngFile).async('blob');
+      document.getElementById('portrait').src = URL.createObjectURL(blob);
+    }
+
+    zone.style.display = 'none';
+    document.getElementById('charSheet').classList.add('visible');
+    document.getElementById('btnDownload').style.display = '';
+    fileInput.value = '';
+  } catch(err) {
+    alert('Could not read .rptok file:\n' + err.message);
+    console.error(err);
+  }
+}
+
+function getText(doc, tag) {
+  const el = doc.querySelector(tag); return el ? el.textContent.trim() : '';
+}
+
+function decodeUtf8(buffer) {
+  const decoder = new TextDecoder('utf-8', { fatal: false });
+  let text = decoder.decode(buffer);
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  return text;
+}
+
+function normalizeXmlDeclaration(xmlStr) {
+  const declaration = /^\s*<\?xml[^?]*\?>/i;
+  if (declaration.test(xmlStr)) {
+    return xmlStr.replace(declaration, (m) => {
+      if (/encoding\s*=\s*["'][^"']*["']/i.test(m)) {
+        return m.replace(/encoding\s*=\s*["'][^"']*["']/i, 'encoding="UTF-8"');
+      }
+      return m.replace(/\?>$/, ' encoding="UTF-8"?>');
+    });
+  }
+  return `<?xml version="1.0" encoding="UTF-8"?>\n${xmlStr}`;
+}
+
+/* ════════════════════════
+   ARMOR ENCODE / DECODE
+   Simplified format: "T|L|A|H"  (torso|legs|arms|head)
+   Falls back to 0 for missing or unparseable values.
+════════════════════════ */
+function decodeArmorString(raw) {
+  const result = [0, 0, 0, 0];
+  if (!raw || typeof raw !== 'string') return result;
+  const parts = raw.split(',');
+  for (let i = 0; i < 4; i++) {
+    const n = parseInt((parts[i] || '').trim(), 10);
+    result[i] = Number.isFinite(n) && n >= 0 ? n : 0;
+  }
+  return result;
+}
+
+function encodeArmorString(data) {
+  return [data.torso.value, data.legs.value, data.arms.value, data.head.value]
+    .map(v => String(Math.max(0, Math.round(Number.isFinite(v) ? v : 0))))
+    .join(',');
+}
+
+function parseSkillValue(raw) {
+  if (raw === null || raw === undefined) return null;
+  const text = String(raw).trim();
+  if (!text) return null;
+  const matches = text.match(/-?\d+(?:[.,]\d+)?/g);
+  if (!matches || !matches.length) return null;
+  const current = Number(matches[matches.length - 1].replace(',', '.'));
+  if (Number.isNaN(current) || current <= 0) return null;
+  return current;
+}
+
+function parseStoredInt(raw, fallback = 0) {
+  if (raw === null || raw === undefined) return fallback;
+  const matches = String(raw).trim().match(/-?\d+/);
+  if (!matches) return fallback;
+  const value = parseInt(matches[0], 10);
+  return Number.isNaN(value) ? fallback : value;
+}
+
+function displaySkillName(key) {
+  return DISPLAY_NAME_OVERRIDES[key] || key;
+}
+
+function findKeyByEsc(eid) {
+  return Object.keys(skillsData).find(k => esc(k) === eid);
+}
+
+function formatSkillValue(value) {
+  if (value === null || value === undefined || Number.isNaN(value)) return '–';
+  return Number.isInteger(value) ? String(value) : String(value);
+}
+
+function skillNumericValue(skill) {
+  if (!skill) return 0;
+  return skill.value === null || skill.value === undefined || Number.isNaN(skill.value) ? 0 : skill.value;
+}
+
+function clamp(n, min, max) {
+  return Math.min(max, Math.max(min, n));
+}
+
+function formatSigned(n) {
+  return n >= 0 ? `+${n}` : `${n}`;
+}
+
+function damagePenaltyFromHealth(health) {
+  const safe = clamp(Number.isFinite(health) ? health : 1, 0, 1);
+  return Math.round((1 - safe) * 20);
+}
+
+function healthFromDamagePenalty(penalty) {
+  const safePenalty = clamp(Math.round(Number.isFinite(penalty) ? penalty : 0), 0, 20);
+  return clamp(1 - safePenalty / 20, 0, 1);
+}
+
+function formatHealthDecimal(value) {
+  return clamp(Number.isFinite(value) ? value : 1, 0, 1).toFixed(1);
+}
+
+function updateNotesDisplay() {
+  if (!tokenNotesInput) return;
+  tokenNotesInput.value = tokenNotes;
+  tokenNotesInput.classList.toggle('changed', tokenNotes !== originalTokenNotes);
+}
+
+function changeWeapon(val) {
+  weaponValue = val;
+  const sel = document.getElementById('weaponSelect');
+  if (sel) sel.classList.toggle('changed', weaponValue !== originalWeaponValue);
+}
+
+if (tokenNotesInput) {
+  tokenNotesInput.addEventListener('input', () => {
+    tokenNotes = tokenNotesInput.value;
+    tokenNotesInput.classList.toggle('changed', tokenNotes !== originalTokenNotes);
+  });
+}
+
+function parseToken(doc) {
+  document.getElementById('charName').textContent  = getText(doc,'name') || 'Unknown';
+  const tt = getText(doc,'tokenType'), pt = getText(doc,'propertyType');
+  document.getElementById('charType').textContent  = [tt,pt].filter(Boolean).join(' · ');
+
+  const grid = document.getElementById('identityGrid');
+  grid.innerHTML = '';
+
+  // Rüstung and Schusswaffe from property map (special display)
+  const entries = doc.querySelectorAll('propertyMapCI > store > entry');
+  let armorValue = '';
+  weaponValue = '';
+  entries.forEach(entry => {
+    const kv  = entry.querySelector('net\\.rptools\\.CaseInsensitiveHashMap_-KeyValue');
+    if (!kv) return;
+    const key = kv.querySelector('key')?.textContent?.trim() || '';
+    const valEl = kv.querySelector('value');
+    const val = valEl ? valEl.textContent.trim() : null;
+    if (key === 'Rüstung' && val) armorValue = val;
+    if (key === 'Schusswaffe' && val) weaponValue = val;
+  });
+
+  // Normalize: if stored value isn't in our list, treat as Unarmed
+  if (!WEAPON_OPTIONS.includes(weaponValue)) weaponValue = 'Unarmed';
+  originalWeaponValue = weaponValue;
+
+  const healthNode = Array.from(doc.querySelectorAll('state > entry')).find((entry) => {
+    const key = entry.querySelector('string')?.textContent?.trim() || '';
+    return key === 'Health';
+  })?.querySelector('big-decimal');
+  const healthValue = healthNode ? Number(healthNode.textContent.trim()) : 1;
+  damagePenalty = damagePenaltyFromHealth(healthValue);
+  originalDamagePenalty = damagePenalty;
+
+  tokenNotes = getText(doc, 'notes');
+  originalTokenNotes = tokenNotes;
+
+  const armorVals = decodeArmorString(armorValue);
+  armorData = {
+    torso: { value: armorVals[0], originalValue: armorVals[0], parts: [] },
+    legs:  { value: armorVals[1], originalValue: armorVals[1], parts: [] },
+    arms:  { value: armorVals[2], originalValue: armorVals[2], parts: [] },
+    head:  { value: armorVals[3], originalValue: armorVals[3], parts: [] },
+  };
+
+  grid.insertAdjacentHTML('beforeend',
+    `<div class="identity-item identity-inline">
+      <span class="identity-inline-item armor-toggle-row" onclick="toggleArmorPanel()" title="Edit armor protection">
+        <label>Rüstung</label>
+        <span class="armor-summary">
+          <span class="armor-summary-val av-torso" id="asv-torso">${armorVals[0]}</span><span style="color:var(--border)">·</span>
+          <span class="armor-summary-val av-legs"  id="asv-legs">${armorVals[1]}</span><span style="color:var(--border)">·</span>
+          <span class="armor-summary-val av-arms"  id="asv-arms">${armorVals[2]}</span><span style="color:var(--border)">·</span>
+          <span class="armor-summary-val av-head"  id="asv-head">${armorVals[3]}</span>
+        </span>
+        <span class="armor-chevron" id="armorChevron">▶</span>
+      </span>
+      ${`<span class="identity-inline-item">
+        <label>Waffe</label>
+        <select id="weaponSelect" class="weapon-select${weaponValue !== originalWeaponValue ? ' changed' : ''}" onchange="changeWeapon(this.value)">
+          ${WEAPON_OPTIONS.map(w => `<option value="${w}"${w === weaponValue ? ' selected' : ''}>${w}</option>`).join('')}
+        </select>
+      </span>`}
+      <span class="identity-inline-item">
+        <label>Schaden</label>
+        <span class="val accent" id="damageValue">${damagePenalty}</span>
+        <span class="damage-controls">
+          <button class="icon-btn" type="button" onclick="changeDamagePenalty(1)" title="Increase damage">▲</button>
+          <button class="icon-btn" type="button" onclick="changeDamagePenalty(-1)" title="Decrease damage">▼</button>
+        </span>
+      </span>
+    </div>`);
+
+  // Init calculator state
+  armorActiveZone = 'torso';
+  renderArmorCalculator();
+  wireArmorCalculator();
+
+  // State badges
+  const stateRow = document.getElementById('statusRow');
+  stateRow.innerHTML = '';
+  doc.querySelectorAll('state > entry').forEach(entry => {
+    const k = entry.querySelector('string')?.textContent?.trim() || '';
+    const v = entry.querySelector('boolean')?.textContent?.trim();
+    if (!k || (v !== 'true' && v !== 'false')) return;
+    const active = v === 'true';
+    stateRow.insertAdjacentHTML('beforeend',
+      `<span class="badge ${active?'active':'inactive'}"><span class="badge-dot"></span>${k}</span>`);
+  });
+
+  // Skills (filter to requested columns only)
+  skillsData = {};
+  const allValues = {};
+  entries.forEach(entry => {
+    const kv  = entry.querySelector('net\\.rptools\\.CaseInsensitiveHashMap_-KeyValue');
+    if (!kv) return;
+    const key   = kv.querySelector('key')?.textContent?.trim() || '';
+    const valEl = kv.querySelector('value');
+    const val   = valEl ? valEl.textContent.trim() : null;
+    if (key) allValues[key] = val;
+  });
+
+  KNOWN_SKILL_KEYS.forEach((key) => {
+    const numeric = parseSkillValue(allValues[key]);
+    skillsData[key] = {
+      key,
+      column: SKILL_COLUMN_BY_KEY[key],
+      display: displaySkillName(key),
+      value: numeric,
+      originalValue: numeric,
+      selected: false
+    };
+  });
+
+  skillPointPools.Allgemein = Math.max(0, parseStoredInt(allValues.Allgemein, 0));
+  skillPointPools.Speziell = Math.max(0, parseStoredInt(allValues.Speziell, 0));
+  originalSkillPointPools = {
+    Allgemein: skillPointPools.Allgemein,
+    Speziell: skillPointPools.Speziell
+  };
+
+  renderSkills();
+  updateAllPointDisplays();
+  updateCombinedSummary();
+  updateDamageDisplay();
+  updateNotesDisplay();
+  setDimensionsValue(0, false);
+}
+
+/* ════════════════════════
+   RENDER SKILLS
+════════════════════════ */
+function renderSkills() {
+  renderSkillTable('generalSkillsTable', SKILL_COLUMNS.Allgemein);
+  renderSkillTable('specialSkillsTable', SKILL_COLUMNS.Speziell);
+}
+
+function esc(s) {
+  return (s||'').replace(/[^\w\-\.]/g,'_');
+}
+
+function renderSkillTable(tableId, groups) {
+  const table = document.getElementById(tableId);
+  table.innerHTML = '';
+
+  groups.forEach((group) => {
+    table.insertAdjacentHTML('beforeend', `
+      <tr class="group-row">
+        <td class="skill-col-name"><b>${group.group}</b></td>
+        <td class="skill-col-val"></td>
+      </tr>
+    `);
+
+    group.skills.forEach((key) => {
+      const skill = skillsData[key];
+      if (!skill) return;
+      const eid = esc(skill.key);
+      const hasNum = skill.value !== null;
+      const changed = skill.value !== skill.originalValue;
+      const display = formatSkillValue(skill.value);
+
+      table.insertAdjacentHTML('beforeend', `
+        <tr class="skill-row${skill.selected ? ' selected' : ''}" id="row_${eid}" onclick="toggleCombined('${eid}')" title="Select for combined roll" style="cursor:pointer">
+          <td class="skill-col-name">
+            <input type="checkbox" class="combine-check" id="sc_${eid}" ${skill.selected ? 'checked' : ''}>
+            <label class="skill-name-label" for="sc_${eid}" style="pointer-events:none">
+              <span class="combine-pip"></span>
+              ${skill.display}
+            </label>
+          </td>
+          <td class="skill-col-val" onclick="event.stopPropagation()">
+            <div class="skill-cell-right">
+              <span class="skill-value-display ${hasNum ? '' : 'null-val'} ${changed ? 'changed' : ''}" id="sv_${eid}">${display}</span>
+              <div class="skill-actions">
+                <button class="icon-btn" onclick="changeSkill('${eid}',1)" title="Increase">▲</button>
+                <button class="icon-btn" onclick="changeSkill('${eid}',-1)" title="Decrease">▼</button>
+                <button class="btn-roll" onclick="quickRoll('${eid}')">Roll</button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      `);
+    });
+  });
+}
+
+/* ════════════════════════
+   SKILL VALUE / SELECTION
+════════════════════════ */
+function changeSkill(eid, delta) {
+  const key = findKeyByEsc(eid);
+  if (!key) return;
+
+  const skill = skillsData[key];
+  const current = skillNumericValue(skill);
+  const next = Math.max(0, current + delta);
+  const columnName = skill.column;
+  const deltaCost = skillChangeCost(current, next);
+
+  if (deltaCost > skillPointPools[columnName]) {
+    return;
+  }
+
+  skill.value = next === 0 ? null : next;
+  skillPointPools[columnName] -= deltaCost;
+  updateSkillDisplay(eid, skill);
+  updatePointDisplay(columnName);
+  updateCombinedSummary();
+}
+
+function setSkillPoints(columnName, rawValue) {
+  const parsed = parseStoredInt(rawValue, 0);
+  skillPointPools[columnName] = Math.max(0, parsed);
+  updatePointDisplay(columnName);
+}
+
+function changeSkillPoints(columnName, delta) {
+  setSkillPoints(columnName, skillPointPools[columnName] + delta);
+}
+
+function updatePointDisplay(columnName) {
+  const displayId = columnName === 'Allgemein' ? 'pointsAllgemein' : 'pointsSpeziell';
+  const displayEl = document.getElementById(displayId);
+  if (!displayEl) return;
+  displayEl.textContent = String(skillPointPools[columnName]);
+  displayEl.className = `skill-value-display ${skillPointPools[columnName] !== originalSkillPointPools[columnName] ? 'changed' : ''}`.trim();
+}
+
+function toggleCombined(eid) {
+  const key = findKeyByEsc(eid);
+  if (!key) return;
+  const cb = document.getElementById('sc_' + eid);
+  // Toggle the checkbox programmatically (click came from the row, not the input)
+  if (cb) cb.checked = !cb.checked;
+  skillsData[key].selected = !!(cb && cb.checked);
+  const row = document.getElementById('row_' + eid);
+  if (row) row.classList.toggle('selected', skillsData[key].selected);
+  updateCombinedSummary();
+}
+
+function updateSkillDisplay(eid, skill) {
+  const el = document.getElementById('sv_' + eid);
+  if (!el) return;
+  const hasNum = skill.value !== null;
+  const changed = skill.value !== skill.originalValue;
+  el.textContent = formatSkillValue(skill.value);
+  el.className = `skill-value-display ${hasNum ? '' : 'null-val'} ${changed ? 'changed' : ''}`.trim();
+}
+
+function updateCombinedSummary() {
+  const selected = Object.values(skillsData).filter(s => s.selected);
+  const btn = document.getElementById('btnRollCombined');
+  const sum = document.getElementById('combineSummary');
+
+  if (!selected.length) {
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    sum.textContent = 'Select one or more skills via checkboxes in the tables.';
+    return;
+  }
+
+  const combinedValue = combineSelectedSkills(selected);
+  btn.disabled = false;
+  btn.style.opacity = '1';
+  sum.textContent = `${selected.length} selected · combined ${formatSkillValue(combinedValue)}`;
+}
+
+function stepCostForLevel(level) {
+  if (level <= 0) return 0;
+  return Math.ceil(level / 10);
+}
+
+function skillChangeCost(fromValue, toValue) {
+  if (fromValue === toValue) return 0;
+
+  let cost = 0;
+  if (toValue > fromValue) {
+    for (let level = fromValue + 1; level <= toValue; level += 1) {
+      cost += stepCostForLevel(level);
+    }
+    return cost;
+  }
+
+  for (let level = fromValue; level >= toValue + 1; level -= 1) {
+    cost -= stepCostForLevel(level);
+  }
+  return cost;
+}
+
+function updateAllPointDisplays() {
+  updatePointDisplay('Allgemein');
+  updatePointDisplay('Speziell');
+}
+
+function updateDamageDisplay() {
+  const el = document.getElementById('damageValue');
+  if (!el) return;
+  el.textContent = String(damagePenalty);
+  el.classList.toggle('changed', damagePenalty !== originalDamagePenalty);
+}
+
+function changeDamagePenalty(delta) {
+  damagePenalty = clamp(damagePenalty + delta, 0, 20);
+  updateDamageDisplay();
+}
+
+function updateDimensionsFromSlider() {
+  const raw = Number(dimRoll.value);
+  const current = clamp(Number.isFinite(raw) ? raw : 0, DIMENSION_MIN, DIMENSION_MAX);
+  const v = current / 10;
+
+  dim0.textContent = String(current);
+  dim1.textContent = `${Math.round(100 * (1 - 1 / (2.5 * 2 ** v)))} % - ${Math.round(100 / (1 - 1 / (2.5 * 2 ** v)))} %`;
+  dim2.textContent = `${Math.round(32 * 2 ** -v) / 8} s`;
+  dim3.textContent = `${Math.round(8 * 2 ** -v) / 8} day/pt`;
+  dim4.textContent = `${Math.round(32 * 2 ** -v) / 8} s`;
+  dim5.textContent = `${Math.round(40 * 2 ** (v / 2)) / 16} m/s = ${Math.round(144 * 2 ** (v / 2)) / 16} km/h`;
+  dim6.textContent = `${Math.round(400 * 2 ** -v)} %`;
+  dim7.textContent = `${Math.round(8 * 2 ** v) / 8}`;
+  dim8.textContent = `${Math.round(8 * 2 ** -v) / 8}`;
+}
+
+function setDimensionsValue(value, syncRollResult = true) {
+  const next = clamp(Math.round(value), DIMENSION_MIN, DIMENSION_MAX);
+  dimRoll.value = String(next);
+  if (syncRollResult) {
+    lastRolledResult = next;
+  }
+  updateDimensionsFromSlider();
+}
+
+function nudgeDimensions(delta) {
+  setDimensionsValue(Number(dimRoll.value) + delta, false);
+}
+
+dimRoll.addEventListener('input', () => {
+  updateDimensionsFromSlider();
+});
+dimDecreaseBtn.addEventListener('click', () => nudgeDimensions(-1));
+dimIncreaseBtn.addEventListener('click', () => nudgeDimensions(1));
+updateDimensionsFromSlider();
+
+/* ════════════════════════
+   DICE ROLLER
+════════════════════════ */
+function d(sides) {
+  return Math.floor(Math.random() * sides) + 1;
+}
+
+function p5() {
+  const r = [];
+  let roll = d(5);
+  while (roll !== 1) {
+    r.push(roll);
+    roll = d(5);
+  }
+  return r.length;
+}
+
+function rollN5() {
+  return p5() - p5();
+}
+
+function rollN5Parts() {
+  const plus = p5();
+  const minus = p5();
+  return { plus, minus, total: plus - minus };
+}
+
+function combineTwoSkills(firstValue, secondValue) {
+  const a = Math.max(firstValue, secondValue);
+  const b = Math.min(firstValue, secondValue);
+  return Math.round(a + (5 * Math.log(1 + Math.exp((b - a) * Math.log(2) / 5))) / Math.log(2));
+}
+
+function combineSelectedSkills(selectedSkills) {
+  const sortedValues = selectedSkills
+    .map(skillNumericValue)
+    .sort((a, b) => a - b);
+
+  if (!sortedValues.length) return 0;
+
+  return sortedValues.slice(1).reduce((combined, value) => combineTwoSkills(combined, value), sortedValues[0]);
+}
+
+function rollExpression(baseValue, parts) {
+  const damagePart = damagePenalty !== 0 ? ` -${damagePenalty} damage` : '';
+  return `${baseValue}${damagePart} + ${parts.plus} - ${parts.minus}`;
+}
+
+function quickRoll(eid) {
+  const key = findKeyByEsc(eid);
+  if (!key) return;
+  const skill = skillsData[key];
+  const baseValue = skillNumericValue(skill);
+  const parts = rollN5Parts();
+  const total = baseValue - damagePenalty + parts.total;
+  setDimensionsValue(total, true);
+  addRollEntry(
+    `<strong>${skill.display}</strong>: ${baseValue} | ${rollExpression(baseValue, parts)} = ${formatSkillValue(total)}`,
+    'neutral'
+  );
+}
+
+function rollCombined() {
+  const selected = Object.values(skillsData).filter(s => s.selected);
+  if (!selected.length) {
+    addRollEntry('No selected skills.', 'neutral');
+    return;
+  }
+
+  if (selected.length === 1) {
+    const skill = selected[0];
+    const baseValue = skillNumericValue(skill);
+    const parts = rollN5Parts();
+    const total = baseValue - damagePenalty + parts.total;
+    setDimensionsValue(total, true);
+    addRollEntry(
+      `<strong>${skill.display}</strong>: ${baseValue} | ${rollExpression(baseValue, parts)} = ${formatSkillValue(total)}`,
+      'neutral'
+    );
+    return;
+  }
+
+  const base = combineSelectedSkills(selected);
+  const names = selected
+    .map(s => `<strong>${s.display}</strong> ${skillNumericValue(s)}`)
+    .join(' ⊕ ');
+  const parts = rollN5Parts();
+  const total = base - damagePenalty + parts.total;
+  setDimensionsValue(total, true);
+
+  addRollEntry(
+    `${names} = ${formatSkillValue(base)} | ${rollExpression(base, parts)} = ${formatSkillValue(total)}`,
+    'neutral'
+  );
+}
+
+function addRollEntry(messageHtml, cls) {
+  const log   = document.getElementById('rollLog');
+  const first = log.querySelector('[data-placeholder]');
+  if (first) first.remove();
+  const ts  = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const div = document.createElement('div');
+  div.className = 'roll-entry';
+  div.innerHTML = `<span class="roll-ts">${ts}</span><span class="roll-desc">${messageHtml}</span><span class="roll-result ${cls}"></span>`;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+/* ════════════════════════
+   ARMOR CALCULATOR
+════════════════════════ */
+const ARMOR_ZONE_DEFS = [
+  { key: 'torso', label: 'TORSO', color: 'var(--armor-torso)' },
+  { key: 'legs',  label: 'LEGS',  color: 'var(--armor-legs)'  },
+  { key: 'arms',  label: 'ARMS',  color: 'var(--armor-arms)'  },
+  { key: 'head',  label: 'HEAD',  color: 'var(--armor-head)'  },
+];
+const ARMOR_MATERIALS = {
+  leather:  { label: 'Leather',  value: 3  },
+  plasteel: { label: 'Plasteel', value: 12 },
+};
+
+function toggleArmorPanel() {
+  armorPanelOpen = !armorPanelOpen;
+  const panel   = document.getElementById('armorCollapse');
+  const chevron = document.getElementById('armorChevron');
+  if (panel)   panel.style.display   = armorPanelOpen ? '' : 'none';
+  if (chevron) chevron.classList.toggle('open', armorPanelOpen);
+}
+
+function armorSetActiveZone(zoneKey) {
+  armorActiveZone = zoneKey;
+  renderArmorCalculator();
+}
+
+function armorAddMaterial(zoneKey, matKey) {
+  const mat = ARMOR_MATERIALS[matKey];
+  armorData[zoneKey].value = Math.min(999, armorData[zoneKey].value + mat.value);
+  armorData[zoneKey].parts.push({ label: mat.label, value: mat.value });
+  renderArmorCalculator();
+}
+
+function armorClearZone(zoneKey) {
+  armorData[zoneKey].value = 0;
+  armorData[zoneKey].parts = [];
+  renderArmorCalculator();
+}
+
+function armorResetAll() {
+  Object.keys(armorData).forEach(k => {
+    armorData[k].value = 0;
+    armorData[k].parts = [];
+  });
+  renderArmorCalculator();
+}
+
+function armorSetManual(zoneKey, rawVal) {
+  const v = Math.max(0, Math.min(999, parseInt(rawVal, 10) || 0));
+  armorData[zoneKey].value = v;
+  armorData[zoneKey].parts = [];
+  renderArmorCalculator();
+}
+
+function renderArmorCalculator() {
+  const def = ARMOR_ZONE_DEFS.find(d => d.key === armorActiveZone);
+  const z   = armorData[armorActiveZone];
+
+  // zone panel
+  const zonePanel = document.getElementById('armorZonePanel');
+  if (zonePanel) zonePanel.style.setProperty('--azp-color', def.color);
+  const nameEl = document.getElementById('azp-name');
+  if (nameEl) nameEl.textContent = def.label;
+  const totalEl = document.getElementById('azp-total');
+  if (totalEl) totalEl.textContent = z.value;
+  const breakEl = document.getElementById('azp-breakdown');
+  if (breakEl) breakEl.textContent = z.parts.length > 1 ? z.parts.map(p => p.value).join(' + ') : '';
+  const inputEl = document.getElementById('azp-input');
+  if (inputEl && document.activeElement !== inputEl) inputEl.value = z.value;
+
+  // legend
+  ARMOR_ZONE_DEFS.forEach(d => {
+    const leg = document.getElementById('aleg-' + d.key);
+    if (leg) leg.textContent = armorData[d.key].value;
+    const btn = document.querySelector(`.a-legend-item[data-zone="${d.key}"]`);
+    if (btn) btn.classList.toggle('active', d.key === armorActiveZone);
+  });
+
+  // silhouette zones
+  document.querySelectorAll('.a-hit-zone').forEach(el => {
+    const k = el.dataset.zone;
+    el.classList.toggle('active', k === armorActiveZone);
+    const capped = Math.min(armorData[k].value, 30);
+    el.style.fillOpacity = (0.08 + (capped / 30) * 0.30).toFixed(2);
+  });
+
+  // summary chips in identity row
+  ARMOR_ZONE_DEFS.forEach(d => {
+    const chip = document.getElementById('asv-' + d.key);
+    if (chip) chip.textContent = armorData[d.key].value;
+  });
+}
+
+function wireArmorCalculator() {
+  document.querySelectorAll('.a-hit-zone').forEach(el => {
+    el.addEventListener('click', () => armorSetActiveZone(el.dataset.zone));
+  });
+  document.querySelectorAll('.a-legend-item').forEach(el => {
+    el.addEventListener('click', () => armorSetActiveZone(el.dataset.zone));
+  });
+  const inputEl = document.getElementById('azp-input');
+  if (inputEl) inputEl.addEventListener('input', () => armorSetManual(armorActiveZone, inputEl.value));
+  document.getElementById('azp-leather') ?.addEventListener('click', () => armorAddMaterial(armorActiveZone, 'leather'));
+  document.getElementById('azp-plasteel')?.addEventListener('click', () => armorAddMaterial(armorActiveZone, 'plasteel'));
+  document.getElementById('azp-clear')   ?.addEventListener('click', () => armorClearZone(armorActiveZone));
+}
+
+/* ════════════════════════
+   DOWNLOAD .rptok
+   Re-packs the ZIP with updated content.xml
+════════════════════════ */
+async function downloadToken() {
+  if (!originalZip || !originalXml) { alert('No token loaded.'); return; }
+
+  try {
+    // Build updated content.xml by patching the filtered skill keys
+    const updatedXml = rebuildXml(originalXml);
+    const utf8Xml = new TextEncoder().encode(updatedXml);
+
+    // Clone the zip
+    const newZip = new JSZip();
+    const fileNames = Object.keys(originalZip.files);
+    for (const name of fileNames) {
+      const entry = originalZip.files[name];
+      if (entry.dir) { newZip.folder(name.replace(/\/$/,'')); continue; }
+      if (name === 'content.xml') {
+        newZip.file(name, utf8Xml, { binary: true });
+      } else {
+        const data = await originalZip.file(name).async('arraybuffer');
+        newZip.file(name, data);
+      }
+    }
+
+    const blob = await newZip.generateAsync({
+      type: 'blob',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 }
+    });
+
+    const a  = document.createElement('a');
+    a.href   = URL.createObjectURL(blob);
+    a.download = loadedFilename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch(err) {
+    alert('Download failed:\n' + err.message);
+    console.error(err);
+  }
+}
+
+/**
+ * Walk the original XML string and patch <value> nodes inside each skill entry
+ * by doing a targeted DOM mutation, then serialising back to string.
+ */
+function upsertPropertyValue(doc, key, valueText) {
+  const storeEl = doc.querySelector('propertyMapCI > store');
+  if (!storeEl) return;
+
+  let entry = Array.from(storeEl.children).find((candidate) => {
+    if (candidate.tagName !== 'entry') return false;
+    const candidateKey = candidate.querySelector('net\\.rptools\\.CaseInsensitiveHashMap_-KeyValue > key')?.textContent?.trim() || '';
+    return candidateKey === key;
+  });
+
+  if (!entry) {
+    entry = doc.createElement('entry');
+    const kv = doc.createElement('net.rptools.CaseInsensitiveHashMap_-KeyValue');
+    const keyEl = doc.createElement('key');
+    const valEl = doc.createElement('value');
+    keyEl.textContent = key;
+    valEl.setAttribute('class', 'string');
+    valEl.textContent = valueText;
+    kv.appendChild(keyEl);
+    kv.appendChild(valEl);
+    entry.appendChild(kv);
+    storeEl.appendChild(entry);
+    return;
+  }
+
+  const kv = entry.querySelector('net\\.rptools\\.CaseInsensitiveHashMap_-KeyValue');
+  if (!kv) return;
+
+  let valEl = kv.querySelector('value');
+  if (!valEl) {
+    valEl = doc.createElement('value');
+    valEl.setAttribute('class', 'string');
+    kv.appendChild(valEl);
+  }
+  valEl.textContent = valueText;
+}
+
+function rebuildXml(xmlStr) {
+  const parser = new DOMParser();
+  const doc    = parser.parseFromString(xmlStr, 'text/xml');
+
+  let notesEl = doc.querySelector('notes');
+  if (!notesEl) {
+    notesEl = doc.createElement('notes');
+    doc.documentElement.appendChild(notesEl);
+  }
+  notesEl.textContent = tokenNotes;
+
+  const entries = doc.querySelectorAll('propertyMapCI > store > entry');
+  entries.forEach(entry => {
+    const kv = entry.querySelector('net\\.rptools\\.CaseInsensitiveHashMap_-KeyValue');
+    if (!kv) return;
+    const key = kv.querySelector('key')?.textContent?.trim() || '';
+    if (!key || !(key in skillsData)) return;
+
+    const newVal = skillsData[key].value;
+
+    // Find or create <value class="string"> child of kv
+    let valEl = kv.querySelector('value');
+
+    if (newVal === null || newVal === '') {
+      // Remove existing value element if present
+      if (valEl) kv.removeChild(valEl);
+    } else {
+      const asText = Number.isInteger(newVal) ? String(newVal) : String(newVal);
+      if (valEl) {
+        valEl.textContent = asText;
+      } else {
+        // Create it after <key>
+        valEl = doc.createElement('value');
+        valEl.setAttribute('class','string');
+        valEl.textContent = asText;
+        kv.appendChild(valEl);
+      }
+    }
+  });
+
+  upsertPropertyValue(doc, 'Allgemein', String(skillPointPools.Allgemein));
+  upsertPropertyValue(doc, 'Speziell', String(skillPointPools.Speziell));
+  upsertPropertyValue(doc, 'Rüstung', encodeArmorString(armorData));
+  upsertPropertyValue(doc, 'Schusswaffe', weaponValue);
+
+  const healthEntry = Array.from(doc.querySelectorAll('state > entry')).find((entry) => {
+    const key = entry.querySelector('string')?.textContent?.trim() || '';
+    return key === 'Health';
+  });
+  if (healthEntry) {
+    let healthEl = healthEntry.querySelector('big-decimal');
+    if (!healthEl) {
+      healthEl = doc.createElement('big-decimal');
+      healthEntry.appendChild(healthEl);
+    }
+    healthEl.textContent = formatHealthDecimal(healthFromDamagePenalty(damagePenalty));
+  }
+
+  const ser = new XMLSerializer();
+  return normalizeXmlDeclaration(ser.serializeToString(doc));
+}
+</script>
+</body>
+</html>
