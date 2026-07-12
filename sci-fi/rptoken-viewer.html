@@ -749,6 +749,30 @@
     color: var(--text-dim);
     font-family: 'JetBrains Mono', monospace;
   }
+  .azp-repair-btn {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--text-dim);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 3px 9px;
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .azp-repair-btn:hover { color: var(--accent2); border-color: var(--accent2); }
+  .azp-input-row { display: flex; gap: 12px; margin-bottom: 12px; }
+  .azp-input-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
   .azp-input {
     width: 72px;
     background: var(--bg-card);
@@ -759,7 +783,6 @@
     font-size: 15px;
     padding: 6px 10px;
     outline: none;
-    margin-bottom: 12px;
     display: block;
     -moz-appearance: textfield;
   }
@@ -786,8 +809,15 @@
   .azp-mat-btn.leather:hover  { background: #b58900; color: var(--bg-deep); }
   .azp-mat-btn.plasteel { border: 1px solid var(--accent2); color: var(--accent2); }
   .azp-mat-btn.plasteel:hover { background: var(--accent2); color: var(--bg-deep); }
-  .azp-mat-btn.clear    { border: 1px solid var(--text-dim); color: var(--text-dim); }
-  .azp-mat-btn.clear:hover    { background: var(--text-dim); color: var(--bg-deep); }
+  .azp-mat-btn.glas     { border: 1px solid #859900; color: #859900; }
+  .azp-mat-btn.glas:hover     { background: #859900; color: var(--bg-deep); }
+  .azp-mat-btn.metal    { border: 1px solid #93a1a1; color: #93a1a1; }
+  .azp-mat-btn.metal:hover    { background: #93a1a1; color: var(--bg-deep); }
+  .azp-mat-btn.leather.active  { background: #b58900; color: var(--bg-deep); }
+  .azp-mat-btn.plasteel.active { background: var(--accent2); color: var(--bg-deep); }
+  .azp-mat-btn.glas.active     { background: #859900; color: var(--bg-deep); }
+  .azp-mat-btn.metal.active    { background: #93a1a1; color: var(--bg-deep); }
+  .azp-pct-note { font-size: 10px; color: var(--text-dim); margin-top: 10px; }
 
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: var(--bg-deep); }
@@ -860,14 +890,24 @@
           <div class="azp-head">
             <span class="azp-name" id="azp-name">TORSO</span>
             <span class="azp-total" id="azp-total">0</span>
-            <span class="azp-breakdown" id="azp-breakdown"></span>
+            <span class="azp-breakdown" id="azp-breakdown">No armor</span>
+            <button class="azp-repair-btn" id="azp-repair" title="Repair all armor zones">↺ Repair</button>
           </div>
-          <input type="number" min="0" class="azp-input" id="azp-input" value="0">
+          <div class="azp-input-row">
+            <label class="azp-input-label">Value
+              <input type="number" min="0" class="azp-input" id="azp-value" value="0">
+            </label>
+            <label class="azp-input-label">Battered
+              <input type="number" min="0" step="0.1" class="azp-input" id="azp-battered" value="0">
+            </label>
+          </div>
           <div class="azp-buttons">
-            <button class="azp-mat-btn leather" id="azp-leather">+ Leather 3</button>
-            <button class="azp-mat-btn plasteel" id="azp-plasteel">+ Plasteel 12</button>
-            <button class="azp-mat-btn clear" id="azp-clear">Clear</button>
+            <button class="azp-mat-btn leather" id="azp-leather">Leather 3</button>
+            <button class="azp-mat-btn plasteel" id="azp-plasteel">Plasteel 12</button>
+            <button class="azp-mat-btn glas" id="azp-glas">Glas 8</button>
+            <button class="azp-mat-btn metal" id="azp-metal">Metal 12</button>
           </div>
+          <div class="azp-pct-note">Hit chance: torso 40% · legs 30% · arms 20% · head 10%</div>
         </div>
       </div>
     </div>
@@ -970,12 +1010,13 @@ let lastRolledResult = 0;
 let tokenNotes = '';
 let originalTokenNotes = '';
 let armorData = {
-  torso: { value: 0, originalValue: 0, parts: [] },
-  legs:  { value: 0, originalValue: 0, parts: [] },
-  arms:  { value: 0, originalValue: 0, parts: [] },
-  head:  { value: 0, originalValue: 0, parts: [] },
+  torso: { material: null, value: 0, battered: 0 },
+  legs:  { material: null, value: 0, battered: 0 },
+  arms:  { material: null, value: 0, battered: 0 },
+  head:  { material: null, value: 0, battered: 0 },
 };
 let armorActiveZone = 'torso';
+let armorCalculatorWired = false;
 let armorPanelOpen  = false;
 let weaponValue     = '';
 let originalWeaponValue = '';
@@ -993,7 +1034,9 @@ const WEAPON_OPTIONS = [
   'Heavy Rifle',
   'Machine Gun',
   'Grenade Launcher',
-  'Energy Weapon',
+  'Blaster Mk I',
+  'Blaster Mk II',
+  'Blaster Mk III',
 ];
 
 const SKILL_COLUMNS = {
@@ -1139,24 +1182,47 @@ function normalizeXmlDeclaration(xmlStr) {
 
 /* ════════════════════════
    ARMOR ENCODE / DECODE
-   Simplified format: "T|L|A|H"  (torso|legs|arms|head)
-   Falls back to 0 for missing or unparseable values.
+   Format: one token per zone (torso,legs,arms,head), comma-separated.
+   Each token is "<battered>/<value> <MaterialName>", e.g. "8.5/12 Plasteel".
+   MaterialName is one of Leather/Plasteel/Glas/Metal, or "None" for an
+   empty zone. The current (battered) value is always the first number
+   before the comma, so a naive parser can grab it without knowing the
+   rest of the format.
+   Older plain "a,b,c,d" numeric exports don't match this shape and are
+   ignored on import (zones come back empty rather than misread).
 ════════════════════════ */
+const ARMOR_ZONE_ORDER = ['torso', 'legs', 'arms', 'head'];
+
 function decodeArmorString(raw) {
-  const result = [0, 0, 0, 0];
+  const result = {};
+  ARMOR_ZONE_ORDER.forEach(k => { result[k] = { material: null, value: 0, battered: 0 }; });
   if (!raw || typeof raw !== 'string') return result;
-  const parts = raw.split(',');
-  for (let i = 0; i < 4; i++) {
-    const n = parseInt((parts[i] || '').trim(), 10);
-    result[i] = Number.isFinite(n) && n >= 0 ? n : 0;
-  }
+
+  const parts = raw.split(',').map(s => s.trim());
+  const tokenRe = /^(\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)\s+(\S+)$/;
+  const isNewFormat = parts.length === 4 && parts.every(p => tokenRe.test(p));
+  if (!isNewFormat) return result; // old "a,b,c,d" format (or anything else) is ignored
+
+  parts.forEach((p, i) => {
+    const m = p.match(tokenRe);
+    if (!m) return;
+    const [, batteredStr, valueStr, matText] = m;
+    const matKey = Object.keys(ARMOR_MATERIALS).find(k => ARMOR_MATERIALS[k].label.toLowerCase() === matText.toLowerCase());
+    result[ARMOR_ZONE_ORDER[i]] = {
+      material: matKey || null,
+      value:    Math.max(0, parseFloat(valueStr)),
+      battered: Math.max(0, parseFloat(batteredStr)),
+    };
+  });
   return result;
 }
 
 function encodeArmorString(data) {
-  return [data.torso.value, data.legs.value, data.arms.value, data.head.value]
-    .map(v => String(Math.max(0, Math.round(Number.isFinite(v) ? v : 0))))
-    .join(',');
+  return ARMOR_ZONE_ORDER.map(k => {
+    const z = data[k] || { material: null, value: 0, battered: 0 };
+    const matLabel = z.material ? (ARMOR_MATERIALS[z.material]?.label || 'None') : 'None';
+    return `${fmtArmor(z.battered)}/${fmtArmor(z.value)} ${matLabel}`;
+  }).join(', ');
 }
 
 function parseSkillValue(raw) {
@@ -1274,23 +1340,17 @@ function parseToken(doc) {
   tokenNotes = getText(doc, 'notes');
   originalTokenNotes = tokenNotes;
 
-  const armorVals = decodeArmorString(armorValue);
-  armorData = {
-    torso: { value: armorVals[0], originalValue: armorVals[0], parts: [] },
-    legs:  { value: armorVals[1], originalValue: armorVals[1], parts: [] },
-    arms:  { value: armorVals[2], originalValue: armorVals[2], parts: [] },
-    head:  { value: armorVals[3], originalValue: armorVals[3], parts: [] },
-  };
+  armorData = decodeArmorString(armorValue);
 
   grid.insertAdjacentHTML('beforeend',
     `<div class="identity-item identity-inline">
       <span class="identity-inline-item armor-toggle-row" onclick="toggleArmorPanel()" title="Edit armor protection">
         <label>Rüstung</label>
         <span class="armor-summary">
-          <span class="armor-summary-val av-torso" id="asv-torso">${armorVals[0]}</span><span style="color:var(--border)">·</span>
-          <span class="armor-summary-val av-legs"  id="asv-legs">${armorVals[1]}</span><span style="color:var(--border)">·</span>
-          <span class="armor-summary-val av-arms"  id="asv-arms">${armorVals[2]}</span><span style="color:var(--border)">·</span>
-          <span class="armor-summary-val av-head"  id="asv-head">${armorVals[3]}</span>
+          <span class="armor-summary-val av-torso" id="asv-torso">${fmtArmor(armorData.torso.battered)}</span><span style="color:var(--border)">·</span>
+          <span class="armor-summary-val av-legs"  id="asv-legs">${fmtArmor(armorData.legs.battered)}</span><span style="color:var(--border)">·</span>
+          <span class="armor-summary-val av-arms"  id="asv-arms">${fmtArmor(armorData.arms.battered)}</span><span style="color:var(--border)">·</span>
+          <span class="armor-summary-val av-head"  id="asv-head">${fmtArmor(armorData.head.battered)}</span>
         </span>
         <span class="armor-chevron" id="armorChevron">▶</span>
       </span>
@@ -1313,7 +1373,7 @@ function parseToken(doc) {
   // Init calculator state
   armorActiveZone = 'torso';
   renderArmorCalculator();
-  wireArmorCalculator();
+  if (!armorCalculatorWired) { wireArmorCalculator(); armorCalculatorWired = true; }
 
   // State badges
   const stateRow = document.getElementById('statusRow');
@@ -1697,9 +1757,18 @@ const ARMOR_ZONE_DEFS = [
   { key: 'head',  label: 'HEAD',  color: 'var(--armor-head)'  },
 ];
 const ARMOR_MATERIALS = {
-  leather:  { label: 'Leather',  value: 3  },
-  plasteel: { label: 'Plasteel', value: 12 },
+  leather:  { label: 'Leather',  bep: 3,  lossNum: 2, lossDenom: 3  },
+  plasteel: { label: 'Plasteel', bep: 12, lossNum: 3, lossDenom: 12 },
+  glas:     { label: 'Glas',     bep: 8,  lossNum: 2, lossDenom: 8  },
+  metal:    { label: 'Metal',    bep: 12, lossNum: 1, lossDenom: 24 },
 };
+
+/* Format an armor value for display: whole numbers stay whole, fractional
+   battered values are shown to 1 decimal place. */
+function fmtArmor(v) {
+  const n = Math.round((v || 0) * 10) / 10;
+  return Number.isInteger(n) ? String(n) : n.toFixed(1);
+}
 
 function toggleArmorPanel() {
   armorPanelOpen = !armorPanelOpen;
@@ -1714,37 +1783,40 @@ function armorSetActiveZone(zoneKey) {
   renderArmorCalculator();
 }
 
-function armorAddMaterial(zoneKey, matKey) {
-  const mat = ARMOR_MATERIALS[matKey];
-  armorData[zoneKey].value = Math.min(999, armorData[zoneKey].value + mat.value);
-  armorData[zoneKey].parts.push({ label: mat.label, value: mat.value });
+function armorSetMaterial(matKey) {
+  const z = armorActiveZone;
+  if (armorData[z].material === matKey) {
+    // clicking the active material again clears the zone
+    armorData[z] = { material: null, value: 0, battered: 0 };
+  } else {
+    // replaces whatever was in this zone — mixing materials is not possible
+    const mat = ARMOR_MATERIALS[matKey];
+    armorData[z] = { material: matKey, value: mat.bep, battered: mat.bep };
+  }
   renderArmorCalculator();
 }
 
-function armorClearZone(zoneKey) {
-  armorData[zoneKey].value = 0;
-  armorData[zoneKey].parts = [];
+function armorSetValue(rawVal) {
+  const v = Math.max(0, Math.min(999, parseFloat(rawVal) || 0));
+  armorData[armorActiveZone].value = v;
   renderArmorCalculator();
 }
 
-function armorResetAll() {
-  Object.keys(armorData).forEach(k => {
-    armorData[k].value = 0;
-    armorData[k].parts = [];
-  });
+function armorSetBattered(rawVal) {
+  const v = Math.max(0, Math.min(999, parseFloat(rawVal) || 0));
+  armorData[armorActiveZone].battered = v;
   renderArmorCalculator();
 }
 
-function armorSetManual(zoneKey, rawVal) {
-  const v = Math.max(0, Math.min(999, parseInt(rawVal, 10) || 0));
-  armorData[zoneKey].value = v;
-  armorData[zoneKey].parts = [];
+function repairArmor() {
+  ARMOR_ZONE_DEFS.forEach(d => { armorData[d.key].battered = armorData[d.key].value; });
   renderArmorCalculator();
 }
 
 function renderArmorCalculator() {
   const def = ARMOR_ZONE_DEFS.find(d => d.key === armorActiveZone);
   const z   = armorData[armorActiveZone];
+  const matDef = z.material ? ARMOR_MATERIALS[z.material] : null;
 
   // zone panel
   const zonePanel = document.getElementById('armorZonePanel');
@@ -1752,16 +1824,24 @@ function renderArmorCalculator() {
   const nameEl = document.getElementById('azp-name');
   if (nameEl) nameEl.textContent = def.label;
   const totalEl = document.getElementById('azp-total');
-  if (totalEl) totalEl.textContent = z.value;
+  if (totalEl) totalEl.textContent = fmtArmor(z.battered);
   const breakEl = document.getElementById('azp-breakdown');
-  if (breakEl) breakEl.textContent = z.parts.length > 1 ? z.parts.map(p => p.value).join(' + ') : '';
-  const inputEl = document.getElementById('azp-input');
-  if (inputEl && document.activeElement !== inputEl) inputEl.value = z.value;
+  if (breakEl) breakEl.textContent = matDef ? `${matDef.label} · Loss ${matDef.lossNum}/${matDef.lossDenom}` : 'No armor';
+  const valueEl = document.getElementById('azp-value');
+  if (valueEl && document.activeElement !== valueEl) valueEl.value = z.value;
+  const batteredEl = document.getElementById('azp-battered');
+  if (batteredEl && document.activeElement !== batteredEl) batteredEl.value = fmtArmor(z.battered);
+
+  // material buttons
+  Object.keys(ARMOR_MATERIALS).forEach(key => {
+    const btn = document.getElementById('azp-' + key);
+    if (btn) btn.classList.toggle('active', z.material === key);
+  });
 
   // legend
   ARMOR_ZONE_DEFS.forEach(d => {
     const leg = document.getElementById('aleg-' + d.key);
-    if (leg) leg.textContent = armorData[d.key].value;
+    if (leg) leg.textContent = fmtArmor(armorData[d.key].battered);
     const btn = document.querySelector(`.a-legend-item[data-zone="${d.key}"]`);
     if (btn) btn.classList.toggle('active', d.key === armorActiveZone);
   });
@@ -1770,14 +1850,14 @@ function renderArmorCalculator() {
   document.querySelectorAll('.a-hit-zone').forEach(el => {
     const k = el.dataset.zone;
     el.classList.toggle('active', k === armorActiveZone);
-    const capped = Math.min(armorData[k].value, 30);
+    const capped = Math.min(armorData[k].battered, 30);
     el.style.fillOpacity = (0.08 + (capped / 30) * 0.30).toFixed(2);
   });
 
   // summary chips in identity row
   ARMOR_ZONE_DEFS.forEach(d => {
     const chip = document.getElementById('asv-' + d.key);
-    if (chip) chip.textContent = armorData[d.key].value;
+    if (chip) chip.textContent = fmtArmor(armorData[d.key].battered);
   });
 }
 
@@ -1788,11 +1868,14 @@ function wireArmorCalculator() {
   document.querySelectorAll('.a-legend-item').forEach(el => {
     el.addEventListener('click', () => armorSetActiveZone(el.dataset.zone));
   });
-  const inputEl = document.getElementById('azp-input');
-  if (inputEl) inputEl.addEventListener('input', () => armorSetManual(armorActiveZone, inputEl.value));
-  document.getElementById('azp-leather') ?.addEventListener('click', () => armorAddMaterial(armorActiveZone, 'leather'));
-  document.getElementById('azp-plasteel')?.addEventListener('click', () => armorAddMaterial(armorActiveZone, 'plasteel'));
-  document.getElementById('azp-clear')   ?.addEventListener('click', () => armorClearZone(armorActiveZone));
+  const valueEl = document.getElementById('azp-value');
+  if (valueEl) valueEl.addEventListener('input', () => armorSetValue(valueEl.value));
+  const batteredEl = document.getElementById('azp-battered');
+  if (batteredEl) batteredEl.addEventListener('input', () => armorSetBattered(batteredEl.value));
+  Object.keys(ARMOR_MATERIALS).forEach(key => {
+    document.getElementById('azp-' + key)?.addEventListener('click', () => armorSetMaterial(key));
+  });
+  document.getElementById('azp-repair')?.addEventListener('click', () => repairArmor());
 }
 
 /* ════════════════════════

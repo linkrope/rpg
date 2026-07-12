@@ -186,6 +186,7 @@ body::before {
 .log-hit     { color: var(--cyan); }
 .log-hit-adv { color: var(--amber); }
 .log-miss    { color: var(--text-dim); }
+.log-armor   { color: var(--text-dim); font-size: 11px; font-style: italic; padding-left: 12px; }
 .log-round-sep { color: #444; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; padding: 2px 0; }
 .log-dead    { color: var(--red); font-weight: 600; }
 .log-empty   { color: #333; font-style: italic; }
@@ -380,10 +381,22 @@ body::before {
 .azp-name  { font-family: 'Rajdhani', sans-serif; font-size: 16px; font-weight: 700; color: var(--text-head); letter-spacing: .06em; }
 .azp-total { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 700; color: var(--azp-color, var(--text-head)); min-width: 2ch; }
 .azp-breakdown { font-size: 11px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; }
+.azp-repair-btn {
+  margin-left: auto; font-size: 10px; color: var(--text-dim); background: none;
+  border: 1px solid var(--border-dim); border-radius: 4px;
+  padding: 2px 7px; cursor: pointer; font-family: 'JetBrains Mono', monospace;
+  transition: all .15s; white-space: nowrap;
+}
+.azp-repair-btn:hover { color: var(--cyan); border-color: rgba(0,212,255,.3); }
+.azp-input-row { display: flex; gap: 10px; margin-bottom: 8px; }
+.azp-input-label {
+  font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em;
+  display: flex; flex-direction: column; gap: 3px;
+}
 .azp-input {
-  width: 64px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 5px;
+  width: 70px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 5px;
   color: var(--text-head); font-family: 'JetBrains Mono', monospace; font-size: 13px;
-  padding: 5px 8px; outline: none; margin-bottom: 8px; display: block;
+  padding: 5px 8px; outline: none;
   -moz-appearance: textfield;
 }
 .azp-input::-webkit-outer-spin-button, .azp-input::-webkit-inner-spin-button { -webkit-appearance: none; }
@@ -398,8 +411,14 @@ body::before {
 .azp-mat-btn.leather:hover  { background: #b58900; color: var(--bg-deep); }
 .azp-mat-btn.plasteel { border: 1px solid var(--cyan); color: var(--cyan); }
 .azp-mat-btn.plasteel:hover { background: var(--cyan); color: var(--bg-deep); }
-.azp-mat-btn.clear    { border: 1px solid var(--text-dim); color: var(--text-dim); }
-.azp-mat-btn.clear:hover    { background: var(--text-dim); color: var(--bg-deep); }
+.azp-mat-btn.glas      { border: 1px solid #859900; color: #859900; }
+.azp-mat-btn.glas:hover      { background: #859900; color: var(--bg-deep); }
+.azp-mat-btn.metal     { border: 1px solid #93a1a1; color: #93a1a1; }
+.azp-mat-btn.metal:hover     { background: #93a1a1; color: var(--bg-deep); }
+.azp-mat-btn.leather.active  { background: #b58900; color: var(--bg-deep); }
+.azp-mat-btn.plasteel.active { background: var(--cyan); color: var(--bg-deep); }
+.azp-mat-btn.glas.active     { background: #859900; color: var(--bg-deep); }
+.azp-mat-btn.metal.active    { background: #93a1a1; color: var(--bg-deep); }
 .azp-pct-note { font-size: 9px; color: var(--text-dim); margin-top: 8px; }
 
 /* add/upload buttons at bottom */
@@ -681,19 +700,21 @@ body::before {
    CONSTANTS
 ══════════════════════════════════════ */
 const WEAPON_PRESETS = [
-  { name:'Unarmed',          skill:'Waffenlos',      weight:null,       hand:2, bep:2,  range:null,   rate:'4s',  clip:null,       ammo:null,   nozzle:null },
-  { name:'Dagger',           skill:'Kurzwaffen',     weight:'300g',     hand:1, bep:5,  range:'5m',   rate:'4s',  clip:null,       ammo:null,   nozzle:null },
-  { name:'Sword',            skill:'Langwaffen',     weight:'1.3kg',    hand:1, bep:7,  range:null,   rate:'4s',  clip:null,       ammo:null,   nozzle:null },
-  { name:'Club',             skill:'Langwaffen',     weight:'1.2kg',    hand:1, bep:6,  range:null,   rate:'4s',  clip:null,       ammo:null,   nozzle:null },
-  { name:'Axe',              skill:'Langwaffen',     weight:'1.1kg',    hand:1, bep:6,  range:'5m',   rate:'4s',  clip:null,       ammo:'1kg',   nozzle:'6m/s' },
-  { name:'Bow',              skill:'Bögen',          weight:'1.5kg',    hand:2, bep:8,  range:'20m',  rate:'6s',  clip:20,         ammo:'80g',   nozzle:'100m/s' },
-  { name:'Light Pistol',     skill:'Geschosswaffen', weight:'1kg',      hand:1, bep:6,  range:'20m',  rate:'2s',  clip:20,         ammo:'10g',   nozzle:'600m/s' },
-  { name:'Heavy Pistol',     skill:'Geschosswaffen', weight:'2kg',      hand:1, bep:18, range:'20m',  rate:'3s',  clip:10,         ammo:'20g',   nozzle:'900m/s' },
-  { name:'Light Rifle',      skill:'Geschosswaffen', weight:'4kg',      hand:2, bep:12, range:'40m',  rate:'2s',  clip:30,         ammo:'20g',   nozzle:'600m/s' },
-  { name:'Heavy Rifle',      skill:'Geschosswaffen', weight:'6kg',      hand:2, bep:24, range:'40m',  rate:'4s',  clip:20,         ammo:'40g',   nozzle:'600m/s' },
-  { name:'Machine Gun',      skill:'Montierte',      weight:'25kg',     hand:2, bep:36, range:'40m',  rate:'1s',  clip:120,        ammo:'40g',   nozzle:'900m/s' },
-  { name:'Grenade Launcher', skill:'Tragbare',       weight:'3kg',      hand:2, bep:50, range:'40m',  rate:'12s', clip:1,          ammo:'500g',  nozzle:'100m/s' },
-  { name:'Energy Weapon',    skill:'Energiewaffen',  weight:'2.5/(kWs)', hand:2, bep:'10/(kWs)', range:'50m', rate:'1s', clip:'see below', ammo:'see below', nozzle:'Light' },
+  { name:'Unarmed',          skill:'Waffenlos',      weight:null,    hand:2, bep:2,  range:null,  rate:'4s', clip:null, ammo:null,   nozzle:null },
+  { name:'Dagger',           skill:'Kurzwaffen',     weight:'300g',  hand:1, bep:5,  range:'5m',  rate:'4s', clip:null, ammo:null,   nozzle:null },
+  { name:'Sword',            skill:'Langwaffen',     weight:'1.3kg', hand:1, bep:7,  range:null,  rate:'4s', clip:null, ammo:null,   nozzle:null },
+  { name:'Club',             skill:'Langwaffen',     weight:'1.2kg', hand:1, bep:6,  range:null,  rate:'4s', clip:null, ammo:null,   nozzle:null },
+  { name:'Axe',              skill:'Langwaffen',     weight:'1.1kg', hand:1, bep:6,  range:'5m',  rate:'4s', clip:null, ammo:'1kg',  nozzle:'6m/s' },
+  { name:'Bow',              skill:'Bögen',          weight:'1.5kg', hand:2, bep:8,  range:'20m', rate:'6s', clip:20,   ammo:'80g',  nozzle:'100m/s' },
+  { name:'Light Pistol',     skill:'Geschosswaffen', weight:'1kg',   hand:1, bep:6,  range:'20m', rate:'2s', clip:20,   ammo:'10g',  nozzle:'600m/s' },
+  { name:'Heavy Pistol',     skill:'Geschosswaffen', weight:'2kg',   hand:1, bep:18, range:'20m', rate:'3s', clip:10,   ammo:'20g',  nozzle:'900m/s' },
+  { name:'Light Rifle',      skill:'Geschosswaffen', weight:'4kg',   hand:2, bep:12, range:'40m', rate:'2s', clip:30,   ammo:'20g',  nozzle:'600m/s' },
+  { name:'Heavy Rifle',      skill:'Geschosswaffen', weight:'6kg',   hand:2, bep:24, range:'40m', rate:'4s', clip:20,   ammo:'40g',  nozzle:'600m/s' },
+  { name:'Machine Gun',      skill:'Montierte',      weight:'25kg',  hand:2, bep:36, range:'40m', rate:'1s', clip:120,  ammo:'40g',  nozzle:'900m/s' },
+  { name:'Grenade Launcher', skill:'Tragbare',       weight:'3kg',   hand:2, bep:50, range:'40m', rate:'12s',clip:1,    ammo:'500g', nozzle:'100m/s' },
+  { name:'Blaster Mk I',     skill:'Energiewaffen',  weight:'2.5kg', hand:2, bep:10, range:'50m', rate:'1s', clip:250,  ammo:'250g', nozzle:'Light' },
+  { name:'Blaster Mk II',    skill:'Energiewaffen',  weight:'5kg',   hand:2, bep:20, range:'50m', rate:'1s', clip:1000, ammo:'1kg', nozzle:'Light' },
+  { name:'Blaster Mk III',   skill:'Energiewaffen',  weight:'10kg',  hand:2, bep:40, range:'50m', rate:'1s', clip:2000, ammo:'2kg', nozzle:'Light' },
 ];
 
 const COMBAT_SKILLS = [
@@ -721,9 +742,42 @@ const ARMOR_ZONE_DEFS = [
 ];
 
 const ARMOR_MATERIALS = {
-  leather:  { label:'Leather',  value:3  },
-  plasteel: { label:'Plasteel', value:12 },
+  leather:  { label:'Leather',  bep:3,  lossNum:2, lossDenom:3  },
+  plasteel: { label:'Plasteel', bep:12, lossNum:3, lossDenom:12 },
+  glas:     { label:'Glas',     bep:8,  lossNum:2, lossDenom:8  },
+  metal:    { label:'Metal',    bep:12, lossNum:1, lossDenom:24 },
 };
+
+/* Rüstungseffekt: the % of raw (pre-armor) damage that is applied as armor
+   wear, depending on weapon category. Energiewaffe currently mirrors
+   Geschosswaffe, but is kept as its own entry so it can be tuned separately
+   later. */
+const RUESTUNGSEFFEKT = {
+  geschosswaffe: 5,
+  kurzwaffe:     10,
+  langwaffe:     25,
+  energiewaffe:  5, // = geschosswaffe for now, kept separate for later change
+};
+
+/* Maps each combat skill to the Rüstungseffekt category it uses. */
+const SKILL_TO_RUESTUNGSEFFEKT = {
+  'Waffenlos':      'kurzwaffe',
+  'Kurzwaffen':     'kurzwaffe',
+  'Langwaffen':     'langwaffe',
+  'Bögen':          'geschosswaffe',
+  'Geschosswaffen': 'geschosswaffe',
+  'Energiewaffen':  'energiewaffe',
+  'Tragbare':       'langwaffe',
+  'Montierte':      'langwaffe',
+  'Eingebettete':   'langwaffe',
+};
+
+/* Format an armor value for display: whole numbers stay whole, fractional
+   battered values are shown to 1 decimal place. */
+function fmtArmor(v) {
+  const n = Math.round((v||0)*10)/10;
+  return Number.isInteger(n) ? String(n) : n.toFixed(1);
+}
 
 function rateToAttacks(rate) {
   // 4s round: 1s→4 attacks, 2s→2, 3s or 4s→1, 6s+→0
@@ -764,6 +818,12 @@ let aimZones = new Set(['torso','legs','arms','head']);
 /* ══════════════════════════════════════
    COMBATANT MODEL
 ══════════════════════════════════════ */
+function makeArmorZone(value, material, battered) {
+  const v = value ?? 0;
+  const b = battered ?? v;
+  return { material: material || null, value: v, battered: b };
+}
+
 function makeCombatant(side, opts={}) {
   const defaultWeapon = WEAPON_PRESETS.find(p=>p.name==='Light Pistol') || WEAPON_PRESETS[0];
   return {
@@ -789,12 +849,10 @@ function makeCombatant(side, opts={}) {
     attacksUsed:     0,
     ammoLeft:        (()=>{ const cl = opts.weaponClip ?? defaultWeapon.clip; return (cl != null && typeof cl === 'number') ? cl : null; })(),
     armor: {
-      torso: opts.armorTorso ?? 0,
-      legs:  opts.armorLegs  ?? 0,
-      arms:  opts.armorArms  ?? 0,
-      head:  opts.armorHead  ?? 0,
-      // internal: parts per zone for calculator
-      parts: { torso:[], legs:[], arms:[], head:[] },
+      torso: makeArmorZone(opts.armorTorso, opts.armorTorsoMaterial, opts.armorTorsoBattered),
+      legs:  makeArmorZone(opts.armorLegs,  opts.armorLegsMaterial,  opts.armorLegsBattered),
+      arms:  makeArmorZone(opts.armorArms,  opts.armorArmsMaterial,  opts.armorArmsBattered),
+      head:  makeArmorZone(opts.armorHead,  opts.armorHeadMaterial,  opts.armorHeadBattered),
     },
     armorActiveZone: 'torso',
     damage:          opts.damage ?? 0,
@@ -846,11 +904,34 @@ function parseSkillVal(raw) {
   const v = Number(m[m.length-1].replace(',','.'));
   return (!isNaN(v) && v>0) ? v : null;
 }
+/* Rüstung format: one token per zone (torso,legs,arms,head), comma-separated.
+   Each token is "<battered>/<value> <MaterialName>", e.g. "8.5/12 Plasteel".
+   MaterialName is one of Leather/Plasteel/Glas/Metal, or "None" for an empty
+   zone. Older plain "a,b,c,d" numeric exports don't match this shape and are
+   ignored on import (zones come back empty rather than misread). */
+const ARMOR_ZONE_ORDER = ['torso', 'legs', 'arms', 'head'];
 function decodeArmor(raw) {
-  const r=[0,0,0,0];
-  if (!raw) return r;
-  String(raw).split(',').forEach((p,i)=>{ const n=parseInt(p.trim(),10); if(i<4&&Number.isFinite(n)&&n>=0) r[i]=n; });
-  return r;
+  const result = {};
+  ARMOR_ZONE_ORDER.forEach(k => { result[k] = { material: null, value: 0, battered: 0 }; });
+  if (!raw || typeof raw !== 'string') return result;
+
+  const parts = String(raw).split(',').map(s => s.trim());
+  const tokenRe = /^(\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)\s+(\S+)$/;
+  const isNewFormat = parts.length === 4 && parts.every(p => tokenRe.test(p));
+  if (!isNewFormat) return result; // old "a,b,c,d" format (or anything else) is ignored
+
+  parts.forEach((p, i) => {
+    const m = p.match(tokenRe);
+    if (!m) return;
+    const [, batteredStr, valueStr, matText] = m;
+    const matKey = Object.keys(ARMOR_MATERIALS).find(k => ARMOR_MATERIALS[k].label.toLowerCase() === matText.toLowerCase());
+    result[ARMOR_ZONE_ORDER[i]] = {
+      material: matKey || null,
+      value:    Math.max(0, parseFloat(valueStr)),
+      battered: Math.max(0, parseFloat(batteredStr)),
+    };
+  });
+  return result;
 }
 
 async function parseRptok(file, side) {
@@ -916,7 +997,9 @@ async function parseRptok(file, side) {
   return makeCombatant(side, {
     name, portrait, skills, activeSkillKey, damage,
     weaponName:weaponName2, weaponBep, weaponRange, weaponSkill, weaponWeight, weaponHand, weaponRate, weaponClip, weaponAmmo, weaponNozzle,
-    armorTorso:av[0], armorLegs:av[1], armorArms:av[2], armorHead:av[3],
+    armorTorso:av.torso.value, armorLegs:av.legs.value, armorArms:av.arms.value, armorHead:av.head.value,
+    armorTorsoMaterial:av.torso.material, armorLegsMaterial:av.legs.material, armorArmsMaterial:av.arms.material, armorHeadMaterial:av.head.material,
+    armorTorsoBattered:av.torso.battered, armorLegsBattered:av.legs.battered, armorArmsBattered:av.arms.battered, armorHeadBattered:av.head.battered,
     expanded:true,
   });
 }
@@ -1176,11 +1259,27 @@ function doAttack() {
   const result  = skillVal - damagePen + bonus + n5 - distPen - aimPen;
   const hit    = result > 0;
 
-  let dmg=0, armorBep=0, zone='';
+  let dmg=0, armorBefore=0, armorAfter=0, zone='', zoneArmor=null, lossCalc=null;
   if (hit) {
-    zone     = getHitZone();
-    armorBep = def.armor[zone];
-    dmg      = Math.max(0, Math.round(result/5) + att.weapon.bep - armorBep);
+    zone        = getHitZone();
+    zoneArmor   = def.armor[zone];
+    armorBefore = zoneArmor.battered;
+    const rawDamage = Math.round(result/5) + att.weapon.bep;
+    dmg = Math.max(0, Math.round(rawDamage - armorBefore));
+
+    if (zoneArmor.material) {
+      const mat        = ARMOR_MATERIALS[zoneArmor.material];
+      const category    = SKILL_TO_RUESTUNGSEFFEKT[skillKey] || 'geschosswaffe';
+      const ruestungseffekt = RUESTUNGSEFFEKT[category];
+      const trefferzonenPct = BASE_PCT[zone];
+      const lossRatio   = mat.lossNum / mat.lossDenom;
+      const eaten       = Math.min(rawDamage, armorBefore);
+      const loss        = (ruestungseffekt / trefferzonenPct) * lossRatio * eaten;
+      zoneArmor.battered = Math.max(0, armorBefore - loss);
+      lossCalc = { ruestungseffekt, trefferzonenPct, mat, eaten, loss };
+    }
+    armorAfter = zoneArmor.battered;
+
     def.damage = Math.min(20, def.damage + dmg);
     if (def.damage>=20) def.dead=true;
   }
@@ -1200,10 +1299,20 @@ function doAttack() {
     lineText = `${att.name} → ${def.name}: ${skillStr}${damageStr}${bonusStr}${aimStr}${distStr} + ${p5Plus} - ${p5Minus} = ${result} — MISS`;
     lineType = 'miss';
   } else {
-    lineText = `${att.name} → ${def.name}: ${skillStr}${damageStr}${bonusStr}${aimStr}${distStr} + ${p5Plus} - ${p5Minus} = ${result} → ${result}/5 + ${att.weapon.bep} (weapon) - ${armorBep} (${zone}) = ${dmg} damage`;
+    lineText = `${att.name} → ${def.name}: ${skillStr}${damageStr}${bonusStr}${aimStr}${distStr} + ${p5Plus} - ${p5Minus} = ${result} → ${result}/5 + ${att.weapon.bep} (weapon) - ${fmtArmor(armorBefore)} (${zone}) = ${dmg} damage`;
     lineType = 'hit';
   }
-  logLines.push({ type:lineType, text:lineText, isAdv:att.side==='adv', dead:def.dead ? def.name : null });
+  logLines.push({ type:lineType, text:lineText, isAdv:att.side==='adv' });
+
+  if (hit && lossCalc && armorBefore !== armorAfter) {
+    const { ruestungseffekt, trefferzonenPct, mat, eaten } = lossCalc;
+    const calcStr = `(${ruestungseffekt}% (effect) / ${trefferzonenPct}% (zone)) × ${mat.lossNum}/${mat.lossDenom} (loss) × ${fmtArmor(eaten)} (damage)`;
+    logLines.push({ type:'armor', text:`${zone} armor: ${fmtArmor(armorBefore)} - ${calcStr} = ${fmtArmor(armorAfter)}` });
+  }
+
+  if (def.dead) {
+    logLines.push({ type:'dead', text:`${esc(def.name)} is down!` });
+  }
 
   renderLog(); renderArena(); renderRoster(); updateArenaControls();
 
@@ -1355,9 +1464,10 @@ function renderLog() {
   if(!logLines.length){ el.innerHTML='<div class="log-empty">No attacks yet.</div>'; return; }
   el.innerHTML=logLines.map(l=>{
     if(l.type==='round') return `<div class="log-round-sep">${l.text}</div>`;
+    if(l.type==='armor') return `<div class="log-entry log-armor">${l.text}</div>`;
+    if(l.type==='dead')  return `<div class="log-entry log-dead">${l.text}</div>`;
     const cls=l.type==='hit'?(l.isAdv?'log-hit-adv':'log-hit'):'log-miss';
-    const dead=l.dead?` <span class="log-dead">· ${esc(l.dead)} is down!</span>`:'';
-    return `<div class="log-entry ${cls}">${l.text}${dead}</div>`;
+    return `<div class="log-entry ${cls}">${l.text}</div>`;
   }).join('');
   el.scrollTop=el.scrollHeight;
 }
@@ -1459,7 +1569,7 @@ function buildCardBody(c, side) {
 
   // armor summary chips
   const armChips = ARMOR_ZONE_DEFS.map(z=>
-    `<span class="asv asv-${z.key[0]}" id="achip-${c.id}-${z.key}">${c.armor[z.key]}</span>`
+    `<span class="asv asv-${z.key[0]}" id="achip-${c.id}-${z.key}">${fmtArmor(c.armor[z.key].battered)}</span>`
   ).join('');
 
   return `
@@ -1547,22 +1657,36 @@ function buildCardBody(c, side) {
 function buildArmorEditor(c) {
   const activeZ = c.armorActiveZone || 'torso';
   const def = ARMOR_ZONE_DEFS.find(d=>d.key===activeZ);
-  const zData = c.armor;
+  const zData = c.armor[activeZ];
+  const matDef = zData.material ? ARMOR_MATERIALS[zData.material] : null;
+
+  const matButtons = Object.keys(ARMOR_MATERIALS).map(key=>{
+    const m = ARMOR_MATERIALS[key];
+    const activeCls = zData.material===key ? ' active' : '';
+    return `<button class="azp-mat-btn ${key}${activeCls}" onclick="armorSetMaterial(${c.id},'${key}')">${m.label} ${m.bep}</button>`;
+  }).join('');
 
   // zone panel
   const zonePanel = `
     <div class="armor-zone-panel" id="azp-${c.id}" style="--azp-color:${def.color}">
       <div class="azp-head">
         <span class="azp-name" id="azpname-${c.id}">${def.label}</span>
-        <span class="azp-total" id="azptotal-${c.id}" style="color:${def.color}">${zData[activeZ]}</span>
-        <span class="azp-breakdown" id="azpbreak-${c.id}">${(c.armor.parts[activeZ]||[]).length>1?(c.armor.parts[activeZ].map(p=>p.value).join(' + ')):''}</span>
+        <span class="azp-total" id="azptotal-${c.id}" style="color:${def.color}">${fmtArmor(zData.battered)}</span>
+        <span class="azp-breakdown" id="azpbreak-${c.id}">${matDef ? `${matDef.label} · Loss ${matDef.lossNum}/${matDef.lossDenom}` : 'No armor'}</span>
+        <button class="azp-repair-btn" title="Repair all armor zones" onclick="repairArmor(${c.id})">↺ Repair</button>
       </div>
-      <input type="number" min="0" class="azp-input" id="azpinput-${c.id}" value="${zData[activeZ]}"
-        oninput="armorSetManual(${c.id},this.value)">
+      <div class="azp-input-row">
+        <label class="azp-input-label">Value
+          <input type="number" min="0" class="azp-input" id="azpvalue-${c.id}" value="${zData.value}"
+            oninput="armorSetValue(${c.id},this.value)">
+        </label>
+        <label class="azp-input-label">Battered
+          <input type="number" min="0" step="0.1" class="azp-input" id="azpbattered-${c.id}" value="${fmtArmor(zData.battered)}"
+            oninput="armorSetBattered(${c.id},this.value)">
+        </label>
+      </div>
       <div class="azp-buttons">
-        <button class="azp-mat-btn leather"  onclick="armorAddMat(${c.id},'leather')">+ Leather 3</button>
-        <button class="azp-mat-btn plasteel" onclick="armorAddMat(${c.id},'plasteel')">+ Plasteel 12</button>
-        <button class="azp-mat-btn clear"    onclick="armorClear(${c.id})">Clear</button>
+        ${matButtons}
       </div>
       <div class="azp-pct-note">Hit chance: torso 40% · legs 30% · arms 20% · head 10%</div>
     </div>
@@ -1577,7 +1701,7 @@ function buildArmorEditor(c) {
         ${ARMOR_ZONE_DEFS.map(z=>`
           <button class="a-legend-item${z.key===activeZ?' active':''}" data-zone="${z.key}"
                   style="--dot-color:${z.color}" onclick="armorSetZone(${c.id},'${z.key}')">
-            <span class="a-legend-dot"></span>${z.label.slice(0,1)}&nbsp;<span class="a-legend-val" id="alegval-${c.id}-${z.key}">${zData[z.key]}</span>
+            <span class="a-legend-dot"></span>${z.label.slice(0,1)}&nbsp;<span class="a-legend-val" id="alegval-${c.id}-${z.key}">${fmtArmor(c.armor[z.key].battered)}</span>
           </button>`).join('')}
       </div>
     </div>
@@ -1616,26 +1740,32 @@ function armorSetZone(cid, zoneKey) {
   refreshArmorPanel(cid);
 }
 
-function armorAddMat(cid, matKey) {
-  const c=combatants.find(x=>x.id===cid); if(!c) return;
-  const mat=ARMOR_MATERIALS[matKey], z=c.armorActiveZone;
-  c.armor[z]=Math.min(999,c.armor[z]+mat.value);
-  if(!c.armor.parts[z]) c.armor.parts[z]=[];
-  c.armor.parts[z].push({label:mat.label,value:mat.value});
-  refreshArmorAll(cid);
-}
-
-function armorClear(cid) {
+function armorSetMaterial(cid, matKey) {
   const c=combatants.find(x=>x.id===cid); if(!c) return;
   const z=c.armorActiveZone;
-  c.armor[z]=0; c.armor.parts[z]=[];
+  if (c.armor[z].material === matKey) {
+    // clicking the active material again clears the zone
+    c.armor[z] = { material: null, value: 0, battered: 0 };
+  } else {
+    // replaces whatever was in this zone — mixing materials is not possible
+    const mat=ARMOR_MATERIALS[matKey];
+    c.armor[z] = { material: matKey, value: mat.bep, battered: mat.bep };
+  }
   refreshArmorAll(cid);
 }
 
-function armorSetManual(cid, rawVal) {
+function armorSetValue(cid, rawVal) {
   const c=combatants.find(x=>x.id===cid); if(!c) return;
-  const v=Math.max(0,Math.min(999,parseInt(rawVal,10)||0));
-  c.armor[c.armorActiveZone]=v; c.armor.parts[c.armorActiveZone]=[];
+  const v=Math.max(0,Math.min(999,parseFloat(rawVal)||0));
+  c.armor[c.armorActiveZone].value = v;
+  refreshArmorPanel(cid); // only panel, not input (user is typing)
+  updateArmorChips(cid);
+}
+
+function armorSetBattered(cid, rawVal) {
+  const c=combatants.find(x=>x.id===cid); if(!c) return;
+  const v=Math.max(0,Math.min(999,parseFloat(rawVal)||0));
+  c.armor[c.armorActiveZone].battered = v;
   refreshArmorPanel(cid); // only panel, not input (user is typing)
   updateArmorChips(cid);
 }
@@ -1645,18 +1775,27 @@ function refreshArmorAll(cid) { refreshArmorPanel(cid); updateArmorChips(cid); }
 function refreshArmorPanel(cid) {
   const c=combatants.find(x=>x.id===cid); if(!c) return;
   const z=c.armorActiveZone, def=ARMOR_ZONE_DEFS.find(d=>d.key===z);
+  const zData=c.armor[z];
+  const matDef = zData.material ? ARMOR_MATERIALS[zData.material] : null;
   const panel=document.getElementById('azp-'+cid); if(panel) panel.style.setProperty('--azp-color',def.color);
   const nm=document.getElementById('azpname-'+cid); if(nm) nm.textContent=def.label;
-  const tot=document.getElementById('azptotal-'+cid); if(tot){tot.textContent=c.armor[z];tot.style.color=def.color;}
+  const tot=document.getElementById('azptotal-'+cid); if(tot){tot.textContent=fmtArmor(zData.battered);tot.style.color=def.color;}
   const brk=document.getElementById('azpbreak-'+cid);
-  if(brk){ const pts=c.armor.parts[z]||[]; brk.textContent=pts.length>1?pts.map(p=>p.value).join(' + '):''; }
-  const inp=document.getElementById('azpinput-'+cid); if(inp&&document.activeElement!==inp) inp.value=c.armor[z];
+  if(brk){ brk.textContent = matDef ? `${matDef.label} · Loss ${matDef.lossNum}/${matDef.lossDenom}` : 'No armor'; }
+  const inpV=document.getElementById('azpvalue-'+cid); if(inpV&&document.activeElement!==inpV) inpV.value=zData.value;
+  const inpB=document.getElementById('azpbattered-'+cid); if(inpB&&document.activeElement!==inpB) inpB.value=fmtArmor(zData.battered);
+  // update material button active state
+  const btnWrap=document.getElementById('azp-'+cid);
+  if(btnWrap) btnWrap.querySelectorAll('.azp-buttons .azp-mat-btn').forEach(btn=>{
+    const key=Object.keys(ARMOR_MATERIALS).find(k=>btn.classList.contains(k));
+    if(key) btn.classList.toggle('active', zData.material===key);
+  });
   // update legend items
   const legEl=document.getElementById('aleg-'+cid);
   if(legEl) legEl.querySelectorAll('.a-legend-item').forEach(btn=>{
     btn.classList.toggle('active', btn.dataset.zone===z);
     const valEl=document.getElementById('alegval-'+cid+'-'+btn.dataset.zone);
-    if(valEl) valEl.textContent=c.armor[btn.dataset.zone];
+    if(valEl) valEl.textContent=fmtArmor(c.armor[btn.dataset.zone].battered);
   });
   refreshArmorFigZones(cid);
 }
@@ -1667,7 +1806,7 @@ function refreshArmorFigZones(cid) {
   fig.querySelectorAll('.a-hit-zone').forEach(el=>{
     const k=el.dataset.zone;
     el.classList.toggle('active', k===c.armorActiveZone);
-    const capped=Math.min(c.armor[k]||0, 30);
+    const capped=Math.min(c.armor[k].battered||0, 30);
     el.style.fillOpacity=(0.08+(capped/30)*0.30).toFixed(2);
   });
 }
@@ -1676,7 +1815,7 @@ function updateArmorChips(cid) {
   const c=combatants.find(x=>x.id===cid); if(!c) return;
   ARMOR_ZONE_DEFS.forEach(z=>{
     const chip=document.getElementById(`achip-${cid}-${z.key}`);
-    if(chip) chip.textContent=c.armor[z.key];
+    if(chip) chip.textContent=fmtArmor(c.armor[z.key].battered);
   });
 }
 
@@ -1769,6 +1908,13 @@ function reloadAmmo(cid) {
   c.ammoLeft = (c.weapon.clip != null && typeof c.weapon.clip === 'number') ? c.weapon.clip : null;
 }
 
+function repairArmor(cid) {
+  const c=combatants.find(x=>x.id===cid); if(!c) return;
+  ARMOR_ZONE_DEFS.forEach(z=>{ c.armor[z.key].battered = c.armor[z.key].value; });
+  refreshArmorAll(cid);
+  showToast(`${c.name}'s armor repaired.`);
+}
+
 function arenaReload() {
   const att=combatants.find(c=>c.id===attackerID); if(!att) return;
   att.ammoLeft = (att.weapon.clip != null && typeof att.weapon.clip === 'number') ? att.weapon.clip : null;
@@ -1828,6 +1974,8 @@ function cloneCombatant(cid) {
   clone.id=nextID++; clone.damage=0; clone.dead=false;
   clone.attacksUsed=0; clone.expanded=false;
   clone.name=countName(c.name);
+  // clones get fresh, unbattered armor — battered state is not cloned
+  ARMOR_ZONE_DEFS.forEach(z=>{ clone.armor[z.key].battered = clone.armor[z.key].value; });
   // restore portrait object URL (can't clone blob URL; reuse same URL string)
   clone.portrait=c.portrait;
   combatants.push(clone);
