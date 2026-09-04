@@ -1,0 +1,44 @@
+{
+  "id": "scifi-urpg",
+  "title": "SciFi@URPG",
+  "description": "Foundry VTT system for SciFi@URPG.",
+  "version": "0.1.0",
+  "compatibility": {
+    "minimum": "14",
+    "verified": "14"
+  },
+  "authors": [
+    {
+      "name": "Linkrope"
+    }
+  ],
+  "esmodules": [
+    "scifi-urpg.mjs"
+  ],
+  "styles": [
+    "styles/sci-fi.css"
+  ],
+  "languages": [
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/en.json"
+    }
+  ],
+  "documentTypes": {
+    "Actor": {
+      "character": {}
+    },
+    "Item": {
+      "item": {}
+    }
+  },
+  "initiative": "0",
+  "grid": {
+    "distance": 1,
+    "units": "m"
+  },
+  "url": "https://irisiflimsi.github.io/rpg-rules/scifi.xml",
+  "primaryTokenAttribute": "health",
+  "secondaryTokenAttribute": ""
+}

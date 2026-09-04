@@ -1,0 +1,1069 @@
+.scifi-urpg.sheet.actor.character {
+  min-width: 620px;
+  background: #0d1117;
+  color: #c9d1d9;
+}
+
+.scifi-urpg.sheet.actor.character .window-content {
+  background:
+    radial-gradient(circle at 18% 30%, rgba(78, 143, 207, 0.08), transparent 34rem),
+    linear-gradient(180deg, #101722 0%, #0d1117 100%);
+  color: #c9d1d9;
+  padding: 14px;
+}
+
+.scifi-urpg-character-sheet {
+  --sf-bg: #0d1117;
+  --sf-panel: #161b22;
+  --sf-card: #1c2330;
+  --sf-border: #2d3748;
+  --sf-text: #c9d1d9;
+  --sf-dim: #6e7681;
+  --sf-head: #e6edf3;
+  --sf-accent: #4e8fcf;
+  --sf-accent-warm: #f0a500;
+  background: transparent;
+  color: var(--sf-text);
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+.scifi-urpg-character-sheet * {
+  box-sizing: border-box;
+}
+
+.scifi-urpg-character-sheet input,
+.scifi-urpg-character-sheet select {
+  background: #1b2330;
+  border: 1px solid var(--sf-border);
+  color: var(--sf-head);
+  border-radius: 4px;
+  height: 28px;
+  padding: 3px 7px;
+}
+
+.scifi-urpg-character-sheet input:focus,
+.scifi-urpg-character-sheet select:focus {
+  border-color: var(--sf-accent);
+  box-shadow: 0 0 0 1px rgba(78, 143, 207, 0.3);
+}
+
+.scifi-urpg-character-sheet .sheet-header {
+  display: grid;
+  grid-template-columns: 104px 1fr;
+  gap: 14px;
+  align-items: start;
+  margin-bottom: 12px;
+}
+
+.scifi-urpg-character-sheet .profile-img {
+  border: 1px solid var(--sf-border);
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--sf-panel);
+}
+
+.scifi-urpg-character-sheet .header-fields {
+  display: grid;
+  gap: 8px;
+}
+
+.scifi-urpg-character-sheet .character-title-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 88px;
+  gap: 8px;
+  align-items: end;
+}
+
+.scifi-urpg-character-sheet .character-name {
+  height: 38px;
+  font-size: 24px;
+  font-weight: 700;
+  background: #202a38;
+  color: var(--sf-head);
+}
+
+.scifi-urpg-character-sheet .meta-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.scifi-urpg-character-sheet .meta-row.compact {
+  grid-template-columns: 120px 1fr;
+}
+
+.scifi-urpg-character-sheet .character-main-row {
+  grid-template-columns: minmax(150px, 1fr) 82px auto;
+  align-items: end;
+}
+
+.scifi-urpg-character-sheet .header-attack-control {
+  display: grid;
+  gap: 3px;
+  align-items: end;
+  min-width: 112px;
+}
+
+.scifi-urpg-character-sheet .header-attack-skill {
+  color: #a9b4c2;
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.scifi-urpg-character-sheet .header-attack-row {
+  display: grid;
+  grid-template-columns: 44px 64px;
+  gap: 4px;
+}
+
+.scifi-urpg-character-sheet .header-attack-row .skill-value {
+  height: 28px;
+}
+
+.scifi-urpg-character-sheet .attack-button {
+  font-weight: 700;
+}
+
+.scifi-urpg-character-sheet .header-attack-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  color: #a9b4c2;
+  font-family: monospace;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.scifi-urpg-character-sheet .header-attack-summary span {
+  white-space: nowrap;
+}
+
+.scifi-urpg-character-sheet label span,
+.scifi-urpg-character-sheet .skill-column-heading label span {
+  display: block;
+  margin-bottom: 3px;
+  color: #a9b4c2;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.scifi-urpg-character-sheet .sheet-tabs {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid var(--sf-border);
+  margin-bottom: 12px;
+}
+
+.scifi-urpg-character-sheet .sheet-tabs .item {
+  padding: 7px 12px;
+  color: #a9b4c2;
+  text-shadow: none;
+}
+
+.scifi-urpg-character-sheet .sheet-tabs .item.active {
+  color: var(--sf-head);
+  border-bottom: 2px solid var(--sf-accent-warm);
+  text-shadow: 0 0 8px rgba(240, 165, 0, 0.25);
+}
+
+.scifi-urpg-character-sheet .skills-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.scifi-urpg-character-sheet .skill-mode-toolbar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.scifi-urpg-character-sheet .skill-mode-toolbar button,
+.scifi-urpg-character-sheet .skill-roll {
+  border: 1px solid var(--sf-border);
+  border-radius: 4px;
+  background: #202a38;
+  color: var(--sf-head);
+  cursor: pointer;
+}
+
+.scifi-urpg-character-sheet .skill-mode-toolbar button {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 34px;
+  padding: 6px 10px;
+  line-height: 1.2;
+}
+
+.scifi-urpg-character-sheet .skill-mode-toolbar button:hover,
+.scifi-urpg-character-sheet .skill-roll:hover {
+  border-color: var(--sf-accent);
+}
+
+.scifi-urpg-character-sheet .skill-column {
+  border: 1px solid var(--sf-border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: rgba(22, 27, 34, 0.95);
+}
+
+.scifi-urpg-character-sheet .skill-column-heading {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 9px 10px;
+  background: linear-gradient(90deg, rgba(78, 143, 207, 0.22), rgba(240, 165, 0, 0.08));
+  border-bottom: 1px solid var(--sf-border);
+}
+
+.scifi-urpg-character-sheet .skill-column-heading h2 {
+  margin: 0;
+  color: var(--sf-head);
+  font-size: 17px;
+}
+
+.scifi-urpg-character-sheet .skill-column-heading label {
+  min-width: 92px;
+}
+
+.scifi-urpg-character-sheet .skill-column-heading input {
+  width: 92px;
+  text-align: right;
+}
+
+.scifi-urpg-character-sheet .skill-group {
+  padding: 8px 10px 10px;
+  border-top: 1px solid rgba(45, 55, 72, 0.65);
+  background: rgba(28, 35, 48, 0.72);
+}
+
+.scifi-urpg-character-sheet .skill-group h3 {
+  margin: 0 0 6px;
+  color: #b8c3d1;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid rgba(240, 165, 0, 0.35);
+  padding-bottom: 4px;
+}
+
+.scifi-urpg-character-sheet .skill-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.scifi-urpg-character-sheet .skill-row .skill-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: #d7dee8;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 13px;
+}
+
+.scifi-urpg-character-sheet .skill-label input {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--sf-accent);
+}
+
+.scifi-urpg-character-sheet .skill-label.no-check {
+  padding-left: 20px;
+}
+
+.scifi-urpg-character-sheet .skill-controls {
+  display: grid;
+  gap: 4px;
+  align-items: center;
+}
+
+.scifi-urpg-character-sheet .skill-controls.play-controls {
+  grid-template-columns: 44px 46px;
+}
+
+.scifi-urpg-character-sheet .skill-controls.level-up-controls {
+  grid-template-columns: 28px 44px 28px;
+}
+
+.scifi-urpg-character-sheet .skill-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 28px;
+  min-width: 44px;
+  padding: 0 8px;
+  background: #1b2330;
+  border: 1px solid var(--sf-border);
+  border-radius: 4px;
+  color: var(--sf-head);
+  font-weight: 700;
+}
+
+.scifi-urpg-character-sheet .skill-step {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--sf-border);
+  border-radius: 4px;
+  background: #202a38;
+  color: var(--sf-head);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.scifi-urpg-character-sheet .skill-step-spacer {
+  width: 28px;
+  height: 28px;
+}
+
+.scifi-urpg-character-sheet .skill-roll {
+  height: 28px;
+  padding: 0 8px;
+}
+
+.scifi-urpg-character-sheet .skill-step:hover {
+  border-color: var(--sf-accent);
+  color: #ffffff;
+}
+
+.scifi-urpg-character-sheet .sheet-mode-button {
+  border: 1px solid var(--sf-border);
+  border-radius: 4px;
+  background: #202a38;
+  color: var(--sf-head);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.scifi-urpg-character-sheet .sheet-mode-button:hover {
+  border-color: var(--sf-accent);
+}
+
+.scifi-urpg-character-sheet .sheet-mode-button.active {
+  border-color: rgba(240, 165, 0, 0.55);
+  background: rgba(240, 165, 0, 0.14);
+}
+
+.scifi-urpg-character-sheet .skill-edit-input {
+  width: 72px;
+  text-align: right;
+}
+
+.scifi-urpg-character-sheet .attack-panel {
+  background: rgba(22, 27, 34, 0.95);
+  border: 1px solid var(--sf-border);
+  border-radius: 6px;
+  margin-bottom: 12px;
+  padding: 10px;
+}
+
+.scifi-urpg-character-sheet .attack-panel-heading {
+  align-items: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.scifi-urpg-character-sheet .attack-panel-heading h2 {
+  color: var(--sf-head);
+  font-size: 16px;
+  margin: 0 0 2px;
+}
+
+.scifi-urpg-character-sheet .attack-panel-heading p {
+  color: #a9b4c2;
+  font-family: monospace;
+  font-size: 11px;
+  margin: 0;
+}
+
+.scifi-urpg-character-sheet .attack-panel-heading button {
+  background: #1f4260;
+  border: 1px solid rgba(78, 143, 207, 0.75);
+  border-radius: 4px;
+  color: var(--sf-head);
+  cursor: pointer;
+  font-weight: 700;
+  min-height: 32px;
+  padding: 6px 12px;
+  white-space: nowrap;
+}
+
+.scifi-urpg-character-sheet .attack-panel-heading button:hover {
+  background: #27577f;
+}
+
+.scifi-urpg-character-sheet .attack-aim-zones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.scifi-urpg-character-sheet .attack-aim-zones button {
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--sf-border);
+  border-radius: 4px;
+  color: #a9b4c2;
+  cursor: pointer;
+  display: inline-flex;
+  gap: 6px;
+  min-height: 28px;
+  padding: 4px 9px;
+}
+
+.scifi-urpg-character-sheet .attack-aim-zones button.active {
+  background: color-mix(in srgb, var(--zone-color) 18%, transparent);
+  border-color: var(--zone-color);
+  color: var(--sf-head);
+}
+
+.scifi-urpg-character-sheet .attack-aim-zones i {
+  background: var(--zone-color);
+  border-radius: 999px;
+  display: inline-block;
+  height: 7px;
+  width: 7px;
+}
+
+.scifi-urpg-character-sheet .aim-tab {
+  min-height: 360px;
+}
+
+.scifi-urpg-character-sheet .aim-layout .armor-figure-zone {
+  cursor: pointer;
+}
+
+.scifi-urpg-character-sheet .aim-zone-panel {
+  min-height: 160px;
+}
+
+.scifi-urpg-character-sheet .aim-penalty-readout {
+  align-items: baseline;
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.scifi-urpg-character-sheet .aim-penalty-readout span {
+  color: #a9b4c2;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.scifi-urpg-character-sheet .aim-penalty-readout strong {
+  color: var(--sf-accent-warm);
+  font-size: 28px;
+  line-height: 1;
+}
+
+.chat-message:has(.scifi-urpg-chat-card) {
+  background: #111824;
+  border: 1px solid #2d3748;
+  color: #c9d1d9;
+}
+
+.chat-message:has(.scifi-urpg-chat-card) .message-header,
+.chat-message:has(.scifi-urpg-chat-card) .message-sender,
+.chat-message:has(.scifi-urpg-chat-card) .message-metadata {
+  color: #a9b4c2;
+}
+
+.chat-message:has(.scifi-urpg-chat-card) .message-content {
+  background: transparent;
+  color: #c9d1d9;
+}
+
+.scifi-urpg-chat-card {
+  background:
+    radial-gradient(circle at 14% 20%, rgba(78, 143, 207, 0.12), transparent 12rem),
+    #111824;
+  border: 1px solid #2d3748;
+  border-left: 3px solid #4e8fcf;
+  border-radius: 5px;
+  color: #c9d1d9;
+  padding: 9px 10px 9px 12px;
+}
+
+.scifi-urpg-chat-card h3 {
+  margin: 0 0 4px;
+  color: #e6edf3;
+}
+
+.scifi-urpg-chat-card p {
+  margin: 0 0 4px;
+  color: #a9b4c2;
+}
+
+.scifi-urpg-chat-card .roll-formula {
+  font-family: monospace;
+  color: #c9d1d9;
+  opacity: 0.85;
+}
+
+.scifi-urpg-chat-card .roll-result {
+  color: #f0a500;
+  font-size: 22px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.scifi-urpg-chat-card .initiative-result-row {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.scifi-urpg-chat-card .initiative-result-row .roll-result {
+  margin-top: 0;
+}
+
+.scifi-urpg-chat-card .reaction-time-box {
+  min-width: 82px;
+  border: 1px solid rgba(240, 165, 0, 0.45);
+  border-radius: 4px;
+  background: rgba(240, 165, 0, 0.08);
+  padding: 4px 7px;
+  text-align: right;
+}
+
+.scifi-urpg-chat-card .reaction-time-box strong {
+  display: block;
+  color: #f0a500;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.scifi-urpg-chat-card .attack-result-section {
+  border-top: 1px solid rgba(45, 55, 72, 0.75);
+  margin-top: 8px;
+  padding-top: 7px;
+}
+
+.scifi-urpg-chat-card .attack-result-section h4 {
+  color: #e6edf3;
+  font-size: 13px;
+  margin: 0 0 3px;
+}
+
+.scifi-urpg-chat-card .attack-status-line {
+  color: #f85149;
+  font-weight: 700;
+  margin-top: 8px;
+}
+
+.scifi-urpg-character-sheet .armor-tab {
+  min-height: 360px;
+}
+
+.scifi-urpg-character-sheet .armor-layout {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 18px;
+  align-items: start;
+  background: rgba(22, 27, 34, 0.95);
+  border: 1px solid var(--sf-border);
+  border-radius: 6px;
+  padding: 14px;
+}
+
+.scifi-urpg-character-sheet .armor-figure-panel {
+  min-width: 0;
+}
+
+.scifi-urpg-character-sheet .armor-panel-title {
+  color: #a9b4c2;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.scifi-urpg-character-sheet .armor-figure {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.scifi-urpg-character-sheet .armor-figure-person {
+  fill: var(--sf-head);
+  opacity: 0.22;
+  pointer-events: none;
+}
+
+.scifi-urpg-character-sheet .armor-figure-zone {
+  fill: currentColor;
+  fill-opacity: 0.08;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-opacity: 0;
+  cursor: pointer;
+  transition: fill-opacity 0.15s, stroke-opacity 0.15s;
+}
+
+.scifi-urpg-character-sheet .armor-figure-zone:hover {
+  fill-opacity: 0.22;
+}
+
+.scifi-urpg-character-sheet .armor-figure-zone.active {
+  fill-opacity: 0.38;
+  stroke-opacity: 0.85;
+}
+
+.scifi-urpg-character-sheet .armor-figure-zone.zone-torso {
+  color: #268bd2;
+}
+
+.scifi-urpg-character-sheet .armor-figure-zone.zone-legs {
+  color: #859900;
+}
+
+.scifi-urpg-character-sheet .armor-figure-zone.zone-arms {
+  color: #2aa198;
+}
+
+.scifi-urpg-character-sheet .armor-figure-zone.zone-head {
+  color: #dc322f;
+}
+
+.scifi-urpg-character-sheet .armor-figure-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 3px 10px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--sf-border);
+}
+
+.scifi-urpg-character-sheet .armor-figure-legend button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #a9b4c2;
+  font-size: 11px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 3px 2px;
+}
+
+.scifi-urpg-character-sheet .armor-figure-legend button:hover,
+.scifi-urpg-character-sheet .armor-figure-legend button.active {
+  color: var(--sf-head);
+}
+
+.scifi-urpg-character-sheet .armor-figure-legend i {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--zone-color);
+}
+
+.scifi-urpg-character-sheet .armor-figure-legend strong {
+  color: var(--sf-head);
+}
+
+.scifi-urpg-character-sheet .armor-zone-panel {
+  border-left: 3px solid var(--azp-color, var(--sf-border));
+  padding-left: 16px;
+}
+
+.scifi-urpg-character-sheet .armor-zone-panel-head {
+  display: grid;
+  grid-template-columns: auto auto minmax(150px, 1fr) auto;
+  gap: 8px;
+  align-items: baseline;
+  margin-bottom: 12px;
+  min-width: 0;
+}
+
+.scifi-urpg-character-sheet .armor-zone-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--sf-head);
+  letter-spacing: 0.06em;
+}
+
+.scifi-urpg-character-sheet .armor-zone-total {
+  color: var(--azp-color, var(--sf-head));
+  font-size: 28px;
+  font-weight: 700;
+  min-width: 2ch;
+}
+
+.scifi-urpg-character-sheet .armor-zone-breakdown {
+  color: #a9b4c2;
+  font-size: 12px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scifi-urpg-character-sheet .armor-repair-small {
+  border: 1px solid var(--sf-border);
+  border-radius: 4px;
+  background: transparent;
+  color: #a9b4c2;
+  cursor: pointer;
+  font-size: 13px;
+  height: 28px;
+  line-height: 1.2;
+  padding: 0 8px;
+  width: auto;
+}
+
+.scifi-urpg-character-sheet .armor-repair-small:hover {
+  border-color: var(--sf-accent);
+  color: var(--sf-head);
+}
+
+.scifi-urpg-character-sheet .armor-input-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.scifi-urpg-character-sheet .armor-input-row input {
+  width: 74px;
+  text-align: right;
+}
+
+.scifi-urpg-character-sheet .armor-material-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.scifi-urpg-character-sheet .armor-material {
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  font-weight: 700;
+  padding: 5px 10px;
+}
+
+.scifi-urpg-character-sheet .armor-material.leather {
+  border: 1px solid #b58900;
+  color: #b58900;
+}
+
+.scifi-urpg-character-sheet .armor-material.plasteel {
+  border: 1px solid var(--sf-accent);
+  color: var(--sf-accent);
+}
+
+.scifi-urpg-character-sheet .armor-material.glas {
+  border: 1px solid #859900;
+  color: #859900;
+}
+
+.scifi-urpg-character-sheet .armor-material.metal {
+  border: 1px solid #93a1a1;
+  color: #93a1a1;
+}
+
+.scifi-urpg-character-sheet .armor-material.leather:hover,
+.scifi-urpg-character-sheet .armor-material.leather.active {
+  background: #b58900;
+  color: var(--sf-bg);
+}
+
+.scifi-urpg-character-sheet .armor-material.plasteel:hover,
+.scifi-urpg-character-sheet .armor-material.plasteel.active {
+  background: var(--sf-accent);
+  color: var(--sf-bg);
+}
+
+.scifi-urpg-character-sheet .armor-material.glas:hover,
+.scifi-urpg-character-sheet .armor-material.glas.active {
+  background: #859900;
+  color: var(--sf-bg);
+}
+
+.scifi-urpg-character-sheet .armor-material.metal:hover,
+.scifi-urpg-character-sheet .armor-material.metal.active {
+  background: #93a1a1;
+  color: var(--sf-bg);
+}
+
+.scifi-urpg-character-sheet .armor-hit-note {
+  color: #a9b4c2;
+  font-size: 10px;
+  margin-top: 10px;
+}
+
+.scifi-urpg-character-sheet .talents-tab {
+  min-height: 360px;
+}
+
+.scifi-urpg-character-sheet .talents-toolbar,
+.scifi-urpg-character-sheet .talents-add-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.scifi-urpg-character-sheet .talents-add-row {
+  margin-top: 10px;
+  margin-bottom: 0;
+}
+
+.scifi-urpg-character-sheet .talents-toolbar button,
+.scifi-urpg-character-sheet .talents-add-row button {
+  border: 1px solid var(--sf-border);
+  border-radius: 4px;
+  background: #202a38;
+  color: var(--sf-head);
+  cursor: pointer;
+}
+
+.scifi-urpg-character-sheet .talents-toolbar button,
+.scifi-urpg-character-sheet .talents-add-row button {
+  padding: 5px 10px;
+}
+
+.scifi-urpg-character-sheet .talent-card {
+  background: rgba(22, 27, 34, 0.95);
+  border: 1px solid var(--sf-border);
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+.scifi-urpg-character-sheet .talent-header {
+  display: grid;
+  grid-template-columns: 1fr 86px;
+  gap: 8px;
+  align-items: end;
+  margin-bottom: 10px;
+}
+
+.scifi-urpg-character-sheet .talent-rank input {
+  text-align: right;
+}
+
+.scifi-urpg-character-sheet .talent-display-header {
+  margin-bottom: 8px;
+}
+
+.scifi-urpg-character-sheet .talent-display-header h2 {
+  margin: 0;
+  color: var(--sf-head);
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.scifi-urpg-character-sheet .talent-display-header h2 span {
+  color: var(--sf-accent-warm);
+}
+
+.scifi-urpg-character-sheet .talent-description {
+  color: #d7dee8;
+  line-height: 1.45;
+}
+
+.scifi-urpg-character-sheet .talent-description p {
+  margin: 0 0 0.75em;
+}
+
+.scifi-urpg-character-sheet .talent-description strong,
+.scifi-urpg-character-sheet .talent-description b {
+  color: var(--sf-head);
+}
+
+.scifi-urpg-character-sheet .empty-talents {
+  color: #a9b4c2;
+  font-style: italic;
+}
+
+.scifi-urpg-character-sheet .notes-tab {
+  min-height: 360px;
+}
+
+.scifi-urpg-character-sheet .editor,
+.scifi-urpg-character-sheet prose-mirror {
+  min-height: 320px;
+}
+
+.scifi-urpg-character-sheet .editor,
+.scifi-urpg-character-sheet .editor-content,
+.scifi-urpg-character-sheet prose-mirror,
+.scifi-urpg-character-sheet prose-mirror .editor-content {
+  background: #111824;
+  color: var(--sf-text);
+  border-color: var(--sf-border);
+}
+
+.scifi-urpg-character-sheet .editor-menu,
+.scifi-urpg-character-sheet prose-mirror menu,
+.scifi-urpg-character-sheet prose-mirror .editor-menu {
+  background: #202a38;
+  border: 1px solid var(--sf-border);
+  color: var(--sf-head);
+}
+
+.scifi-urpg-character-sheet .editor-menu button,
+.scifi-urpg-character-sheet prose-mirror menu button,
+.scifi-urpg-character-sheet prose-mirror .editor-menu button {
+  background: #1b2330;
+  border: 1px solid var(--sf-border);
+  color: var(--sf-head);
+}
+
+.scifi-urpg-character-sheet .editor-menu button:hover,
+.scifi-urpg-character-sheet .editor-menu button.active,
+.scifi-urpg-character-sheet prose-mirror menu button:hover,
+.scifi-urpg-character-sheet prose-mirror menu button.active,
+.scifi-urpg-character-sheet prose-mirror .editor-menu button:hover,
+.scifi-urpg-character-sheet prose-mirror .editor-menu button.active {
+  background: #2a3a50;
+  border-color: var(--sf-accent);
+  color: #ffffff;
+}
+
+.scifi-urpg-character-sheet .editor-content a,
+.scifi-urpg-character-sheet prose-mirror a {
+  color: #8ecbff;
+}
+
+.scifi-urpg-dimensions-app .window-content {
+  background: #0d1117;
+  color: #c9d1d9;
+  padding: 0;
+}
+
+.scifi-urpg-dimensions-app .dimensions-window {
+  background:
+    radial-gradient(circle at 18% 14%, rgba(78, 143, 207, 0.12), transparent 11rem),
+    #111824;
+  border-top: 1px solid #2d3748;
+  padding: 14px;
+}
+
+.scifi-urpg-dimensions-app .dimensions-window-value {
+  color: #f0a500;
+  font-family: monospace;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.scifi-urpg-dimensions-app .dimensions-window-slider-row {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.scifi-urpg-dimensions-app .dimension-slider {
+  accent-color: #4e8fcf;
+  flex: 1;
+}
+
+.scifi-urpg-dimensions-app .dimension-nudge,
+.scifi-urpg-dimensions-app .dimension-reset-latest {
+  background: #202a38;
+  border: 1px solid #2d3748;
+  border-radius: 5px;
+  color: #e6edf3;
+  cursor: pointer;
+}
+
+.scifi-urpg-dimensions-app .dimension-nudge {
+  height: 28px;
+  width: 28px;
+}
+
+.scifi-urpg-dimensions-app .dimension-reset-latest {
+  font-size: 12px;
+  margin-bottom: 10px;
+  padding: 5px 9px;
+  width: 100%;
+}
+
+.scifi-urpg-dimensions-app .dimension-nudge:hover,
+.scifi-urpg-dimensions-app .dimension-reset-latest:hover {
+  background: #2a3a50;
+  border-color: #4e8fcf;
+}
+
+.scifi-urpg-dimensions-app .dimension-table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.scifi-urpg-dimensions-app .dimension-table td {
+  border-bottom: 1px solid rgba(45, 55, 72, 0.65);
+  padding: 6px 4px;
+}
+
+.scifi-urpg-dimensions-app .dimension-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.scifi-urpg-dimensions-app .dimension-table td:first-child {
+  color: #a9b4c2;
+  width: 32%;
+}
+
+.scifi-urpg-dimensions-app .dimension-table td:last-child {
+  color: #e6edf3;
+  font-family: monospace;
+  text-align: right;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .scifi-urpg-character-sheet .skills-columns,
+  .scifi-urpg-character-sheet .character-title-row,
+  .scifi-urpg-character-sheet .character-main-row,
+  .scifi-urpg-character-sheet .armor-layout,
+  .scifi-urpg-character-sheet .armor-zones {
+    grid-template-columns: 1fr;
+  }
+
+  .scifi-urpg-character-sheet .header-attack-row {
+    grid-template-columns: 44px minmax(80px, 1fr);
+  }
+
+  .scifi-urpg-character-sheet .armor-zone-panel-head {
+    grid-template-columns: auto auto auto;
+  }
+
+  .scifi-urpg-character-sheet .armor-zone-breakdown {
+    grid-column: 1 / -1;
+    white-space: normal;
+  }
+
+  .scifi-urpg-character-sheet .skill-mode-toolbar {
+    width: 100%;
+  }
+}

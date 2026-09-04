@@ -1,0 +1,268 @@
+<form class="{{cssClass}} scifi-urpg-character-sheet" autocomplete="off">
+  <header class="sheet-header">
+    <img class="profile-img" src="{{actor.img}}" data-edit="img" title="{{actor.name}}" height="96" width="96">
+    <div class="header-fields">
+      <div class="character-title-row">
+        <input class="character-name" name="name" type="text" value="{{actor.name}}" placeholder="Character Name">
+        <label>
+          <span>Damage</span>
+          <input type="number" name="system.health.damage" value="{{system.health.damage}}" min="0" max="20" step="1">
+        </label>
+      </div>
+      <div class="meta-row character-main-row">
+        <label>
+          <span>Weapon</span>
+          <select name="system.weapon.selected">
+            {{#each weaponOptions}}
+              <option value="{{name}}" {{#if selected}}selected{{/if}}>{{name}}</option>
+            {{/each}}
+          </select>
+        </label>
+        {{#if playMode}}
+          <label>
+            <span>Modifier</span>
+            <input type="number" data-field="attack-bonus" value="{{attack.bonus}}" step="1">
+          </label>
+          <div class="header-attack-control">
+            <span class="header-attack-skill">{{attack.skillKey}}</span>
+            <div class="header-attack-row">
+              <span class="skill-value">{{attack.skillValue}}</span>
+              <button type="button" class="skill-roll attack-button" data-action="attack-target" title="Attack with {{attack.skillKey}}">Attack</button>
+            </div>
+          </div>
+        {{/if}}
+      </div>
+      {{#if playMode}}
+        <div class="header-attack-summary">
+          <span>BEP {{attack.weapon.bep}}</span>
+          <span>{{#if attack.weapon.range}}{{attack.weapon.range}}{{else}}Melee{{/if}}</span>
+          <span>{{attack.weapon.rate}}</span>
+          {{#if attack.weapon.clip}}<span>[{{attack.weapon.clip}}]</span>{{/if}}
+          <span>{{attack.weapon.hand}}-Hand</span>
+          <span>{{attack.aimSummary}}</span>
+        </div>
+      {{/if}}
+    </div>
+  </header>
+
+  <nav class="sheet-tabs tabs" data-group="primary">
+    <a class="item" data-tab="skills">Skills</a>
+    <a class="item" data-tab="armor">Armor</a>
+    <a class="item" data-tab="talents">Talente</a>
+    <a class="item" data-tab="notes">Notes</a>
+    <a class="item" data-tab="aim">Aim</a>
+  </nav>
+
+  <section class="sheet-body">
+    <div class="tab skills-tab" data-group="primary" data-tab="skills">
+      <div class="skill-mode-toolbar">
+        {{#if playMode}}
+          <button type="button" data-action="roll-p5">Roll p5</button>
+          <button type="button" data-action="roll-n5">Roll n5</button>
+          <button type="button" data-action="roll-selected-skills">Roll Selected</button>
+          <button type="button" data-action="open-dimensions">Dimensions</button>
+        {{/if}}
+        <button type="button" class="sheet-mode-button{{#if editingSkills}} active{{/if}}" data-action="toggle-skill-edit">
+          {{#if editingSkills}}Done{{else}}Edit{{/if}}
+        </button>
+        <button type="button" class="sheet-mode-button{{#if levelingUp}} active{{/if}}" data-action="toggle-level-up">
+          {{#if levelingUp}}Done{{else}}Skill Up{{/if}}
+        </button>
+      </div>
+
+      <div class="skills-columns">
+        {{#each skillColumns}}
+          <section class="skill-column">
+            <div class="skill-column-heading">
+              <h2>{{column}}</h2>
+              {{#if ../levelingUp}}
+                <label>
+                  <span>Points</span>
+                  <input type="number" name="system.skillPoints.{{column}}" value="{{pointPool}}" min="0" step="1">
+                </label>
+              {{/if}}
+            </div>
+            {{#each groups}}
+              <div class="skill-group">
+                <h3>{{group}}</h3>
+                {{#each skills}}
+                  <div class="skill-row">
+                    <span class="skill-label{{#unless ../../../playMode}} no-check{{/unless}}">
+                      {{#if ../../../playMode}}
+                        <input type="checkbox" data-action="toggle-roll-skill" data-skill="{{key}}" {{#if selected}}checked{{/if}}>
+                      {{/if}}
+                      {{label}}
+                    </span>
+                    {{#if ../../../editingSkills}}
+                      <input class="skill-edit-input" type="number" name="system.skills.{{key}}.value" value="{{value}}" min="0" step="1">
+                    {{else}}
+                      {{#if ../../../levelingUp}}
+                        <div class="skill-controls level-up-controls">
+                          {{#if showMinus}}
+                            <button type="button" class="skill-step" data-action="decrease-skill" data-skill="{{key}}" title="Undo this skill-up increase">-</button>
+                          {{else}}
+                            <span class="skill-step-spacer"></span>
+                          {{/if}}
+                          <span class="skill-value">{{value}}</span>
+                          <button type="button" class="skill-step" data-action="increase-skill" data-skill="{{key}}" title="Increase skill; next point costs {{nextCost}} {{column}}">+</button>
+                        </div>
+                      {{else}}
+                        <div class="skill-controls play-controls">
+                          <span class="skill-value">{{value}}</span>
+                          <button type="button" class="skill-roll" data-action="roll-skill" data-skill="{{key}}" title="Roll {{label}}">Roll</button>
+                        </div>
+                      {{/if}}
+                    {{/if}}
+                  </div>
+                {{/each}}
+              </div>
+            {{/each}}
+          </section>
+        {{/each}}
+      </div>
+    </div>
+
+    <div class="tab aim-tab" data-group="primary" data-tab="aim">
+      <div class="armor-layout aim-layout">
+        <div class="armor-figure-panel">
+          <div class="armor-panel-title">Target zones</div>
+          <svg class="armor-figure aim-figure" viewBox="0 0 512 640" xmlns="http://www.w3.org/2000/svg" aria-label="Aim zones">
+            <ellipse class="armor-figure-zone zone-head{{#if attack.zoneState.head}} active{{/if}}" data-action="toggle-attack-aim-zone" data-zone="head" cx="255.8" cy="68" rx="82" ry="66"></ellipse>
+            <rect class="armor-figure-zone zone-arms{{#if attack.zoneState.arms}} active{{/if}}" data-action="toggle-attack-aim-zone" data-zone="arms" x="28" y="132" width="458" height="74" rx="16"></rect>
+            <rect class="armor-figure-zone zone-torso{{#if attack.zoneState.torso}} active{{/if}}" data-action="toggle-attack-aim-zone" data-zone="torso" x="148" y="204" width="216" height="108" rx="18"></rect>
+            <rect class="armor-figure-zone zone-legs{{#if attack.zoneState.legs}} active{{/if}}" data-action="toggle-attack-aim-zone" data-zone="legs" x="148" y="310" width="216" height="192" rx="20"></rect>
+            <g class="armor-figure-person">
+              <path d="M306.6499023,498.0004883c-16.0053711,0-30.0776367-12.0200195-32.7338867-27.9594727c-0.0092773-0.0537109-0.0175781-0.1074219-0.0258789-0.1616211L255.7749023,348.996582l-18.1147461,120.8828125c-2.4975586,16.2329102-16.6162109,27.9047852-32.6259766,27.90625c-1.6074219,0-3.230957-0.1176758-4.8671875-0.3598633c-17.8789062-2.75-30.21875-19.5668945-27.5625-37.4956055l24.1435547-162.503418l-2.5239258-96.7412109h-86.4067383c-8.362793,0-16.171875-3.3339844-21.9882812-9.387207c-5.7592773-5.9946289-8.8720703-14.1889648-8.5405273-22.4829102c0.6821289-16.3676758,14.7958984-29.6704102,31.4624023-29.6704102h294.9814453c17.0952148,0,31.003418,14.1176758,31.003418,31.4702148c0,0.1386719-0.0029297,0.277832-0.0087891,0.4165039c-0.6811523,16.3510742-14.7949219,29.6538086-31.4614258,29.6538086h-85.9394531l-2.5234375,96.7416992l24.1425781,162.4990234c2.6132812,17.644043-9.1694336,34.1274414-26.4169922,37.309082C310.1523438,498.0004883,307.9545898,498.0004883,306.6499023,498.0004883z"></path>
+              <path d="M255.7749023,125.480957c-30.7353516,0-55.7407227-25.0053711-55.7407227-55.7407227s25.0053711-55.7407227,55.7407227-55.7407227s55.7407227,25.0053711,55.7407227,55.7407227S286.5102539,125.480957,255.7749023,125.480957z M255.7749023,33.9995117c-19.7075195,0-35.7407227,16.0332031-35.7407227,35.7407227s16.0332031,35.7407227,35.7407227,35.7407227s35.7407227-16.0332031,35.7407227-35.7407227S275.4824219,33.9995117,255.7749023,33.9995117z"></path>
+            </g>
+          </svg>
+
+          <div class="armor-figure-legend">
+            {{#each attack.aimZones}}
+              <button type="button" data-action="toggle-attack-aim-zone" data-zone="{{key}}" class="{{#if active}}active{{/if}}" style="--zone-color: {{color}}">
+                <i></i>{{label}} <strong>{{pct}}%</strong>
+              </button>
+            {{/each}}
+          </div>
+        </div>
+
+        <section class="armor-zone-panel aim-zone-panel" style="--azp-color: #f0a500">
+          <div class="armor-zone-panel-head">
+            <span class="armor-zone-name">AIM</span>
+            <span class="armor-zone-total">{{attack.aimPct}}%</span>
+          </div>
+          <div class="aim-penalty-readout">
+            <span>Penalty</span>
+            <strong>{{attack.aimPen}}</strong>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div class="tab armor-tab" data-group="primary" data-tab="armor">
+      <div class="armor-layout">
+        <div class="armor-figure-panel">
+          <div class="armor-panel-title">Tap a body part</div>
+          <svg class="armor-figure" viewBox="0 0 512 640" xmlns="http://www.w3.org/2000/svg" aria-label="Armor zones">
+            <ellipse class="armor-figure-zone zone-head{{#if activeArmorZone.isHead}} active{{/if}}" data-action="select-armor-zone" data-zone="head" cx="255.8" cy="68" rx="82" ry="66"></ellipse>
+            <rect class="armor-figure-zone zone-arms{{#if activeArmorZone.isArms}} active{{/if}}" data-action="select-armor-zone" data-zone="arms" x="28" y="132" width="458" height="74" rx="16"></rect>
+            <rect class="armor-figure-zone zone-torso{{#if activeArmorZone.isTorso}} active{{/if}}" data-action="select-armor-zone" data-zone="torso" x="148" y="204" width="216" height="108" rx="18"></rect>
+            <rect class="armor-figure-zone zone-legs{{#if activeArmorZone.isLegs}} active{{/if}}" data-action="select-armor-zone" data-zone="legs" x="148" y="310" width="216" height="192" rx="20"></rect>
+            <g class="armor-figure-person">
+              <path d="M306.6499023,498.0004883c-16.0053711,0-30.0776367-12.0200195-32.7338867-27.9594727c-0.0092773-0.0537109-0.0175781-0.1074219-0.0258789-0.1616211L255.7749023,348.996582l-18.1147461,120.8828125c-2.4975586,16.2329102-16.6162109,27.9047852-32.6259766,27.90625c-1.6074219,0-3.230957-0.1176758-4.8671875-0.3598633c-17.8789062-2.75-30.21875-19.5668945-27.5625-37.4956055l24.1435547-162.503418l-2.5239258-96.7412109h-86.4067383c-8.362793,0-16.171875-3.3339844-21.9882812-9.387207c-5.7592773-5.9946289-8.8720703-14.1889648-8.5405273-22.4829102c0.6821289-16.3676758,14.7958984-29.6704102,31.4624023-29.6704102h294.9814453c17.0952148,0,31.003418,14.1176758,31.003418,31.4702148c0,0.1386719-0.0029297,0.277832-0.0087891,0.4165039c-0.6811523,16.3510742-14.7949219,29.6538086-31.4614258,29.6538086h-85.9394531l-2.5234375,96.7416992l24.1425781,162.4990234c2.6132812,17.644043-9.1694336,34.1274414-26.4169922,37.309082C310.1523438,498.0004883,307.9545898,498.0004883,306.6499023,498.0004883z"></path>
+              <path d="M255.7749023,125.480957c-30.7353516,0-55.7407227-25.0053711-55.7407227-55.7407227s25.0053711-55.7407227,55.7407227-55.7407227s55.7407227,25.0053711,55.7407227,55.7407227S286.5102539,125.480957,255.7749023,125.480957z M255.7749023,33.9995117c-19.7075195,0-35.7407227,16.0332031-35.7407227,35.7407227s16.0332031,35.7407227,35.7407227,35.7407227s35.7407227-16.0332031,35.7407227-35.7407227S275.4824219,33.9995117,255.7749023,33.9995117z"></path>
+            </g>
+          </svg>
+
+          <div class="armor-figure-legend">
+            {{#each armorZones}}
+              <button type="button" data-action="select-armor-zone" data-zone="{{key}}" class="{{#if active}}active{{/if}}" style="--zone-color: {{color}}">
+                <i></i>{{label}} <strong>{{displayBattered}}</strong>
+              </button>
+            {{/each}}
+          </div>
+        </div>
+
+        <section class="armor-zone-panel" style="--azp-color: {{activeArmorZone.color}}">
+          <div class="armor-zone-panel-head">
+            <span class="armor-zone-name">{{activeArmorZone.label}}</span>
+            <span class="armor-zone-total">{{activeArmorZone.displayBattered}}</span>
+            <span class="armor-zone-breakdown">{{activeArmorZone.breakdown}}</span>
+            <button type="button" class="armor-repair-small" data-action="repair-armor">Repair</button>
+          </div>
+
+          <div class="armor-input-row">
+            <label>
+              <span>Value</span>
+              <input type="number" name="system.armor.{{activeArmorZone.key}}.value" value="{{activeArmorZone.value}}" min="0" step="0.1">
+            </label>
+            <label>
+              <span>Battered</span>
+              <input type="number" name="system.armor.{{activeArmorZone.key}}.battered" value="{{activeArmorZone.displayBattered}}" min="0" step="0.1">
+            </label>
+          </div>
+
+          <div class="armor-material-buttons">
+            {{#each activeArmorZone.materials}}
+              <button type="button" class="armor-material {{key}}{{#if active}} active{{/if}}" data-action="set-armor-material" data-material="{{key}}">
+                {{label}}
+              </button>
+            {{/each}}
+          </div>
+
+          <div class="armor-hit-note">Hit chance: torso 40% · legs 30% · arms 20% · head 10%</div>
+        </section>
+      </div>
+    </div>
+
+    <div class="tab talents-tab" data-group="primary" data-tab="talents">
+      <div class="talents-toolbar">
+        <button type="button" data-action="toggle-talent-edit">
+          {{#if editingTalents}}View Talente{{else}}Edit Talente{{/if}}
+        </button>
+      </div>
+
+      <div class="talents-list">
+        {{#each talents}}
+          <section class="talent-card">
+            {{#if ../editingTalents}}
+              <div class="talent-header">
+                <label>
+                  <span>Heading</span>
+                  <input type="text" name="system.talents.{{index}}.name" value="{{name}}" placeholder="Talent name">
+                </label>
+                <label class="talent-rank">
+                  <span>Value</span>
+                  <input type="number" name="system.talents.{{index}}.rank" value="{{rank}}" min="0" step="1">
+                </label>
+              </div>
+              {{editor description target=target button=true editable=../editable engine="prosemirror"}}
+            {{else}}
+              <div class="talent-display-header">
+                <h2>
+                  {{name}}
+                  {{#if hasRank}}<span>({{rank}})</span>{{/if}}
+                </h2>
+              </div>
+              <div class="talent-description">
+                {{{description}}}
+              </div>
+            {{/if}}
+          </section>
+        {{else}}
+          <p class="empty-talents">No talents yet.</p>
+        {{/each}}
+      </div>
+
+      {{#if editingTalents}}
+        <div class="talents-add-row">
+          <button type="button" data-action="add-talent">Add Talent</button>
+        </div>
+      {{/if}}
+    </div>
+
+    <div class="tab notes-tab" data-group="primary" data-tab="notes">
+      {{editor system.notes target="system.notes" button=true editable=editable engine="prosemirror"}}
+    </div>
+  </section>
+</form>

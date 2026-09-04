@@ -701,21 +701,23 @@ body::before {
 ══════════════════════════════════════ */
 const WEAPON_PRESETS = [
   { name:'Unarmed',          skill:'Waffenlos',      weight:null,    hand:2, bep:2,  range:null,  rate:'4s', clip:null, ammo:null,   nozzle:null },
-  { name:'Dagger',           skill:'Kurzwaffen',     weight:'300g',  hand:1, bep:5,  range:'5m',  rate:'4s', clip:null, ammo:null,   nozzle:null },
-  { name:'Sword',            skill:'Langwaffen',     weight:'1.3kg', hand:1, bep:7,  range:null,  rate:'4s', clip:null, ammo:null,   nozzle:null },
-  { name:'Club',             skill:'Langwaffen',     weight:'1.2kg', hand:1, bep:6,  range:null,  rate:'4s', clip:null, ammo:null,   nozzle:null },
-  { name:'Axe',              skill:'Langwaffen',     weight:'1.1kg', hand:1, bep:6,  range:'5m',  rate:'4s', clip:null, ammo:'1kg',  nozzle:'6m/s' },
+  { name:'Short Weapon',     skill:'Kurzwaffen',     weight:'300g',  hand:1, bep:5,  range:'5m',  rate:'4s', clip:null, ammo:null,   nozzle:null },
+  { name:'Long Weapon',      skill:'Langwaffen',     weight:'1.3kg', hand:1, bep:7,  range:'5m',  rate:'4s', clip:null, ammo:'1.3kg', nozzle:'6m/s' },
   { name:'Bow',              skill:'Bögen',          weight:'1.5kg', hand:2, bep:8,  range:'20m', rate:'6s', clip:20,   ammo:'80g',  nozzle:'100m/s' },
-  { name:'Light Pistol',     skill:'Geschosswaffen', weight:'1kg',   hand:1, bep:6,  range:'20m', rate:'2s', clip:20,   ammo:'10g',  nozzle:'600m/s' },
-  { name:'Heavy Pistol',     skill:'Geschosswaffen', weight:'2kg',   hand:1, bep:18, range:'20m', rate:'3s', clip:10,   ammo:'20g',  nozzle:'900m/s' },
+  { name:'Light Gun',        skill:'Geschosswaffen', weight:'1kg',   hand:1, bep:6,  range:'20m', rate:'2s', clip:20,   ammo:'10g',  nozzle:'600m/s' },
+  { name:'Heavy Gun',        skill:'Geschosswaffen', weight:'2kg',   hand:1, bep:18, range:'20m', rate:'3s', clip:10,   ammo:'20g',  nozzle:'900m/s' },
   { name:'Light Rifle',      skill:'Geschosswaffen', weight:'4kg',   hand:2, bep:12, range:'40m', rate:'2s', clip:30,   ammo:'20g',  nozzle:'600m/s' },
   { name:'Heavy Rifle',      skill:'Geschosswaffen', weight:'6kg',   hand:2, bep:24, range:'40m', rate:'4s', clip:20,   ammo:'40g',  nozzle:'600m/s' },
-  { name:'Machine Gun',      skill:'Montierte',      weight:'25kg',  hand:2, bep:36, range:'40m', rate:'1s', clip:120,  ammo:'40g',  nozzle:'900m/s' },
-  { name:'Grenade Launcher', skill:'Tragbare',       weight:'3kg',   hand:2, bep:50, range:'40m', rate:'12s',clip:1,    ammo:'500g', nozzle:'100m/s' },
-  { name:'Blaster Mk I',     skill:'Energiewaffen',  weight:'2.5kg', hand:2, bep:10, range:'50m', rate:'1s', clip:250,  ammo:'250g', nozzle:'Light' },
-  { name:'Blaster Mk II',    skill:'Energiewaffen',  weight:'5kg',   hand:2, bep:20, range:'50m', rate:'1s', clip:1000, ammo:'1kg', nozzle:'Light' },
-  { name:'Blaster Mk III',   skill:'Energiewaffen',  weight:'10kg',  hand:2, bep:40, range:'50m', rate:'1s', clip:2000, ammo:'2kg', nozzle:'Light' },
+  { name:'Mounted Machine Gun', skill:'Montierte',   weight:'25kg',  hand:2, bep:36, range:'40m', rate:'1s', clip:120,  ammo:'40g',  nozzle:'900m/s' },
+  { name:'Carried Grenade Launcher', skill:'Tragbare', weight:'3kg', hand:2, bep:50, range:'40m', rate:'12s',clip:1,    ammo:'500g', nozzle:'100m/s' },
+  { name:'Energy Blaster Mk I', skill:'Energiewaffen', weight:'2.5kg', hand:2, bep:10, range:'50m', rate:'1s', clip:250, ammo:'250g', nozzle:'Light' },
+  { name:'Energy Blaster Mk II', skill:'Energiewaffen', weight:'5kg', hand:2, bep:20, range:'50m', rate:'1s', clip:1000, ammo:'1kg', nozzle:'Light' },
+  { name:'Energy Blaster Mk III', skill:'Energiewaffen', weight:'10kg', hand:2, bep:40, range:'50m', rate:'1s', clip:2000, ammo:'2kg', nozzle:'Light' },
 ];
+
+function findWeaponPreset(name) {
+  return WEAPON_PRESETS.find(p => p.name === name);
+}
 
 const COMBAT_SKILLS = [
   { group:'Fernkampfwaffen', skills:['Bögen','Geschosswaffen','Energiewaffen'] },
@@ -825,7 +827,8 @@ function makeArmorZone(value, material, battered) {
 }
 
 function makeCombatant(side, opts={}) {
-  const defaultWeapon = WEAPON_PRESETS.find(p=>p.name==='Light Pistol') || WEAPON_PRESETS[0];
+  const defaultWeapon = WEAPON_PRESETS.find(p=>p.name==='Light Gun') || WEAPON_PRESETS[0];
+  const optionWeapon = findWeaponPreset(opts.weaponName);
   return {
     id:              nextID++,
     side,
@@ -834,16 +837,16 @@ function makeCombatant(side, opts={}) {
     skills:          opts.skills   || {},
     activeSkillKey:  opts.activeSkillKey || defaultWeapon.skill || null,
     weapon: {
-      name:  opts.weaponName  || 'Light Pistol',
-      bep:   opts.weaponBep   ?? defaultWeapon.bep,
-      range: opts.weaponRange ?? (typeof defaultWeapon.range==='number' ? defaultWeapon.range : parseInt(String(defaultWeapon.range).replace(/[^\d]/g,''),10) || 0),
-      skill: opts.weaponSkill ?? defaultWeapon.skill,
-      weight: opts.weaponWeight ?? defaultWeapon.weight,
-      hand: opts.weaponHand ?? defaultWeapon.hand,
-      rate: opts.weaponRate ?? defaultWeapon.rate,
-      clip: opts.weaponClip ?? defaultWeapon.clip,
-      ammo: opts.weaponAmmo ?? defaultWeapon.ammo,
-      nozzle: opts.weaponNozzle ?? defaultWeapon.nozzle,
+      name:  optionWeapon?.name || opts.weaponName || 'Light Gun',
+      bep:   opts.weaponBep   ?? optionWeapon?.bep ?? defaultWeapon.bep,
+      range: opts.weaponRange ?? (typeof (optionWeapon?.range ?? defaultWeapon.range)==='number' ? (optionWeapon?.range ?? defaultWeapon.range) : parseInt(String(optionWeapon?.range ?? defaultWeapon.range).replace(/[^\d]/g,''),10) || 0),
+      skill: opts.weaponSkill ?? optionWeapon?.skill ?? defaultWeapon.skill,
+      weight: opts.weaponWeight ?? optionWeapon?.weight ?? defaultWeapon.weight,
+      hand: opts.weaponHand ?? optionWeapon?.hand ?? defaultWeapon.hand,
+      rate: opts.weaponRate ?? optionWeapon?.rate ?? defaultWeapon.rate,
+      clip: opts.weaponClip ?? optionWeapon?.clip ?? defaultWeapon.clip,
+      ammo: opts.weaponAmmo ?? optionWeapon?.ammo ?? defaultWeapon.ammo,
+      nozzle: opts.weaponNozzle ?? optionWeapon?.nozzle ?? defaultWeapon.nozzle,
     },
     attacksPerRound: opts.attacksPerRound ?? rateToAttacks(opts.weaponRate ?? defaultWeapon.rate),
     attacksUsed:     0,
@@ -975,9 +978,9 @@ async function parseRptok(file, side) {
   for (const g of COMBAT_SKILLS) for (const sk of g.skills) if (skills[sk]!=null) { activeSkillKey=sk; break; }
 
   // Match weapon preset
-  let weaponName2='Light Pistol', weaponBep=6, weaponRange=20, weaponSkill='', weaponWeight='', weaponHand='', weaponRate='', weaponClip='', weaponAmmo='', weaponNozzle='';
+  let weaponName2='Light Gun', weaponBep=6, weaponRange=20, weaponSkill='', weaponWeight='', weaponHand='', weaponRate='', weaponClip='', weaponAmmo='', weaponNozzle='';
   if (weaponName) {
-    const p = WEAPON_PRESETS.find(p => weaponName.toLowerCase().includes(p.name.toLowerCase().split(' ')[0].toLowerCase()));
+    const p = findWeaponPreset(weaponName);
     if (p) {
       weaponName2=p.name;
       weaponBep=p.bep;
@@ -1887,7 +1890,7 @@ function setDmg(cid, val) {
 
 function applyPreset(cid, name) {
   const c=combatants.find(x=>x.id===cid); if(!c) return;
-  const p=WEAPON_PRESETS.find(p=>p.name===name); if(!p||p.bep===null) return;
+  const p=findWeaponPreset(name); if(!p||p.bep===null) return;
   c.weapon={name:p.name,bep:p.bep,range:typeof p.range==='number' ? p.range : parseInt(String(p.range).replace(/[^\d]/g,''),10) || 0,skill:p.skill,weight:p.weight,hand:p.hand,rate:p.rate,clip:p.clip,ammo:p.ammo,nozzle:p.nozzle};
   c.ammoLeft = (p.clip != null && typeof p.clip === 'number') ? p.clip : null;
   c.attacksPerRound = rateToAttacks(p.rate);

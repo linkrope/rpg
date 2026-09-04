@@ -1,0 +1,19 @@
+<section class="dimensions-window">
+  <div class="dimensions-window-value" data-dimension-value>{{value}}</div>
+  <div class="dimensions-window-slider-row">
+    <button type="button" class="dimension-nudge" data-action="dimension-nudge" data-delta="-1" title="Decrease">-</button>
+    <input class="dimension-slider" data-action="dimension-slider" type="range" min="{{min}}" max="{{max}}" value="{{value}}">
+    <button type="button" class="dimension-nudge" data-action="dimension-nudge" data-delta="1" title="Increase">+</button>
+  </div>
+  <button type="button" class="dimension-reset-latest" data-action="dimension-reset-latest">Latest Roll</button>
+  <table class="dimension-table">
+    <tbody>
+      {{#each rows}}
+        <tr>
+          <td>{{label}}</td>
+          <td data-dimension-row="{{label}}">{{value}}</td>
+        </tr>
+      {{/each}}
+    </tbody>
+  </table>
+</section>
