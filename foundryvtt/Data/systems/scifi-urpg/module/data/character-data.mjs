@@ -36,7 +36,7 @@ export class CharacterDataModel extends foundry.abstract.TypeDataModel {
         selected: new fields.StringField({ required: true, nullable: false, initial: "Unarmed" })
       }),
       talents: new fields.ArrayField(new fields.SchemaField({
-        name: new fields.StringField({ required: true, nullable: false, initial: "Talent" }),
+        name: new fields.StringField({ required: true, nullable: false, initial: "" }),
         rank: new fields.NumberField({ required: false, nullable: true, integer: true, initial: null, min: 0 }),
         description: new fields.HTMLField({ required: false, nullable: false, initial: "" })
       }), { initial: [] }),
@@ -75,8 +75,8 @@ export class CharacterDataModel extends foundry.abstract.TypeDataModel {
 
     if (source.talents) {
       source.talents = source.talents.map((talent) => ({
-        name: talent?.name || "Talent",
-        rank: Number.isFinite(Number(talent?.rank)) ? Math.max(0, Math.round(Number(talent.rank))) : null,
+        name: talent?.name ?? "",
+        rank: Number.isFinite(Number(talent?.rank)) && Number(talent.rank) > 0 ? Math.round(Number(talent.rank)) : null,
         description: talent?.description || ""
       }));
     }

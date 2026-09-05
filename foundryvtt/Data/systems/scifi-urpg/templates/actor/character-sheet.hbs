@@ -6,7 +6,7 @@
         <input class="character-name" name="name" type="text" value="{{actor.name}}" placeholder="Character Name">
         <label>
           <span>Damage</span>
-          <input type="number" name="system.health.damage" value="{{system.health.damage}}" min="0" max="20" step="1">
+          <input type="number" name="system.health.damage" value="{{damageInput}}" min="0" max="20" step="1" placeholder="-">
         </label>
       </div>
       <div class="meta-row character-main-row">
@@ -21,13 +21,13 @@
         {{#if playMode}}
           <label>
             <span>Modifier</span>
-            <input type="number" data-field="attack-bonus" value="{{attack.bonus}}" step="1">
+            <input type="number" data-field="attack-bonus" value="{{attack.bonusInput}}" step="1" placeholder="-">
           </label>
           <div class="header-attack-control">
             <span class="header-attack-skill">{{attack.skillKey}}</span>
             <div class="header-attack-row">
-              <span class="skill-value">{{attack.skillValue}}</span>
-              <button type="button" class="skill-roll attack-button" data-action="attack-target" title="Attack with {{attack.skillKey}}">Attack</button>
+              <span class="skill-value">{{attack.skillValueDisplay}}</span>
+              <button type="button" class="skill-roll attack-button" data-action="attack-target" data-macro-action="attack" draggable="true" title="Drag to hotbar or attack with {{attack.skillKey}}">Attack</button>
             </div>
           </div>
         {{/if}}
@@ -57,10 +57,10 @@
     <div class="tab skills-tab" data-group="primary" data-tab="skills">
       <div class="skill-mode-toolbar">
         {{#if playMode}}
-          <button type="button" data-action="roll-p5">Roll p5</button>
-          <button type="button" data-action="roll-n5">Roll n5</button>
+          <button type="button" data-action="roll-p5" data-macro-action="p5" draggable="true" title="Drag to hotbar or roll p5">Roll p5</button>
+          <button type="button" data-action="roll-n5" data-macro-action="n5" draggable="true" title="Drag to hotbar or roll n5">Roll n5</button>
           <button type="button" data-action="roll-selected-skills">Roll Selected</button>
-          <button type="button" data-action="open-dimensions">Dimensions</button>
+          <button type="button" data-action="open-dimensions" data-macro-action="dimensions" draggable="true" title="Drag to hotbar or open Dimensions">Dimensions</button>
         {{/if}}
         <button type="button" class="sheet-mode-button{{#if editingSkills}} active{{/if}}" data-action="toggle-skill-edit">
           {{#if editingSkills}}Done{{else}}Edit{{/if}}
@@ -78,7 +78,7 @@
               {{#if ../levelingUp}}
                 <label>
                   <span>Points</span>
-                  <input type="number" name="system.skillPoints.{{column}}" value="{{pointPool}}" min="0" step="1">
+                  <input type="number" name="system.skillPoints.{{column}}" value="{{pointPoolInput}}" min="0" step="1" placeholder="-">
                 </label>
               {{/if}}
             </div>
@@ -94,7 +94,7 @@
                       {{label}}
                     </span>
                     {{#if ../../../editingSkills}}
-                      <input class="skill-edit-input" type="number" name="system.skills.{{key}}.value" value="{{value}}" min="0" step="1">
+                      <input class="skill-edit-input" type="number" name="system.skills.{{key}}.value" value="{{inputValue}}" min="0" step="1" placeholder="-">
                     {{else}}
                       {{#if ../../../levelingUp}}
                         <div class="skill-controls level-up-controls">
@@ -103,13 +103,13 @@
                           {{else}}
                             <span class="skill-step-spacer"></span>
                           {{/if}}
-                          <span class="skill-value">{{value}}</span>
+                          <span class="skill-value">{{displayValue}}</span>
                           <button type="button" class="skill-step" data-action="increase-skill" data-skill="{{key}}" title="Increase skill; next point costs {{nextCost}} {{column}}">+</button>
                         </div>
                       {{else}}
                         <div class="skill-controls play-controls">
-                          <span class="skill-value">{{value}}</span>
-                          <button type="button" class="skill-roll" data-action="roll-skill" data-skill="{{key}}" title="Roll {{label}}">Roll</button>
+                          <span class="skill-value">{{displayValue}}</span>
+                          <button type="button" class="skill-roll" data-action="roll-skill" data-macro-action="skill" data-skill="{{key}}" draggable="true" title="Drag to hotbar or roll {{label}}">Roll</button>
                         </div>
                       {{/if}}
                     {{/if}}
@@ -188,17 +188,17 @@
             <span class="armor-zone-name">{{activeArmorZone.label}}</span>
             <span class="armor-zone-total">{{activeArmorZone.displayBattered}}</span>
             <span class="armor-zone-breakdown">{{activeArmorZone.breakdown}}</span>
-            <button type="button" class="armor-repair-small" data-action="repair-armor">Repair</button>
+            <button type="button" class="armor-repair-small" data-action="repair-armor" data-macro-action="repairArmor" draggable="true" title="Drag to hotbar or repair armor">Repair</button>
           </div>
 
           <div class="armor-input-row">
             <label>
               <span>Value</span>
-              <input type="number" name="system.armor.{{activeArmorZone.key}}.value" value="{{activeArmorZone.value}}" min="0" step="0.1">
+              <input type="number" name="system.armor.{{activeArmorZone.key}}.value" value="{{activeArmorZone.valueInput}}" min="0" step="0.1" placeholder="-">
             </label>
             <label>
               <span>Battered</span>
-              <input type="number" name="system.armor.{{activeArmorZone.key}}.battered" value="{{activeArmorZone.displayBattered}}" min="0" step="0.1">
+              <input type="number" name="system.armor.{{activeArmorZone.key}}.battered" value="{{activeArmorZone.batteredInput}}" min="0" step="0.1" placeholder="-">
             </label>
           </div>
 
@@ -233,7 +233,7 @@
                 </label>
                 <label class="talent-rank">
                   <span>Value</span>
-                  <input type="number" name="system.talents.{{index}}.rank" value="{{rank}}" min="0" step="1">
+                  <input type="number" name="system.talents.{{index}}.rank" value="{{rankInput}}" min="0" step="1" placeholder="-">
                 </label>
               </div>
               {{editor description target=target button=true editable=../editable engine="prosemirror"}}

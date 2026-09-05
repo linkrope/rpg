@@ -15,6 +15,7 @@
   "esmodules": [
     "scifi-urpg.mjs"
   ],
+  "socket": true,
   "styles": [
     "styles/sci-fi.css"
   ],

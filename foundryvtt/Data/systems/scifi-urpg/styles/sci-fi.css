@@ -41,6 +41,11 @@
   padding: 3px 7px;
 }
 
+.scifi-urpg-character-sheet input::placeholder {
+  color: var(--sf-dim);
+  opacity: 1;
+}
+
 .scifi-urpg-character-sheet input:focus,
 .scifi-urpg-character-sheet select:focus {
   border-color: var(--sf-accent);
@@ -857,7 +862,7 @@
 
 .scifi-urpg-character-sheet .talent-header {
   display: grid;
-  grid-template-columns: 1fr 86px;
+  grid-template-columns: minmax(0, 1fr) 86px;
   gap: 8px;
   align-items: end;
   margin-bottom: 10px;
@@ -887,13 +892,17 @@
   line-height: 1.45;
 }
 
+.scifi-urpg-character-sheet .talent-description * {
+  color: inherit !important;
+}
+
 .scifi-urpg-character-sheet .talent-description p {
   margin: 0 0 0.75em;
 }
 
 .scifi-urpg-character-sheet .talent-description strong,
 .scifi-urpg-character-sheet .talent-description b {
-  color: var(--sf-head);
+  color: var(--sf-head) !important;
 }
 
 .scifi-urpg-character-sheet .empty-talents {
@@ -913,10 +922,17 @@
 .scifi-urpg-character-sheet .editor,
 .scifi-urpg-character-sheet .editor-content,
 .scifi-urpg-character-sheet prose-mirror,
-.scifi-urpg-character-sheet prose-mirror .editor-content {
+.scifi-urpg-character-sheet prose-mirror .editor-content,
+.scifi-urpg-character-sheet prose-mirror .ProseMirror {
   background: #111824;
   color: var(--sf-text);
   border-color: var(--sf-border);
+}
+
+.scifi-urpg-character-sheet .editor-content *,
+.scifi-urpg-character-sheet prose-mirror .editor-content *,
+.scifi-urpg-character-sheet prose-mirror .ProseMirror * {
+  color: inherit !important;
 }
 
 .scifi-urpg-character-sheet .editor-menu,
@@ -947,8 +963,10 @@
 }
 
 .scifi-urpg-character-sheet .editor-content a,
-.scifi-urpg-character-sheet prose-mirror a {
-  color: #8ecbff;
+.scifi-urpg-character-sheet prose-mirror a,
+.scifi-urpg-character-sheet prose-mirror .ProseMirror a,
+.scifi-urpg-character-sheet .talent-description a {
+  color: #8ecbff !important;
 }
 
 .scifi-urpg-dimensions-app .window-content {

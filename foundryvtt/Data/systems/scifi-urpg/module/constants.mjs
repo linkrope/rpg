@@ -104,10 +104,10 @@ export const SKILL_TO_RUESTUNGSEFFEKT = {
 };
 
 export const ARMOR_ZONE_DEFS = [
-  { key: "torso", label: "TORSO", color: "#268bd2" },
-  { key: "legs", label: "LEGS", color: "#859900" },
+  { key: "head", label: "HEAD", color: "#dc322f" },
   { key: "arms", label: "ARMS", color: "#2aa198" },
-  { key: "head", label: "HEAD", color: "#dc322f" }
+  { key: "torso", label: "TORSO", color: "#268bd2" },
+  { key: "legs", label: "LEGS", color: "#859900" }
 ];
 
 export const ARMOR_MATERIALS = {

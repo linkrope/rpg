@@ -4,6 +4,28 @@ import { rollN5, rollP5 } from "../rules/dice.mjs";
 import { combineSkillValues } from "../rules/skills.mjs";
 import { DEFAULT_AIM_ZONES, aimPenalty, aimTotalPct, resolveAttack, weaponPresetFor } from "../rules/combat.mjs";
 
+function displayNumber(value) {
+  return Number(value ?? 0) === 0 ? "-" : value;
+}
+
+function inputNumber(value) {
+  return Number(value ?? 0) === 0 ? "" : value;
+}
+
+function armorNumber(value) {
+  return numberOrZero(value) === 0 ? "" : fmtArmor(value ?? 0);
+}
+
+function displayArmor(value) {
+  return numberOrZero(value) === 0 ? "-" : fmtArmor(value ?? 0);
+}
+
+function numberOrZero(value) {
+  if (value === "" || value === "-") return 0;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+}
+
 export class SciFiCharacterSheet extends ActorSheet {
   constructor(...args) {
     super(...args);
@@ -46,17 +68,22 @@ export class SciFiCharacterSheet extends ActorSheet {
     context.activeArmorZone = this._buildActiveArmorZone(system.armor);
     context.armorZones = buildArmorZones(system.armor).map((zone) => ({
       ...zone,
+      displayValue: displayArmor(zone.value),
+      displayBattered: displayArmor(zone.battered),
       active: zone.key === context.activeArmorZone.key
     }));
     context.skillColumns = buildSkillColumns(system.skills).map((column) => ({
       ...column,
       pointPool: system.skillPoints?.[column.column] ?? 0,
+      pointPoolInput: inputNumber(system.skillPoints?.[column.column]),
       groups: column.groups.map((group) => ({
         ...group,
         skills: group.skills.map((skill) => {
           const pending = this._pendingSkillIncreases.get(skill.key) ?? 0;
           return {
             ...skill,
+            displayValue: displayNumber(skill.value),
+            inputValue: inputNumber(skill.value),
             pending,
             selected: this._selectedSkillKeys.has(skill.key),
             showMinus: pending > 0,
@@ -71,11 +98,13 @@ export class SciFiCharacterSheet extends ActorSheet {
       selected: system.weapon?.selected === name
     }));
     context.attack = this._buildAttackContext(system);
+    context.damageInput = inputNumber(system.health?.damage);
     context.talents = await Promise.all((system.talents ?? []).map(async (talent, index) => ({
       index,
       name: talent.name,
-      rank: talent.rank,
-      hasRank: talent.rank !== null && talent.rank !== undefined && talent.rank !== "",
+      rank: numberOrZero(talent.rank),
+      rankInput: inputNumber(talent.rank),
+      hasRank: numberOrZero(talent.rank) !== 0,
       description: talent.description,
       target: `system.talents.${index}.description`
     })));
@@ -101,6 +130,7 @@ export class SciFiCharacterSheet extends ActorSheet {
     html.find("[data-action='toggle-attack-aim-zone']").on("click", this._onToggleAttackAimZone.bind(this));
     html.find("[data-action='attack-target']").on("click", this._onAttackTarget.bind(this));
     html.find("[data-action='open-dimensions']").on("click", this._onOpenDimensions.bind(this));
+    html.find("[data-macro-action]").on("dragstart", this._onDragRollMacro.bind(this));
     html.find("[data-action='select-armor-zone']").on("click", this._onSelectArmorZone.bind(this));
     html.find("[data-action='set-armor-material']").on("click", this._onSetArmorMaterial.bind(this));
     html.find("[data-action='repair-armor']").on("click", this._onRepairArmor.bind(this));
@@ -119,10 +149,12 @@ export class SciFiCharacterSheet extends ActorSheet {
       material,
       materialLabel: materialDef?.label ?? "No armor",
       breakdown: materialDef ? `${materialDef.label} · Loss ${materialDef.lossNum}/${materialDef.lossDenom}` : "No armor",
-      value: zoneData.value ?? 0,
-      battered: zoneData.battered ?? 0,
-      displayValue: fmtArmor(zoneData.value ?? 0),
-      displayBattered: fmtArmor(zoneData.battered ?? 0),
+      value: numberOrZero(zoneData.value),
+      valueInput: armorNumber(zoneData.value),
+      battered: numberOrZero(zoneData.battered),
+      batteredInput: armorNumber(zoneData.battered),
+      displayValue: displayArmor(zoneData.value),
+      displayBattered: displayArmor(zoneData.battered),
       materials: buildArmorMaterials(material),
       isTorso: zoneDef.key === "torso",
       isLegs: zoneDef.key === "legs",
@@ -134,7 +166,7 @@ export class SciFiCharacterSheet extends ActorSheet {
   _buildAttackContext(system) {
     const weapon = weaponPresetFor(system.weapon?.selected);
     const selectedSkill = system.skills?.[weapon.skill] ? weapon.skill : "Waffenlos";
-    const skillValue = system.skills?.[selectedSkill]?.value ?? 0;
+    const skillValue = numberOrZero(system.skills?.[selectedSkill]?.value);
     const aimedZones = Array.from(this._attackAimZones);
     const aimPct = aimTotalPct(aimedZones);
     const aimPen = aimPenalty(aimedZones);
@@ -143,7 +175,9 @@ export class SciFiCharacterSheet extends ActorSheet {
       weapon,
       skillKey: selectedSkill,
       skillValue,
+      skillValueDisplay: displayNumber(skillValue),
       bonus: this._attackBonus,
+      bonusInput: inputNumber(this._attackBonus),
       aimPct,
       aimPen,
       aimSummary: aimPen > 0 ? `${aimPct}% / -${aimPen}` : `${aimPct}%`,
@@ -163,8 +197,26 @@ export class SciFiCharacterSheet extends ActorSheet {
 
   async _updateObject(event, formData) {
     const updateData = foundry.utils.deepClone(formData);
+    this._normalizeEmptyNumberFields(updateData);
     this._mergeTalentUpdateData(updateData);
     return this.actor.update(updateData);
+  }
+
+  _normalizeEmptyNumberFields(updateData) {
+    const zeroPaths = [
+      /^system\.health\.damage$/,
+      /^system\.skillPoints\.[^.]+$/,
+      /^system\.skills\.[^.]+\.value$/,
+      /^system\.armor\.[^.]+\.(value|battered)$/
+    ];
+
+    for (const [key, value] of Object.entries(updateData)) {
+      if (!zeroPaths.some((pattern) => pattern.test(key))) continue;
+
+      if (value === "" || value === "-") {
+        updateData[key] = 0;
+      }
+    }
   }
 
   _mergeTalentUpdateData(updateData) {
@@ -180,10 +232,13 @@ export class SciFiCharacterSheet extends ActorSheet {
     for (const [index, partial] of incomingEntries) {
       if (!Number.isInteger(Number(index)) || !partial) continue;
 
-      const current = existing[index] ?? { name: "Talent", rank: null, description: "" };
+      const current = existing[index] ?? { name: "", rank: null, description: "" };
       existing[index] = {
         ...current,
-        ...partial
+        ...partial,
+        name: partial.name ?? current.name ?? "",
+        rank: numberOrZero(partial.rank ?? current.rank) === 0 ? null : partial.rank ?? current.rank ?? null,
+        description: partial.description ?? current.description ?? ""
       };
     }
 
@@ -206,10 +261,10 @@ export class SciFiCharacterSheet extends ActorSheet {
     if (!skill) return;
 
     const column = SKILL_COLUMN_BY_KEY[key];
-    const current = Number(skill.value ?? 0);
+    const current = numberOrZero(skill.value);
     const cost = skillChangeCost(current, current + 1);
     const poolPath = `system.skillPoints.${column}`;
-    const available = Number(this.actor.system.skillPoints?.[column] ?? 0);
+    const available = numberOrZero(this.actor.system.skillPoints?.[column]);
 
     if (available < cost) {
       ui.notifications.warn(`Not enough ${column} points. Need ${cost}.`);
@@ -252,6 +307,10 @@ export class SciFiCharacterSheet extends ActorSheet {
     if (!this._isPlayMode()) return;
 
     const key = event.currentTarget.dataset.skill;
+    await this.rollSkill(key);
+  }
+
+  async rollSkill(key) {
     if (key === "Initiative") {
       await this.actor.rollInitiative({ createCombatants: true, rerollInitiative: true });
       return;
@@ -291,7 +350,7 @@ export class SciFiCharacterSheet extends ActorSheet {
   }
 
   _onAttackBonusChange(event) {
-    this._attackBonus = Number(event.currentTarget.value || 0);
+    this._attackBonus = numberOrZero(event.currentTarget.value);
   }
 
   async _onRollSelectedSkills(event) {
@@ -346,15 +405,22 @@ export class SciFiCharacterSheet extends ActorSheet {
     event.preventDefault();
     if (!this._isPlayMode()) return;
 
+    const root = $(event.currentTarget).closest(".scifi-urpg-character-sheet");
+    this._attackBonus = numberOrZero(root.find("[data-field='attack-bonus']").val());
+
+    await this.submit({ preventClose: true });
+
+    await this.attackTarget({
+      bonus: this._attackBonus,
+      aimZones: Array.from(this._attackAimZones)
+    });
+  }
+
+  async attackTarget({ bonus = 0, aimZones = DEFAULT_AIM_ZONES } = {}) {
     if (game.user.targets.size !== 1) {
       ui.notifications.warn("Target exactly one token before attacking.");
       return;
     }
-
-    const root = $(event.currentTarget).closest(".scifi-urpg-character-sheet");
-    this._attackBonus = Number(root.find("[data-field='attack-bonus']").val() || 0);
-
-    await this.submit({ preventClose: true });
 
     const targetToken = Array.from(game.user.targets)[0];
     const target = targetToken.actor;
@@ -381,16 +447,34 @@ export class SciFiCharacterSheet extends ActorSheet {
       attacker: this.actor,
       target,
       skillKey,
-      bonus: this._attackBonus,
+      bonus: numberOrZero(bonus),
       distance,
-      aimZones: Array.from(this._attackAimZones)
+      aimZones
     });
 
-    if (Object.keys(outcome.updateData).length) {
-      await target.update(outcome.updateData);
+    const updateRequest = await game.scifiUrpg.updateActor(target, outcome.updateData, { token: targetToken });
+
+    await this._postAttackMessage(outcome, { updateRequest });
+  }
+
+  _onDragRollMacro(event) {
+    const action = event.currentTarget.dataset.macroAction;
+    if (!action) return;
+
+    const dragData = {
+      type: "scifi-urpg.roll",
+      actorId: this.actor.id,
+      action
+    };
+
+    if (action === "skill") dragData.skillKey = event.currentTarget.dataset.skill;
+    if (action === "attack") {
+      const root = $(event.currentTarget).closest(".scifi-urpg-character-sheet");
+      dragData.bonus = numberOrZero(root.find("[data-field='attack-bonus']").val());
+      dragData.aimZones = Array.from(this._attackAimZones);
     }
 
-    await this._postAttackMessage(outcome);
+    event.originalEvent?.dataTransfer?.setData("text/plain", JSON.stringify(dragData));
   }
 
   _distanceToTarget(targetToken) {
@@ -471,8 +555,8 @@ export class SciFiCharacterSheet extends ActorSheet {
     const skill = actor.system.skills?.[key];
     if (!skill) return null;
 
-    const value = Number(skill.value ?? 0);
-    const damage = Math.max(0, Number(actor.system.health?.damage ?? 0));
+    const value = numberOrZero(skill.value);
+    const damage = Math.max(0, numberOrZero(actor.system.health?.damage));
 
     return {
       actorId: actor.id,
@@ -530,7 +614,7 @@ export class SciFiCharacterSheet extends ActorSheet {
     });
   }
 
-  async _postAttackMessage(outcome) {
+  async _postAttackMessage(outcome, { updateRequest = null } = {}) {
     const speaker = ChatMessage.getSpeaker({ actor: this.actor });
     const escapedTarget = foundry.utils.escapeHTML(outcome.target.name);
     const escapedWeapon = foundry.utils.escapeHTML(outcome.weapon.name);
@@ -562,10 +646,16 @@ export class SciFiCharacterSheet extends ActorSheet {
       </div>
     `;
 
-    await ChatMessage.create({
-      speaker,
-      content
-    });
+    const messageData = { speaker, content };
+    if (updateRequest) {
+      messageData.flags = {
+        "scifi-urpg": {
+          targetUpdate: updateRequest
+        }
+      };
+    }
+
+    await ChatMessage.create(messageData);
   }
 
   _attackFormula(outcome) {
@@ -619,12 +709,12 @@ export class SciFiCharacterSheet extends ActorSheet {
     if (!skill) return;
 
     const column = SKILL_COLUMN_BY_KEY[key];
-    const current = Number(skill.value ?? 0);
+    const current = numberOrZero(skill.value);
     if (current <= 0) return;
 
     const refund = -skillChangeCost(current, current - 1);
     const poolPath = `system.skillPoints.${column}`;
-    const available = Number(this.actor.system.skillPoints?.[column] ?? 0);
+    const available = numberOrZero(this.actor.system.skillPoints?.[column]);
 
     if (pending === 1) this._pendingSkillIncreases.delete(key);
     else this._pendingSkillIncreases.set(key, pending - 1);
@@ -674,7 +764,7 @@ export class SciFiCharacterSheet extends ActorSheet {
 
     const talents = foundry.utils.deepClone(this.actor.toObject().system.talents ?? []);
     talents.push({
-      name: "Talent",
+      name: "",
       rank: null,
       description: ""
     });
@@ -734,12 +824,32 @@ export class SciFiCharacterSheet extends ActorSheet {
 
     if (this._editingTalents) {
       await this.submit({ preventClose: true });
+      await this._removeEmptyTalents();
       this._editingTalents = false;
     } else {
       this._editingTalents = true;
     }
 
     this.render(false);
+  }
+
+  async _removeEmptyTalents() {
+    const talents = foundry.utils.deepClone(this.actor.toObject().system.talents ?? []);
+    const filtered = talents.filter((talent) => !this._isEmptyTalent(talent));
+    if (filtered.length !== talents.length) {
+      await this.actor.update({ "system.talents": filtered });
+    }
+  }
+
+  _isEmptyTalent(talent) {
+    const name = String(talent?.name ?? "").trim();
+    const description = String(talent?.description ?? "")
+      .replace(/<[^>]*>/g, "")
+      .replace(/&nbsp;/gi, " ")
+      .trim();
+    const hasRank = numberOrZero(talent?.rank) !== 0;
+
+    return !description && !hasRank && (!name || name === "Talent");
   }
 
   _isPlayMode() {

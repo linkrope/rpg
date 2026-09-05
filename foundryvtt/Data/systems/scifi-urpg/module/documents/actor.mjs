@@ -29,11 +29,22 @@ export class SciFiActor extends Actor {
 
     if (this.type !== "character") return;
     if (!this._hasHealthDamageChange(changed)) return;
+    if (!this._canSyncDefeatedStatus()) return;
 
     const damage = Number(this.system.health?.damage ?? 0);
     const max = Math.max(1, Number(this.system.health?.max ?? 20));
 
     void this.syncDefeatedStatus(damage >= max);
+  }
+
+  _canSyncDefeatedStatus() {
+    if (game.user?.isGM) return true;
+
+    if (typeof this.canUserModify === "function") {
+      return this.canUserModify(game.user, "update");
+    }
+
+    return this.testUserPermission?.(game.user, "OWNER") ?? false;
   }
 
   async syncDefeatedStatus(active) {
