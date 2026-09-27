@@ -1,0 +1,10 @@
+{
+  "id": "travel-cargo-ledger",
+  "title": "Travel & Cargo Ledger",
+  "description": "Append-only travel, cargo, and balance events stored in a Foundry Journal Entry.",
+  "version": "0.1.0",
+  "authors": [{"name": "Linkrope"}],
+  "compatibility": {"minimum": "14", "verified": "14"},
+  "esmodules": ["scripts/travel-cargo-ledger.js"],
+  "styles": ["styles/travel-cargo-ledger.css"]
+}

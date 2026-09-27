@@ -1,0 +1,8 @@
+.travel-cargo-ledger-controls { display:flex; gap:.4rem; flex-wrap:wrap; margin:0 0 .75rem; }
+.travel-cargo-ledger-controls button { flex:0 0 auto; }
+.travel-cargo-ledger-note { color:var(--color-text-dark-secondary); font-size:var(--font-size-12); }
+.travel-cargo-ledger-table td, .travel-cargo-ledger-table th { white-space:nowrap; }
+.travel-cargo-ledger-table th:nth-child(2), .travel-cargo-ledger-table td:nth-child(2) { text-align:left; }
+.travel-cargo-ledger-table th:nth-child(3), .travel-cargo-ledger-table td:nth-child(3),
+.travel-cargo-ledger-table th:nth-child(5), .travel-cargo-ledger-table td:nth-child(5),
+.travel-cargo-ledger-table th:nth-child(6), .travel-cargo-ledger-table td:nth-child(6) { text-align:right; }

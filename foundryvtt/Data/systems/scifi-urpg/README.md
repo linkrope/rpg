@@ -12,7 +12,8 @@ Rules reference: https://irisiflimsi.github.io/rpg-rules/scifi.xml
 - Preserves the original skill columns and skill groups.
 - Stores damage, skill point pools, notes, token type, property type, and the selected weapon.
 - Supports level-up spending from the `Allgemein` and `Speziell` point pools. Skill increases use the original cost rule from the RPToken viewer: each target level costs `ceil(level / 10)`.
-- Supports free-form `Talente` entries with a heading, optional value, and rich text description.
+- Supports free-form `Talente` entries with a heading, optional value, and Markdown description.
+- Stores character notes as Markdown.
 - Skill Roll, p5, n5, Dimensions, Attack, and Repair buttons can be dragged to the Foundry hotbar to create actor-bound script macros.
 
 Combat rules, initiative handling, `.rptok` import, armor editing, and attack undo are intentionally left for later steps.

@@ -217,8 +217,8 @@
 
     <div class="tab talents-tab" data-group="primary" data-tab="talents">
       <div class="talents-toolbar">
-        <button type="button" data-action="toggle-talent-edit">
-          {{#if editingTalents}}View Talente{{else}}Edit Talente{{/if}}
+        <button type="button" class="sheet-mode-button{{#if editingTalents}} active{{/if}}" data-action="toggle-talent-edit">
+          {{#if editingTalents}}Done{{else}}Edit{{/if}}
         </button>
       </div>
 
@@ -236,7 +236,7 @@
                   <input type="number" name="system.talents.{{index}}.rank" value="{{rankInput}}" min="0" step="1" placeholder="-">
                 </label>
               </div>
-              {{editor description target=target button=true editable=../editable engine="prosemirror"}}
+              <textarea class="markdown-editor talent-markdown-editor" name="{{target}}" placeholder="Talent description">{{description}}</textarea>
             {{else}}
               <div class="talent-display-header">
                 <h2>
@@ -245,7 +245,7 @@
                 </h2>
               </div>
               <div class="talent-description">
-                {{{description}}}
+                {{{descriptionHtml}}}
               </div>
             {{/if}}
           </section>
@@ -262,7 +262,20 @@
     </div>
 
     <div class="tab notes-tab" data-group="primary" data-tab="notes">
-      {{editor system.notes target="system.notes" button=true editable=editable engine="prosemirror"}}
+      {{#if editable}}
+        <div class="notes-toolbar">
+          <button type="button" class="sheet-mode-button{{#if editingNotes}} active{{/if}}" data-action="toggle-notes-edit">
+            {{#if editingNotes}}Done{{else}}Edit{{/if}}
+          </button>
+        </div>
+      {{/if}}
+      {{#if editingNotes}}
+        <textarea class="markdown-editor notes-markdown-editor" name="system.notes" placeholder="Notes">{{system.notes}}</textarea>
+      {{else}}
+        <div class="notes-description">
+          {{{notesHtml}}}
+        </div>
+      {{/if}}
     </div>
   </section>
 </form>

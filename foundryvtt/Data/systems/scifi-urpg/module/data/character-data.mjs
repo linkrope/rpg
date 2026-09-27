@@ -21,7 +21,7 @@ export class CharacterDataModel extends foundry.abstract.TypeDataModel {
     return {
       tokenType: new fields.StringField({ required: false, nullable: false, initial: "" }),
       propertyType: new fields.StringField({ required: false, nullable: false, initial: "" }),
-      notes: new fields.HTMLField({ required: false, nullable: false, initial: "" }),
+      notes: new fields.StringField({ required: false, nullable: false, blank: true, initial: "" }),
       health: new fields.SchemaField({
         value: new fields.NumberField({ required: true, nullable: false, initial: 20, min: 0, max: 20 }),
         max: new fields.NumberField({ required: true, nullable: false, initial: 20, min: 1 }),
@@ -38,7 +38,7 @@ export class CharacterDataModel extends foundry.abstract.TypeDataModel {
       talents: new fields.ArrayField(new fields.SchemaField({
         name: new fields.StringField({ required: true, nullable: false, initial: "" }),
         rank: new fields.NumberField({ required: false, nullable: true, integer: true, initial: null, min: 0 }),
-        description: new fields.HTMLField({ required: false, nullable: false, initial: "" })
+        description: new fields.StringField({ required: false, nullable: false, blank: true, initial: "" })
       }), { initial: [] }),
       armor: new fields.SchemaField({
         torso: armorZoneSchema(),

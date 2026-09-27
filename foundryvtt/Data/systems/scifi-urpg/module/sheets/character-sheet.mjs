@@ -26,6 +26,35 @@ function numberOrZero(value) {
   return Number.isFinite(number) ? number : 0;
 }
 
+async function renderMarkdown(markdown, relativeTo) {
+  const source = String(markdown ?? "");
+  if (!source.trim()) return "";
+
+  const converter = foundry.applications?.sheets?.journal?.JournalEntryPageMarkdownSheet?._converter
+    ?? foundry.applications?.sheets?.journal?.JournalEntryPageTextSheet?._converter;
+  const html = markdownToHtml(source, converter);
+  const clean = foundry.utils.cleanHTML(html);
+  const TextEditorClass = foundry.applications?.ux?.TextEditor?.implementation ?? globalThis.TextEditor;
+
+  return TextEditorClass?.enrichHTML
+    ? TextEditorClass.enrichHTML(clean, { async: true, relativeTo })
+    : clean;
+}
+
+function markdownToHtml(markdown, converter) {
+  if (converter?.makeHtml) return converter.makeHtml(markdown);
+  if (globalThis.showdown?.Converter) return new globalThis.showdown.Converter().makeHtml(markdown);
+  return fallbackMarkdownToHtml(markdown);
+}
+
+function fallbackMarkdownToHtml(markdown) {
+  const escaped = foundry.utils.escapeHTML(String(markdown ?? ""));
+  return escaped
+    .split(/\n{2,}/)
+    .map((paragraph) => `<p>${paragraph.replace(/\n/g, "<br>")}</p>`)
+    .join("");
+}
+
 export class SciFiCharacterSheet extends ActorSheet {
   constructor(...args) {
     super(...args);
@@ -33,6 +62,7 @@ export class SciFiCharacterSheet extends ActorSheet {
     this._levelingUp = false;
     this._editingSkills = false;
     this._editingTalents = false;
+    this._editingNotes = false;
     this._activeArmorZone = "torso";
     this._selectedSkillKeys = new Set();
     this._attackAimZones = new Set(DEFAULT_AIM_ZONES);
@@ -65,6 +95,7 @@ export class SciFiCharacterSheet extends ActorSheet {
     context.levelingUp = this._levelingUp;
     context.editingSkills = this._editingSkills;
     context.editingTalents = this._editingTalents;
+    context.editingNotes = this._editingNotes;
     context.activeArmorZone = this._buildActiveArmorZone(system.armor);
     context.armorZones = buildArmorZones(system.armor).map((zone) => ({
       ...zone,
@@ -99,6 +130,7 @@ export class SciFiCharacterSheet extends ActorSheet {
     }));
     context.attack = this._buildAttackContext(system);
     context.damageInput = inputNumber(system.health?.damage);
+    context.notesHtml = await renderMarkdown(system.notes, this.actor);
     context.talents = await Promise.all((system.talents ?? []).map(async (talent, index) => ({
       index,
       name: talent.name,
@@ -106,6 +138,7 @@ export class SciFiCharacterSheet extends ActorSheet {
       rankInput: inputNumber(talent.rank),
       hasRank: numberOrZero(talent.rank) !== 0,
       description: talent.description,
+      descriptionHtml: await renderMarkdown(talent.description, this.actor),
       target: `system.talents.${index}.description`
     })));
 
@@ -136,6 +169,7 @@ export class SciFiCharacterSheet extends ActorSheet {
     html.find("[data-action='repair-armor']").on("click", this._onRepairArmor.bind(this));
     html.find("[data-action='add-talent']").on("click", this._onAddTalent.bind(this));
     html.find("[data-action='toggle-talent-edit']").on("click", this._onToggleTalentEdit.bind(this));
+    html.find("[data-action='toggle-notes-edit']").on("click", this._onToggleNotesEdit.bind(this));
   }
 
   _buildActiveArmorZone(armor) {
@@ -824,13 +858,26 @@ export class SciFiCharacterSheet extends ActorSheet {
 
     if (this._editingTalents) {
       await this.submit({ preventClose: true });
-      await this._removeEmptyTalents();
       this._editingTalents = false;
+      await this._removeEmptyTalents();
     } else {
       this._editingTalents = true;
     }
 
-    this.render(false);
+    this.render(true);
+  }
+
+  async _onToggleNotesEdit(event) {
+    event.preventDefault();
+
+    if (this._editingNotes) {
+      await this.submit({ preventClose: true });
+      this._editingNotes = false;
+    } else {
+      this._editingNotes = true;
+    }
+
+    this.render(true);
   }
 
   async _removeEmptyTalents() {
@@ -843,10 +890,7 @@ export class SciFiCharacterSheet extends ActorSheet {
 
   _isEmptyTalent(talent) {
     const name = String(talent?.name ?? "").trim();
-    const description = String(talent?.description ?? "")
-      .replace(/<[^>]*>/g, "")
-      .replace(/&nbsp;/gi, " ")
-      .trim();
+    const description = String(talent?.description ?? "").trim();
     const hasRank = numberOrZero(talent?.rank) !== 0;
 
     return !description && !hasRank && (!name || name === "Talent");

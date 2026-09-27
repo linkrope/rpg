@@ -288,7 +288,6 @@ async function updateActor(actor, updateData, { token = null } = {}) {
     type: "updateActor",
     ...request
   });
-  ui.notifications.info(`Sent ${actor.name} damage update to ${activeGMs.length} active GM client${activeGMs.length === 1 ? "" : "s"}.`);
   return request;
 }
 

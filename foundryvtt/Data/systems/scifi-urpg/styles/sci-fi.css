@@ -41,6 +41,20 @@
   padding: 3px 7px;
 }
 
+/*
+ * The opened select menu is native UI.  Without option colors Windows can
+ * combine the select's inherited light text with its own light menu surface.
+ */
+.scifi-urpg-character-sheet select option {
+  background-color: #1b2330;
+  color: var(--sf-head);
+}
+
+.scifi-urpg-character-sheet select option:checked {
+  background-color: #2d5d87;
+  color: #ffffff;
+}
+
 .scifi-urpg-character-sheet input::placeholder {
   color: var(--sf-dim);
   opacity: 1;
@@ -827,6 +841,7 @@
 }
 
 .scifi-urpg-character-sheet .talents-toolbar,
+.scifi-urpg-character-sheet .notes-toolbar,
 .scifi-urpg-character-sheet .talents-add-row {
   display: flex;
   justify-content: flex-end;
@@ -839,6 +854,7 @@
 }
 
 .scifi-urpg-character-sheet .talents-toolbar button,
+.scifi-urpg-character-sheet .notes-toolbar button,
 .scifi-urpg-character-sheet .talents-add-row button {
   border: 1px solid var(--sf-border);
   border-radius: 4px;
@@ -848,8 +864,14 @@
 }
 
 .scifi-urpg-character-sheet .talents-toolbar button,
+.scifi-urpg-character-sheet .notes-toolbar button,
 .scifi-urpg-character-sheet .talents-add-row button {
   padding: 5px 10px;
+}
+
+.scifi-urpg-character-sheet .talents-toolbar .sheet-mode-button,
+.scifi-urpg-character-sheet .notes-toolbar .sheet-mode-button {
+  min-width: 72px;
 }
 
 .scifi-urpg-character-sheet .talent-card {
@@ -887,21 +909,26 @@
   color: var(--sf-accent-warm);
 }
 
-.scifi-urpg-character-sheet .talent-description {
+.scifi-urpg-character-sheet .talent-description,
+.scifi-urpg-character-sheet .notes-description {
   color: #d7dee8;
   line-height: 1.45;
 }
 
-.scifi-urpg-character-sheet .talent-description * {
+.scifi-urpg-character-sheet .talent-description *,
+.scifi-urpg-character-sheet .notes-description * {
   color: inherit !important;
 }
 
-.scifi-urpg-character-sheet .talent-description p {
+.scifi-urpg-character-sheet .talent-description p,
+.scifi-urpg-character-sheet .notes-description p {
   margin: 0 0 0.75em;
 }
 
 .scifi-urpg-character-sheet .talent-description strong,
-.scifi-urpg-character-sheet .talent-description b {
+.scifi-urpg-character-sheet .talent-description b,
+.scifi-urpg-character-sheet .notes-description strong,
+.scifi-urpg-character-sheet .notes-description b {
   color: var(--sf-head) !important;
 }
 
@@ -917,6 +944,30 @@
 .scifi-urpg-character-sheet .editor,
 .scifi-urpg-character-sheet prose-mirror {
   min-height: 320px;
+}
+
+.scifi-urpg-character-sheet .markdown-editor {
+  width: 100%;
+  min-height: 320px;
+  resize: vertical;
+  background: #111824;
+  border: 1px solid var(--sf-border);
+  border-radius: 4px;
+  color: var(--sf-text);
+  font-family: var(--font-monospace), monospace;
+  font-size: 13px;
+  line-height: 1.45;
+  padding: 10px;
+}
+
+.scifi-urpg-character-sheet .talent-markdown-editor {
+  min-height: 140px;
+}
+
+.scifi-urpg-character-sheet .markdown-editor:focus {
+  border-color: var(--sf-accent);
+  box-shadow: 0 0 0 1px rgba(38, 139, 210, 0.45);
+  outline: none;
 }
 
 .scifi-urpg-character-sheet .editor,
@@ -965,7 +1016,8 @@
 .scifi-urpg-character-sheet .editor-content a,
 .scifi-urpg-character-sheet prose-mirror a,
 .scifi-urpg-character-sheet prose-mirror .ProseMirror a,
-.scifi-urpg-character-sheet .talent-description a {
+.scifi-urpg-character-sheet .talent-description a,
+.scifi-urpg-character-sheet .notes-description a {
   color: #8ecbff !important;
 }
 
