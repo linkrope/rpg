@@ -14,7 +14,7 @@
           <span>Weapon</span>
           <select name="system.weapon.selected">
             {{#each weaponOptions}}
-              <option value="{{name}}" {{#if selected}}selected{{/if}}>{{name}}</option>
+              <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
             {{/each}}
           </select>
         </label>
@@ -32,21 +32,12 @@
           </div>
         {{/if}}
       </div>
-      {{#if playMode}}
-        <div class="header-attack-summary">
-          <span>BEP {{attack.weapon.bep}}</span>
-          <span>{{#if attack.weapon.range}}{{attack.weapon.range}}{{else}}Melee{{/if}}</span>
-          <span>{{attack.weapon.rate}}</span>
-          {{#if attack.weapon.clip}}<span>[{{attack.weapon.clip}}]</span>{{/if}}
-          <span>{{attack.weapon.hand}}-Hand</span>
-          <span>{{attack.aimSummary}}</span>
-        </div>
-      {{/if}}
     </div>
   </header>
 
   <nav class="sheet-tabs tabs" data-group="primary">
     <a class="item" data-tab="skills">Skills</a>
+    <a class="item" data-tab="weapons">Weapons</a>
     <a class="item" data-tab="armor">Armor</a>
     <a class="item" data-tab="talents">Talente</a>
     <a class="item" data-tab="notes">Notes</a>
@@ -118,6 +109,31 @@
               </div>
             {{/each}}
           </section>
+        {{/each}}
+      </div>
+    </div>
+
+    <div class="tab weapons-tab" data-group="primary" data-tab="weapons">
+      <div class="weapons-toolbar">
+        <span>Drag a Weapon Item from the Items sidebar onto this character.</span>
+      </div>
+      <div class="weapons-list">
+        {{#each weapons}}
+          <article class="weapon-row">
+            <img src="{{img}}" alt="">
+            <div class="weapon-row-details">
+              <strong>{{name}}</strong>
+              <span>BEP {{bep}} · {{range}} · {{rate}}{{#if clip}} · [{{clip}}]{{/if}} · {{hand}}-Hand</span>
+            </div>
+            {{#unless isUnarmed}}
+              <div class="weapon-row-actions">
+                <button type="button" data-action="edit-weapon" data-item-id="{{id}}">Edit</button>
+                <button type="button" data-action="delete-weapon" data-item-id="{{id}}">Delete</button>
+              </div>
+            {{/unless}}
+          </article>
+        {{else}}
+          <p class="empty-weapons">No weapons yet. Drag a Weapon Item from the Items sidebar onto this character.</p>
         {{/each}}
       </div>
     </div>

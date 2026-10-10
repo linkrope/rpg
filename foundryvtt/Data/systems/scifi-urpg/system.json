@@ -2,7 +2,7 @@
   "id": "scifi-urpg",
   "title": "SciFi@URPG",
   "description": "Foundry VTT system for SciFi@URPG.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "compatibility": {
     "minimum": "14",
     "verified": "14"
@@ -13,11 +13,13 @@
     }
   ],
   "esmodules": [
-    "scifi-urpg.mjs"
+    "scifi-urpg.mjs",
+    "module/darkmatter-journals.mjs"
   ],
   "socket": true,
   "styles": [
-    "styles/sci-fi.css"
+    "styles/sci-fi.css",
+    "styles/darkmatter-journals.css"
   ],
   "languages": [
     {
@@ -31,7 +33,8 @@
       "character": {}
     },
     "Item": {
-      "item": {}
+      "item": {},
+      "weapon": {}
     }
   },
   "initiative": "0",

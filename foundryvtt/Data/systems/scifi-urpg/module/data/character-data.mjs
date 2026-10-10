@@ -122,6 +122,23 @@ export class GenericItemDataModel extends foundry.abstract.TypeDataModel {
   }
 }
 
+export class WeaponDataModel extends foundry.abstract.TypeDataModel {
+  static defineSchema() {
+    return {
+      description: new fields.HTMLField({ required: false, nullable: false, initial: "" }),
+      skill: new fields.StringField({ required: true, nullable: false, initial: "Waffenlos" }),
+      weight: new fields.StringField({ required: false, nullable: false, blank: true, initial: "" }),
+      hand: new fields.NumberField({ required: true, nullable: false, integer: true, initial: 1, min: 1 }),
+      bep: new fields.NumberField({ required: true, nullable: false, initial: 0, min: 0 }),
+      range: new fields.NumberField({ required: false, nullable: true, initial: null, min: 0 }),
+      rate: new fields.NumberField({ required: true, nullable: false, initial: 1, min: 0 }),
+      clip: new fields.NumberField({ required: false, nullable: true, integer: true, initial: null, min: 0 }),
+      ammo: new fields.StringField({ required: false, nullable: false, blank: true, initial: "" }),
+      nozzle: new fields.StringField({ required: false, nullable: false, blank: true, initial: "" })
+    };
+  }
+}
+
 function armorZoneSchema() {
   return new fields.SchemaField({
     material: new fields.StringField({ required: false, nullable: true, initial: null }),

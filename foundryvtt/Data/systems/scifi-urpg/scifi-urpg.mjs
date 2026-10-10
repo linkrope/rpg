@@ -2,12 +2,14 @@ import { SCI_FI, displaySkillName, fmtArmor } from "./module/constants.mjs";
 import { SciFiActor } from "./module/documents/actor.mjs";
 import { SciFiCombat } from "./module/documents/combat.mjs";
 import { SciFiItem } from "./module/documents/item.mjs";
-import { CharacterDataModel, GenericItemDataModel } from "./module/data/character-data.mjs";
+import { CharacterDataModel, GenericItemDataModel, WeaponDataModel } from "./module/data/character-data.mjs";
 import { SciFiDimensionsApp } from "./module/apps/dimensions-app.mjs";
+import { postRollCard } from "./module/chat.mjs";
 import { SciFiCharacterSheet } from "./module/sheets/character-sheet.mjs";
+import { SciFiWeaponSheet } from "./module/sheets/weapon-sheet.mjs";
 import { rollN5, rollP5 } from "./module/rules/dice.mjs";
 import { combineSkillValues } from "./module/rules/skills.mjs";
-import { DEFAULT_AIM_ZONES, resolveAttack, weaponPresetFor } from "./module/rules/combat.mjs";
+import { DEFAULT_AIM_ZONES, resolveAttack, weaponForActor } from "./module/rules/combat.mjs";
 
 Hooks.once("init", () => {
   CONFIG.SCI_FI = SCI_FI;
@@ -22,7 +24,8 @@ Hooks.once("init", () => {
   };
 
   CONFIG.Item.dataModels = {
-    item: GenericItemDataModel
+    item: GenericItemDataModel,
+    weapon: WeaponDataModel
   };
 
   Actors.unregisterSheet("core", ActorSheet);
@@ -30,6 +33,12 @@ Hooks.once("init", () => {
     types: ["character"],
     makeDefault: true,
     label: "SCI_FI.Sheets.Character"
+  });
+  Items.unregisterSheet("core", ItemSheet, { types: ["weapon"] });
+  Items.registerSheet("scifi-urpg", SciFiWeaponSheet, {
+    types: ["weapon"],
+    makeDefault: true,
+    label: "SCI_FI.Sheets.Weapon"
   });
 });
 
@@ -65,6 +74,40 @@ Hooks.on("createChatMessage", (message) => {
 
   void applyChatTargetUpdate(message);
 });
+
+Hooks.on("renderChatMessageHTML", (message, html) => {
+  if (!message.getFlag("scifi-urpg", "rollCard")) return;
+
+  if (game.user?.isGM && message.getFlag("scifi-urpg", "publicNpcResult")) {
+    html.classList.add("scifi-urpg-gm-hidden-roll");
+    html.style.setProperty("display", "none", "important");
+    html.setAttribute("aria-hidden", "true");
+    return;
+  }
+
+  if (!message.isContentVisible) html.classList.add("scifi-urpg-hidden-roll");
+  redactHiddenNpcNames(message, html);
+});
+
+function redactHiddenNpcNames(message, html) {
+  if (game.user?.isGM || typeof game.hnn?.getReplacementInfo !== "function") return;
+
+  for (const actorId of message.getFlag("scifi-urpg", "actorIds") ?? []) {
+    const actor = game.actors?.get(actorId);
+    if (!actor || actor.hasPlayerOwner) continue;
+
+    const replacement = game.hnn.getReplacementInfo(actor, actor.name)?.displayName;
+    if (!replacement || replacement === actor.name) continue;
+
+    for (const element of [html, ...html.querySelectorAll("*")]) {
+      for (const node of Array.from(element.childNodes)) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          node.textContent = node.textContent.replaceAll(actor.name, replacement);
+        }
+      }
+    }
+  }
+}
 
 Hooks.on("hotbarDrop", (bar, data, slot) => {
   if (data?.type !== "scifi-urpg.roll") return;
@@ -214,7 +257,7 @@ async function attack({ actorId, bonus = 0, aimZones = DEFAULT_AIM_ZONES } = {})
     return;
   }
 
-  const weapon = weaponPresetFor(actor.system.weapon?.selected);
+  const weapon = weaponForActor(actor);
   const skillKey = actor.system.skills?.[weapon.skill] ? weapon.skill : "Waffenlos";
   const distance = distanceToTarget(actor, targetToken);
   if (distance === null) {
@@ -458,11 +501,15 @@ async function postRollMessage(actor, { title, subtitle = "", formula = "", base
       <div class="roll-result">${result}</div>
     </div>
   `;
+  const publicContent = `
+    <div class="scifi-urpg-chat-card" data-scifi-urpg-roll-result="${Number(result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(actor.id)}">
+      <h3>${foundry.utils.escapeHTML(title)}</h3>
+      ${subtitle ? `<p>${foundry.utils.escapeHTML(subtitle)}</p>` : ""}
+      <div class="roll-result">${result}</div>
+    </div>
+  `;
 
-  await ChatMessage.create({
-    speaker,
-    content
-  });
+  await postRollCard(actor, { speaker, content, publicContent, result });
 }
 
 async function postAttackMessage(actor, outcome, { updateRequest = null } = {}) {
@@ -483,6 +530,16 @@ async function postAttackMessage(actor, outcome, { updateRequest = null } = {}) 
   const downHtml = outcome.targetDown
     ? `<div class="attack-status-line">${escapedTarget} is down!</div>`
     : "";
+  const publicContent = `
+    <div class="scifi-urpg-chat-card attack-card" data-scifi-urpg-roll-result="${Number(outcome.result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(actor.id)}">
+      <h3>Attack</h3>
+      <p>${foundry.utils.escapeHTML(actor.name)} attacks ${escapedTarget} with ${escapedWeapon}</p>
+      <div class="roll-result">${outcome.result}</div>
+      ${damageSection}
+      ${armorLossSection}
+      ${downHtml}
+    </div>
+  `;
 
   const content = `
     <div class="scifi-urpg-chat-card attack-card" data-scifi-urpg-roll-result="${Number(outcome.result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(actor.id)}">
@@ -505,7 +562,14 @@ async function postAttackMessage(actor, outcome, { updateRequest = null } = {}) 
     };
   }
 
-  await ChatMessage.create(messageData);
+  await postRollCard(actor, {
+    speaker,
+    content,
+    publicContent,
+    result: outcome.result,
+    flags: messageData.flags,
+    actorIds: [outcome.target.id]
+  });
 }
 
 function attackFormula(outcome) {

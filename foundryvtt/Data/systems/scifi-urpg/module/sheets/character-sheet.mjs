@@ -1,8 +1,9 @@
 import { ARMOR_MATERIALS, ARMOR_ZONE_DEFS, BASE_HIT_ZONE_PCT, SKILL_COLUMN_BY_KEY, buildArmorMaterials, buildArmorZones, fmtArmor, buildSkillColumns, skillChangeCost, stepCostForLevel, WEAPON_OPTIONS } from "../constants.mjs";
 import { SciFiDimensionsApp } from "../apps/dimensions-app.mjs";
 import { rollN5, rollP5 } from "../rules/dice.mjs";
+import { postRollCard } from "../chat.mjs";
 import { combineSkillValues } from "../rules/skills.mjs";
-import { DEFAULT_AIM_ZONES, aimPenalty, aimTotalPct, resolveAttack, weaponPresetFor } from "../rules/combat.mjs";
+import { DEFAULT_AIM_ZONES, aimPenalty, aimTotalPct, resolveAttack, weaponForActor, weaponPresetFor } from "../rules/combat.mjs";
 
 function displayNumber(value) {
   return Number(value ?? 0) === 0 ? "-" : value;
@@ -124,10 +125,30 @@ export class SciFiCharacterSheet extends ActorSheet {
         })
       }))
     }));
-    context.weaponOptions = WEAPON_OPTIONS.map((name) => ({
-      name,
-      selected: system.weapon?.selected === name
-    }));
+    context.weaponOptions = this._buildWeaponOptions();
+    const unarmed = weaponPresetFor("Unarmed");
+    context.weapons = [{
+      name: unarmed.name,
+      img: "systems/scifi-urpg/assets/icons/fist.webp",
+      bep: unarmed.bep,
+      range: "Melee",
+      rate: unarmed.rate,
+      clip: unarmed.clip,
+      hand: unarmed.hand,
+      isUnarmed: true
+    }, ...this.actor.items
+      .filter((item) => item.type === "weapon")
+      .map((item) => ({
+        id: item.id,
+        name: item.name,
+        img: item.img,
+        bep: item.system.bep,
+        range: Number(item.system.range) > 0 ? `${item.system.range}m` : "Melee",
+        rate: item.system.rate ? `${item.system.rate}s` : "—",
+        clip: item.system.clip,
+        hand: item.system.hand,
+        isUnarmed: false
+      }))];
     context.attack = this._buildAttackContext(system);
     context.damageInput = inputNumber(system.health?.damage);
     context.notesHtml = await renderMarkdown(system.notes, this.actor);
@@ -170,6 +191,24 @@ export class SciFiCharacterSheet extends ActorSheet {
     html.find("[data-action='add-talent']").on("click", this._onAddTalent.bind(this));
     html.find("[data-action='toggle-talent-edit']").on("click", this._onToggleTalentEdit.bind(this));
     html.find("[data-action='toggle-notes-edit']").on("click", this._onToggleNotesEdit.bind(this));
+    html.find("[data-action='edit-weapon']").on("click", this._onEditWeapon.bind(this));
+    html.find("[data-action='delete-weapon']").on("click", this._onDeleteWeapon.bind(this));
+  }
+
+  _buildWeaponOptions() {
+    const selected = this.actor.system.weapon?.selected ?? "Unarmed";
+    const options = [{ value: "Unarmed", label: "Unarmed", selected: selected === "Unarmed" }];
+
+    for (const item of this.actor.items.filter((entry) => entry.type === "weapon")) {
+      options.push({ value: item.id, label: item.name, selected: selected === item.id });
+    }
+
+    // Keep existing actors functional until their preset selection is replaced by an owned item.
+    if (!options.some((option) => option.selected) && WEAPON_OPTIONS.includes(selected)) {
+      options.push({ value: selected, label: `${selected} (legacy preset)`, selected: true });
+    }
+
+    return options;
   }
 
   _buildActiveArmorZone(armor) {
@@ -198,7 +237,7 @@ export class SciFiCharacterSheet extends ActorSheet {
   }
 
   _buildAttackContext(system) {
-    const weapon = weaponPresetFor(system.weapon?.selected);
+    const weapon = weaponForActor(this.actor);
     const selectedSkill = system.skills?.[weapon.skill] ? weapon.skill : "Waffenlos";
     const skillValue = numberOrZero(system.skills?.[selectedSkill]?.value);
     const aimedZones = Array.from(this._attackAimZones);
@@ -463,7 +502,7 @@ export class SciFiCharacterSheet extends ActorSheet {
       return;
     }
 
-    const weapon = weaponPresetFor(this.actor.system.weapon?.selected);
+    const weapon = weaponForActor(this.actor);
     const skillKey = this.actor.system.skills?.[weapon.skill] ? weapon.skill : "Waffenlos";
     const distance = this._distanceToTarget(targetToken);
     if (distance === null) {
@@ -641,11 +680,15 @@ export class SciFiCharacterSheet extends ActorSheet {
         <div class="roll-result">${result}</div>
       </div>
     `;
+    const publicContent = `
+      <div class="scifi-urpg-chat-card" data-scifi-urpg-roll-result="${Number(result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(this.actor.id)}">
+        <h3>${foundry.utils.escapeHTML(title)}</h3>
+        ${subtitle ? `<p>${foundry.utils.escapeHTML(subtitle)}</p>` : ""}
+        <div class="roll-result">${result}</div>
+      </div>
+    `;
 
-    await ChatMessage.create({
-      speaker,
-      content
-    });
+    await postRollCard(this.actor, { speaker, content, publicContent, result });
   }
 
   async _postAttackMessage(outcome, { updateRequest = null } = {}) {
@@ -667,6 +710,16 @@ export class SciFiCharacterSheet extends ActorSheet {
     const downHtml = outcome.targetDown
       ? `<div class="attack-status-line">${escapedTarget} is down!</div>`
       : "";
+    const publicContent = `
+      <div class="scifi-urpg-chat-card attack-card" data-scifi-urpg-roll-result="${Number(outcome.result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(this.actor.id)}">
+        <h3>Attack</h3>
+        <p>${foundry.utils.escapeHTML(this.actor.name)} attacks ${escapedTarget} with ${escapedWeapon}</p>
+        <div class="roll-result">${outcome.result}</div>
+        ${damageSection}
+        ${armorLossSection}
+        ${downHtml}
+      </div>
+    `;
 
     const content = `
       <div class="scifi-urpg-chat-card attack-card" data-scifi-urpg-roll-result="${Number(outcome.result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(this.actor.id)}">
@@ -689,7 +742,14 @@ export class SciFiCharacterSheet extends ActorSheet {
       };
     }
 
-    await ChatMessage.create(messageData);
+    await postRollCard(this.actor, {
+      speaker,
+      content,
+      publicContent,
+      result: outcome.result,
+      flags: messageData.flags,
+      actorIds: [outcome.target.id]
+    });
   }
 
   _attackFormula(outcome) {
@@ -805,6 +865,25 @@ export class SciFiCharacterSheet extends ActorSheet {
 
     this._editingTalents = true;
     await this.actor.update({ "system.talents": talents });
+  }
+
+  _weaponFromEvent(event) {
+    return this.actor.items.get(event.currentTarget.dataset.itemId);
+  }
+
+  _onEditWeapon(event) {
+    event.preventDefault();
+    this._weaponFromEvent(event)?.sheet.render(true);
+  }
+
+  async _onDeleteWeapon(event) {
+    event.preventDefault();
+    const weapon = this._weaponFromEvent(event);
+    if (!weapon) return;
+
+    const wasEquipped = this.actor.system.weapon?.selected === weapon.id;
+    await weapon.delete();
+    if (wasEquipped) await this.actor.update({ "system.weapon.selected": "Unarmed" });
   }
 
   _onSelectArmorZone(event) {

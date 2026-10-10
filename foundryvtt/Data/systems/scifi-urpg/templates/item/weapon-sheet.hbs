@@ -1,0 +1,20 @@
+<form class="{{cssClass}} scifi-urpg-weapon-sheet" autocomplete="off">
+  <header class="weapon-sheet-header">
+    <img class="profile-img" src="{{item.img}}" data-action="pick-image" title="Change weapon image" height="64" width="64">
+    <input name="name" type="text" value="{{item.name}}" placeholder="Weapon name">
+  </header>
+
+  <div class="weapon-sheet-grid">
+    <label><span>Attack skill</span><select name="system.skill">{{#each skillGroups}}<optgroup label="{{group}}">{{#each skills}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</optgroup>{{/each}}</select></label>
+    <label><span>BEP</span><input name="system.bep" type="number" value="{{system.bep}}" min="0" step="1"></label>
+    <label><span>Hands</span><input name="system.hand" type="number" value="{{system.hand}}" min="1" step="1"></label>
+    <label><span>Weight (kg)</span><input name="system.weight" type="text" value="{{system.weight}}"></label>
+    <label><span>Range (m)</span><input name="system.range" type="number" value="{{system.range}}" min="0" step="1" placeholder="Melee"></label>
+    <label><span>Rate (s)</span><input name="system.rate" type="number" value="{{system.rate}}" min="0" step="1"></label>
+    <label><span>Clip</span><input name="system.clip" type="number" value="{{system.clip}}" min="0" step="1" placeholder="—"></label>
+    <label><span>Ammo (g)</span><input name="system.ammo" type="text" value="{{system.ammo}}"></label>
+    <label><span>Muzzle velocity (m/s)</span><input name="system.nozzle" type="text" value="{{system.nozzle}}"></label>
+  </div>
+
+  <label class="weapon-description"><span>Description</span><textarea name="system.description">{{system.description}}</textarea></label>
+</form>

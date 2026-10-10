@@ -1,0 +1,69 @@
+@import url("https://fonts.googleapis.com/css2?family=Michroma&display=swap");
+
+/*
+ * Added by the SciFi journal sheet only when it is selected in
+ * Configure Sheet > This Sheet.
+ */
+.sheet.journal-entry.scifi-urpg-scifi-journal {
+  background: url("../assets/backgrounds/darkmatter-bg.jpg") no-repeat;
+  background-size: cover;
+  background-attachment: local;
+  font-family: "Michroma", sans-serif;
+}
+
+.sheet.journal-entry.scifi-urpg-scifi-journal .window-content,
+.sheet.journal-entry.scifi-urpg-scifi-journal .journal-sidebar,
+.sheet.journal-entry.scifi-urpg-scifi-journal .journal-entry-content {
+  background: transparent;
+}
+
+.sheet.journal-entry.scifi-urpg-scifi-journal .journal-entry-content {
+  color: #1d252d;
+  line-height: 1.5;
+}
+
+.sheet.journal-entry.scifi-urpg-scifi-journal .window-header {
+  background: #1d252d;
+}
+
+.sheet.journal-entry.scifi-urpg-scifi-journal .journal-entry-page,
+.sheet.journal-entry.scifi-urpg-scifi-journal .journal-entry-page :is(h1, h2, h3, h4, h5, h6, p, li, blockquote) {
+  color: #1d252d;
+}
+
+.sheet.journal-entry.scifi-urpg-scifi-journal .journal-page-header :is(h1, h2, h3, h4, h5, h6) {
+  font-family: "Michroma", sans-serif;
+}
+
+.sheet.journal-entry.scifi-urpg-scifi-journal .journal-entry-page blockquote {
+  font-family: "Michroma", sans-serif;
+  font-size: 1em;
+  line-height: 1.5;
+}
+
+.sheet.journal-entry.scifi-urpg-scifi-journal .journal-sidebar,
+.sheet.journal-entry.scifi-urpg-scifi-journal .journal-sidebar .page-heading,
+.sheet.journal-entry.scifi-urpg-scifi-journal .journal-sidebar .heading-link {
+  color: #1d252d;
+}
+
+.sheet.journal-entry.scifi-urpg-scifi-journal .journal-sidebar .pages-list .page-heading .page-number {
+  color: #37434d;
+}
+
+.sheet.journal-entry.scifi-urpg-scifi-journal .journal-sidebar button {
+  --button-text-color: #1d252d;
+  --button-border-color: #687682;
+  --button-hover-border-color: #1d252d;
+}
+
+.sheet.journal-entry.scifi-urpg-scifi-journal .journal-sidebar input {
+  --input-text-color: #1d252d;
+  --input-placeholder-color: #4c5964;
+}
+
+.scifi-urpg-scifi-journal .editor-content,
+.scifi-urpg-scifi-journal .ProseMirror,
+.scifi-urpg-scifi-journal .prosemirror {
+  font-family: "Michroma", sans-serif;
+}

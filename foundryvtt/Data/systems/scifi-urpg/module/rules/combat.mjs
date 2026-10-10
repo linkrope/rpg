@@ -14,6 +14,31 @@ export function weaponPresetFor(name) {
   return WEAPON_PRESETS.find((weapon) => weapon.name === name) ?? WEAPON_PRESETS[0];
 }
 
+/** Return the equipped embedded weapon, falling back to the pre-item presets for old actors. */
+export function weaponForActor(actor) {
+  const selected = actor?.system?.weapon?.selected;
+  const item = actor?.items?.get(selected);
+
+  if (item?.type === "weapon") {
+    const rangeMeters = Number(item.system.range);
+    return {
+      name: item.name,
+      skill: item.system.skill,
+      weight: item.system.weight || null,
+      hand: item.system.hand,
+      bep: item.system.bep,
+      range: Number.isFinite(rangeMeters) && rangeMeters > 0 ? `${rangeMeters}m` : null,
+      rate: item.system.rate ? `${item.system.rate}s` : null,
+      clip: item.system.clip,
+      ammo: item.system.ammo || null,
+      nozzle: item.system.nozzle || null,
+      itemId: item.id
+    };
+  }
+
+  return weaponPresetFor(selected);
+}
+
 export function parseRangeMeters(range) {
   if (typeof range === "number") return range;
   if (!range) return 0;
@@ -55,7 +80,7 @@ export function rollHitZone(aimZones = DEFAULT_AIM_ZONES, random = Math.random) 
 }
 
 export function resolveAttack({ attacker, target, skillKey, bonus = 0, distance = 0, aimZones = DEFAULT_AIM_ZONES }) {
-  const weapon = weaponPresetFor(attacker.system.weapon?.selected);
+  const weapon = weaponForActor(attacker);
   const skillVal = Number(attacker.system.skills?.[skillKey]?.value ?? 0);
   const damagePen = Math.max(0, Number(attacker.system.health?.damage ?? 0));
   const distPen = rangePenalty(weapon, distance);

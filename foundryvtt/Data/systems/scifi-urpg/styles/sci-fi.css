@@ -149,20 +149,6 @@
   font-weight: 700;
 }
 
-.scifi-urpg-character-sheet .header-attack-summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 10px;
-  color: #a9b4c2;
-  font-family: monospace;
-  font-size: 11px;
-  line-height: 1.3;
-}
-
-.scifi-urpg-character-sheet .header-attack-summary span {
-  white-space: nowrap;
-}
-
 .scifi-urpg-character-sheet label span,
 .scifi-urpg-character-sheet .skill-column-heading label span {
   display: block;
@@ -545,6 +531,20 @@
   margin-top: 4px;
 }
 
+.chat-message.scifi-urpg-hidden-roll,
+.chat-message.scifi-urpg-hidden-roll .message-content {
+  background: #111824 !important;
+  border-color: #2d3748 !important;
+  color: #c9d1d9 !important;
+}
+
+.chat-message.scifi-urpg-hidden-roll .message-header,
+.chat-message.scifi-urpg-hidden-roll .message-sender,
+.chat-message.scifi-urpg-hidden-roll .message-metadata,
+.chat-message.scifi-urpg-hidden-roll .message-metadata * {
+  color: #c9d1d9 !important;
+}
+
 .scifi-urpg-chat-card .initiative-result-row {
   display: flex;
   align-items: stretch;
@@ -786,6 +786,11 @@
   padding: 5px 10px;
 }
 
+.scifi-urpg-character-sheet .armor-material.cloth {
+  border: 1px solid #6c71c4;
+  color: #6c71c4;
+}
+
 .scifi-urpg-character-sheet .armor-material.leather {
   border: 1px solid #b58900;
   color: #b58900;
@@ -809,6 +814,12 @@
 .scifi-urpg-character-sheet .armor-material.leather:hover,
 .scifi-urpg-character-sheet .armor-material.leather.active {
   background: #b58900;
+  color: var(--sf-bg);
+}
+
+.scifi-urpg-character-sheet .armor-material.cloth:hover,
+.scifi-urpg-character-sheet .armor-material.cloth.active {
+  background: #6c71c4;
   color: var(--sf-bg);
 }
 
@@ -1109,6 +1120,178 @@
   font-family: monospace;
   text-align: right;
   white-space: nowrap;
+}
+
+.scifi-urpg-character-sheet .weapons-toolbar {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.scifi-urpg-character-sheet .weapons-toolbar span,
+.scifi-urpg-character-sheet .empty-weapons,
+.scifi-urpg-character-sheet .weapon-row-details span {
+  color: #a9b4c2;
+  font-size: 12px;
+}
+
+.scifi-urpg-character-sheet .weapons-list {
+  display: grid;
+  gap: 8px;
+}
+
+.scifi-urpg-character-sheet .weapon-row {
+  align-items: center;
+  background: #18202c;
+  border: 1px solid #2d3748;
+  border-radius: 6px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  padding: 8px;
+}
+
+.scifi-urpg-character-sheet .weapon-row img {
+  border: 0;
+  height: 32px;
+  object-fit: cover;
+  width: 32px;
+}
+
+.scifi-urpg-character-sheet .weapon-row-details {
+  display: grid;
+  gap: 2px;
+}
+
+.scifi-urpg-character-sheet .weapon-row-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.scifi-urpg-character-sheet .weapon-row-actions button,
+.scifi-urpg-weapon-sheet button {
+  background: #202a38;
+  border: 1px solid #3b4b61;
+  border-radius: 4px;
+  color: #e6edf3;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.scifi-urpg-character-sheet .weapon-row-actions button:hover,
+.scifi-urpg-weapon-sheet button:hover {
+  background: #2d5d87;
+  border-color: #4e8fcf;
+  color: #ffffff;
+}
+
+.scifi-urpg-weapon-sheet .weapon-sheet-header {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.scifi-urpg.sheet.item.weapon,
+.scifi-urpg.sheet.item.weapon .window-content {
+  background: #0d1117;
+  color: #c9d1d9;
+}
+
+.scifi-urpg.sheet.item.weapon .window-content {
+  background:
+    radial-gradient(circle at 18% 20%, rgba(78, 143, 207, 0.08), transparent 28rem),
+    linear-gradient(180deg, #101722 0%, #0d1117 100%);
+  padding: 14px;
+}
+
+.scifi-urpg-weapon-sheet {
+  --sf-border: #2d3748;
+  --sf-head: #e6edf3;
+  --sf-dim: #6e7681;
+  --sf-accent: #4e8fcf;
+  color: #c9d1d9;
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+.scifi-urpg-weapon-sheet input,
+.scifi-urpg-weapon-sheet select,
+.scifi-urpg-weapon-sheet textarea {
+  background: #1b2330;
+  border: 1px solid var(--sf-border);
+  border-radius: 4px;
+  color: var(--sf-head) !important;
+  padding: 5px 7px;
+}
+
+.scifi-urpg-weapon-sheet input,
+.scifi-urpg-weapon-sheet select {
+  height: 30px;
+}
+
+.scifi-urpg-weapon-sheet textarea {
+  line-height: 1.4;
+}
+
+.scifi-urpg-weapon-sheet input::placeholder,
+.scifi-urpg-weapon-sheet textarea::placeholder {
+  color: var(--sf-dim);
+  opacity: 1;
+}
+
+.scifi-urpg-weapon-sheet input:focus,
+.scifi-urpg-weapon-sheet select:focus,
+.scifi-urpg-weapon-sheet textarea:focus {
+  border-color: var(--sf-accent);
+  box-shadow: 0 0 0 1px rgba(78, 143, 207, 0.3);
+}
+
+.scifi-urpg-weapon-sheet select option,
+.scifi-urpg-weapon-sheet select optgroup {
+  background: #1b2330;
+  color: var(--sf-head);
+}
+
+.scifi-urpg-weapon-sheet select option:checked {
+  background-color: #2d5d87;
+  color: #ffffff;
+}
+
+.scifi-urpg-weapon-sheet .weapon-sheet-header img {
+  border: 0;
+  height: 64px;
+  width: 64px;
+}
+
+.scifi-urpg-weapon-sheet .weapon-sheet-header input {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.scifi-urpg-weapon-sheet .weapon-sheet-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.scifi-urpg-weapon-sheet label {
+  display: grid;
+  gap: 4px;
+}
+
+.scifi-urpg-weapon-sheet label > span {
+  color: #a9b4c2;
+  font-size: 12px;
+}
+
+.scifi-urpg-weapon-sheet .weapon-description {
+  margin-top: 12px;
+}
+
+.scifi-urpg-weapon-sheet textarea {
+  min-height: 120px;
+  resize: vertical;
 }
 
 @media (max-width: 760px) {

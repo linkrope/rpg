@@ -10,7 +10,8 @@ Rules reference: https://irisiflimsi.github.io/rpg-rules/scifi.xml
 - Registers a character Actor sheet.
 - Supports every skill from `sci-fi/rptoken-viewer.html`.
 - Preserves the original skill columns and skill groups.
-- Stores damage, skill point pools, notes, token type, property type, and the selected weapon.
+- Stores damage, skill point pools, notes, token type, property type, and the equipped weapon.
+- Provides actor-owned `weapon` Items with editable attack skill, BEP, hands, weight, range, rate, clip, ammunition, muzzle velocity/type, and description.
 - Supports level-up spending from the `Allgemein` and `Speziell` point pools. Skill increases use the original cost rule from the RPToken viewer: each target level costs `ceil(level / 10)`.
 - Supports free-form `Talente` entries with a heading, optional value, and Markdown description.
 - Stores character notes as Markdown.

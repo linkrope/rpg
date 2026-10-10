@@ -111,6 +111,7 @@ export const ARMOR_ZONE_DEFS = [
 ];
 
 export const ARMOR_MATERIALS = {
+  cloth: { label: "Cloth", bep: 1, lossNum: 1, lossDenom: 1 },
   leather: { label: "Leather", bep: 3, lossNum: 2, lossDenom: 3 },
   plasteel: { label: "Plasteel", bep: 12, lossNum: 3, lossDenom: 12 },
   glas: { label: "Glas", bep: 8, lossNum: 2, lossDenom: 8 },
