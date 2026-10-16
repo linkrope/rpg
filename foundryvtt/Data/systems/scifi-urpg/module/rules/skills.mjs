@@ -18,3 +18,18 @@ export function combineSkillValues(values) {
 export function skillRollTotal(base, damage, n5) {
   return (Number(base) || 0) - Math.max(0, Number(damage) || 0) + (Number(n5) || 0);
 }
+
+/**
+ * Make the damage penalty visible rather than folding it silently into a
+ * contribution's combined value. The ⊕ notation matches combined skill rolls.
+ */
+export function skillRollFormula(contributions, roll) {
+  const terms = contributions.map((contribution) => {
+    const value = Number(contribution.value) || 0;
+    const damage = Math.max(0, Number(contribution.damage) || 0);
+    return damage > 0 ? `${value} - ${damage} (damage)` : String(value);
+  });
+  const base = terms.length > 1 ? terms.map((term) => `(${term})`).join(" ⊕ ") : terms[0] ?? "0";
+
+  return `${base} + ${Number(roll.plus)} - ${Number(roll.minus)}`;
+}

@@ -10,14 +10,15 @@ Rules reference: https://irisiflimsi.github.io/rpg-rules/scifi.xml
 - Registers a character Actor sheet.
 - Supports every skill from `sci-fi/rptoken-viewer.html`.
 - Preserves the original skill columns and skill groups.
-- Stores damage, skill point pools, notes, token type, property type, and the equipped weapon.
+- Stores unbounded damage, skill point pools, notes, token type, property type, and the equipped weapon. Token bar 1 is a fixed 20-point red damage scale.
 - Provides actor-owned `weapon` Items with editable attack skill, BEP, hands, weight, range, rate, clip, ammunition, muzzle velocity/type, and description.
 - Supports level-up spending from the `Allgemein` and `Speziell` point pools. Skill increases use the original cost rule from the RPToken viewer: each target level costs `ceil(level / 10)`.
 - Supports free-form `Talente` entries with a heading, optional value, and Markdown description.
 - Stores character notes as Markdown.
-- Skill Roll, p5, n5, Dimensions, Attack, and Repair buttons can be dragged to the Foundry hotbar to create actor-bound script macros.
+- Skill Roll, p5, n5, Shock, Dimensions, Attack, and Repair buttons can be dragged to the Foundry hotbar to create actor-bound script macros.
+- Shock uses `20 - total damage + n5`; a result of 0 or less marks the character unconscious. Attacks that inflict damage automatically request the Shock roll from the GM.
 
-Combat rules, initiative handling, `.rptok` import, armor editing, and attack undo are intentionally left for later steps.
+`.rptok` import and attack undo are intentionally left for later steps.
 
 ## Local Development
 

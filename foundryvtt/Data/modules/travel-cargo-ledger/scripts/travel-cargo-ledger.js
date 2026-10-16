@@ -1,8 +1,8 @@
 /**
  * Travel & Cargo Ledger
  *
- * The journal is the presentation layer. The source of truth is the append-only
- * event list in flags.travel-cargo-ledger.ledger. Do not edit that flag by hand.
+ * The journal is the presentation layer. The source of truth is the event list
+ * in flags.travel-cargo-ledger.ledger. Do not edit that flag by hand.
  */
 const MODULE_ID = "travel-cargo-ledger";
 const FLAG = "ledger";
@@ -109,8 +109,8 @@ function summaryHTML(journal, ledger) {
     return `<tr><td>${index + 1}</td><td>${esc(data.origin || "—")}</td><td>${originDate(data)}</td><td>${esc(data.actualDestination || data.destination || "—")}</td><td>day ${data.destinationDay}</td><td>${roundedMoney(jump.balanceAfter)}</td></tr>`;
   }).join("");
   return `<section class="travel-cargo-ledger" data-ledger-id="${journal.id}">
-    <div class="travel-cargo-ledger-controls"><button type="button" data-tcl="jump"><i class="fa-solid fa-plus"></i> Add jump</button><button type="button" data-tcl="change"><i class="fa-solid fa-pen"></i> Change jump</button><button type="button" data-tcl="delete"><i class="fa-solid fa-trash"></i> Delete jump</button><button type="button" data-tcl="settings"><i class="fa-solid fa-gear"></i> Settings</button><button type="button" data-tcl="rebuild"><i class="fa-solid fa-rotate"></i> Rebuild view</button></div>
-    <p class="travel-cargo-ledger-note">This is a generated view. Add a correction or adjustment instead of altering historical records.</p>
+    <div class="travel-cargo-ledger-controls"><button type="button" data-tcl="jump"><i class="fa-solid fa-plus"></i> Add jump</button><button type="button" data-tcl="change"><i class="fa-solid fa-pen"></i> Change jump</button><button type="button" data-tcl="edit"><i class="fa-solid fa-pen"></i> Edit</button><button type="button" data-tcl="settings"><i class="fa-solid fa-gear"></i> Settings</button><button type="button" data-tcl="rebuild"><i class="fa-solid fa-rotate"></i> Rebuild view</button></div>
+    <p class="travel-cargo-ledger-note">This is a generated view. Change jump records a correction or adjustment; Edit can revise only the newest entry.</p>
     <h2>Travel & Cargo</h2>
     <table class="travel-cargo-ledger-table"><thead><tr><th>#</th><th>Origin</th><th>Date</th><th>Destination</th><th>Date</th><th>Balance</th></tr></thead><tbody>${rows || "<tr><td colspan=6>No jumps recorded.</td></tr>"}</tbody></table></section>`;
 }
@@ -121,7 +121,7 @@ function jumpHTML(jump, index) {
   const buyTerms = number(data.buySpeed) > 0 && number(data.buyBE) > 0 ? `${number(data.purchaseCargo)} t Cargo · ${number(data.buySpeed)}% · BE ${number(data.buyBE)}` : `${money(data.purchaseDili)} = ${number(data.purchaseCargo)} t Cargo`;
   const sellTerms = number(data.sellSpeed) > 0 && number(data.sellBE) > 0 ? `${number(data.cargoSold)} t Cargo · ${number(data.sellSpeed)}% · BE ${number(data.sellBE)}` : saleRate;
   return `<section class="travel-cargo-ledger">
-    <p class="travel-cargo-ledger-note">Generated from the immutable jump record. Add a later event to correct it.</p>
+    <p class="travel-cargo-ledger-note">Generated from a ledger entry. Only the newest entry can be edited.</p>
     <h1>Jump ${index + 1}: ${esc(data.origin || "?")} → ${esc(data.actualDestination || data.destination || "?")}</h1>
     <h2>Itinerary</h2><table><tbody>
       <tr><th>Destination</th><td>${esc(data.destination || "—")}</td></tr>
@@ -202,6 +202,43 @@ async function addJump(journal) {
   await writeLedger(journal, ledger);
 }
 
+function jumpForm(data = {}) {
+  return `<p class="hint">The origin is the previous destination. Leave Buying and Selling at 0 when no cargo changes hands.</p><fieldset><legend>Travel</legend><div class="form-group"><label>Stay days at origin</label><input name="stayDays" type="number" min="0" step="0.1" value="${number(data.stayDays)}" autofocus></div><div class="form-group"><label>Destination</label><input name="destination" required value="${esc(data.destination || "")}"></div><div class="form-group"><label>Travel days</label><input name="travelDays" type="number" min="0" step="0.1" value="${number(data.travelDays)}"></div><div class="form-group"><label>Blinkdrive</label><input name="blinkdrive" type="checkbox" value="true"${data.blinkdrive === true || data.blinkdrive === "true" ? " checked" : ""}><p class="hint">Travel costs are charged, but no time passes.</p></div></fieldset><fieldset><legend>Buying</legend><div class="form-group"><label>t Cargo</label><input name="purchaseCargo" type="number" step="0.01" value="${number(data.purchaseCargo)}"></div><div class="form-group"><label>Speed (%)</label><input name="buySpeed" type="number" min="0" step="1" value="${number(data.buySpeed)}"></div><div class="form-group"><label>BE</label><input name="buyBE" type="number" min="0" step="0.01" value="${number(data.buyBE)}"></div></fieldset><fieldset><legend>Selling</legend><div class="form-group"><label>t Cargo</label><input name="cargoSold" type="number" step="0.01" value="${number(data.cargoSold)}"></div><div class="form-group"><label>Speed (%)</label><input name="sellSpeed" type="number" min="0" step="1" value="${number(data.sellSpeed)}"></div><div class="form-group"><label>BE</label><input name="sellBE" type="number" min="0" step="0.01" value="${number(data.sellBE)}"></div></fieldset>`;
+}
+
+async function editLastEntry(journal) {
+  if (!hasOwner(journal)) return ui.notifications.warn("You need Owner permission on this journal.");
+  const ledger = ledgerFor(journal);
+  // The journal page order is the user-visible order. Its final generated page
+  // is therefore the one Edit may change, whether it is a jump or a change.
+  const lastPage = [...journal.pages]
+    .filter(page => page.getFlag(MODULE_ID, "record"))
+    .sort((a, b) => number(a.sort) - number(b.sort))
+    .at(-1);
+  const entry = ledger.events.find(event => event.id === lastPage?.getFlag(MODULE_ID, "record")?.id);
+  if (!entry) return ui.notifications.warn("There is no entry to edit.");
+
+  if (entry.type === "jump") {
+    const fields = await formDialog("Edit last jump", jumpForm(entry.data), "Save jump");
+    if (!fields) return;
+    entry.data = {...entry.data, destination: fields.destination, travelDays: number(fields.travelDays), stayDays: number(fields.stayDays), blinkdrive: fields.blinkdrive === "true", purchaseCargo: number(fields.purchaseCargo), buySpeed: number(fields.buySpeed), buyBE: number(fields.buyBE), cargoSold: number(fields.cargoSold), sellSpeed: number(fields.sellSpeed), sellBE: number(fields.sellBE)};
+  } else {
+    const jumps = calculate(ledger).jumps;
+    const options = jumps.map((jump, index) => `<option value="${jump.id}"${jump.id === entry.changes?.targetId ? " selected" : ""}>${index + 1}: ${esc(jump.data.origin)} → ${esc(jump.data.actualDestination || jump.data.destination)}</option>`).join("");
+    const changes = entry.changes ?? {};
+    const fields = await formDialog("Edit last change", `<p class="hint">This updates the newest correction or adjustment. Earlier entries stay locked.</p><div class="form-group"><label>Jump</label><select name="targetId"><option value="">No jump data change</option>${options}</select></div><div class="form-group"><label>Description</label><input name="description" required autofocus value="${esc(entry.description || "")}"></div><div class="form-group"><label>Balance change</label><input name="balanceChange" type="number" step="0.01" value="${number(entry.balanceChange)}"><p class="hint">Positive = income; negative = expense.</p></div><fieldset><legend>Changed data</legend><div class="form-group"><label>Changed destination</label><input name="actualDestination" value="${esc(changes.actualDestination || "")}"></div><div class="form-group"><label>Travel days</label><input name="travelDays" type="number" min="0" step="0.1" value="${changes.travelDays ?? ""}"></div><div class="form-group"><label>Stay days at origin</label><input name="stayDays" type="number" min="0" step="0.1" value="${changes.stayDays ?? ""}"></div></fieldset>`, "Save change");
+    if (!fields) return;
+    const updatedChanges = {};
+    if (fields.targetId) for (const key of ["actualDestination", "travelDays", "stayDays"]) if (fields[key] !== "") updatedChanges[key] = key.endsWith("Days") ? number(fields[key]) : fields[key];
+    if (fields.targetId) updatedChanges.targetId = fields.targetId;
+    entry.description = fields.description;
+    entry.balanceChange = number(fields.balanceChange);
+    entry.changes = updatedChanges;
+  }
+  entry.updatedAt = Date.now();
+  await writeLedger(journal, ledger);
+}
+
 async function changeJump(journal) {
   if (!hasOwner(journal)) return ui.notifications.warn("You need Owner permission on this journal.");
   const ledger = ledgerFor(journal);
@@ -258,7 +295,7 @@ async function createLedger({name = "Travel & Cargo", openingBalance = 0, starti
 }
 
 Hooks.once("ready", async () => {
-  game.modules.get(MODULE_ID).api = {createLedger, addJump, changeJump, deleteJump, ledgerSettings, rebuild: journal => rebuild(journal)};
+  game.modules.get(MODULE_ID).api = {createLedger, addJump, editLastEntry, changeJump, deleteJump, ledgerSettings, rebuild: journal => rebuild(journal)};
   // Refresh generated views when a new module version changes their layout.
   for (const journal of game.journal.filter(entry => entry.getFlag(MODULE_ID, FLAG) && hasOwner(entry))) {
     await rebuild(journal);
@@ -291,7 +328,7 @@ Hooks.on("renderJournalEntryPageTextSheet", (app, html) => {
     const action = event.currentTarget.dataset.tcl;
     if (action === "jump") await addJump(journal);
     if (action === "change") await changeJump(journal);
-    if (action === "delete") await deleteJump(journal);
+    if (action === "edit") await editLastEntry(journal);
     if (action === "settings") await ledgerSettings(journal);
     if (action === "rebuild") await rebuild(journal);
   }));
@@ -307,7 +344,7 @@ Hooks.on("preUpdateJournalEntryPage", (page, change, options) => {
 
 Hooks.on("preCreateJournalEntryPage", (page, data, options) => {
   if (page.parent?.getFlag(MODULE_ID, FLAG) && !options.travelCargoLedger) {
-    ui.notifications.warn("Use Add jump or Change jump in the Travel & Cargo Ledger.");
+    ui.notifications.warn("Use the Travel & Cargo Ledger controls to add or edit entries.");
     return false;
   }
 });

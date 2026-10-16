@@ -110,7 +110,6 @@ export function resolveAttack({ attacker, target, skillKey, bonus = 0, distance 
     armorAfter: 0,
     armorLoss: null,
     newTargetDamage: Number(target.system.health?.damage ?? 0),
-    targetDown: false,
     updateData: {}
   };
 
@@ -140,8 +139,7 @@ export function resolveAttack({ attacker, target, skillKey, bonus = 0, distance 
   }
 
   const currentDamage = Number(target.system.health?.damage ?? 0);
-  const maxDamage = Math.max(1, Number(target.system.health?.max ?? 20));
-  const newTargetDamage = Math.min(maxDamage, currentDamage + damage);
+  const newTargetDamage = currentDamage + damage;
   updateData["system.health.damage"] = newTargetDamage;
 
   return {
@@ -153,7 +151,6 @@ export function resolveAttack({ attacker, target, skillKey, bonus = 0, distance 
     armorAfter,
     armorLoss,
     newTargetDamage,
-    targetDown: newTargetDamage >= maxDamage,
     updateData
   };
 }
@@ -179,13 +176,6 @@ export function attackLogLines(outcome) {
     lines.push({
       type: "armor",
       text: `Armor damage: ${outcome.zone} ${fmtArmor(outcome.armorBefore)} - ${calcStr} = ${fmtArmor(outcome.armorAfter)}`
-    });
-  }
-
-  if (outcome.targetDown) {
-    lines.push({
-      type: "dead",
-      text: `${outcome.target.name} is down!`
     });
   }
 

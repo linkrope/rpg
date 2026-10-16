@@ -1,9 +1,10 @@
 import { ARMOR_MATERIALS, ARMOR_ZONE_DEFS, BASE_HIT_ZONE_PCT, SKILL_COLUMN_BY_KEY, buildArmorMaterials, buildArmorZones, fmtArmor, buildSkillColumns, skillChangeCost, stepCostForLevel, WEAPON_OPTIONS } from "../constants.mjs";
 import { SciFiDimensionsApp } from "../apps/dimensions-app.mjs";
 import { rollN5, rollP5 } from "../rules/dice.mjs";
-import { postRollCard } from "../chat.mjs";
-import { combineSkillValues } from "../rules/skills.mjs";
+import { actorNameElement, postRollCard } from "../chat.mjs";
+import { combineSkillValues, skillRollFormula } from "../rules/skills.mjs";
 import { DEFAULT_AIM_ZONES, aimPenalty, aimTotalPct, resolveAttack, weaponForActor, weaponPresetFor } from "../rules/combat.mjs";
+import { formatDimensionMetersPerSecond, moveMetersPerSecondForDimension } from "../rules/dimensions.mjs";
 
 function displayNumber(value) {
   return Number(value ?? 0) === 0 ? "-" : value;
@@ -177,6 +178,7 @@ export class SciFiCharacterSheet extends ActorSheet {
     html.find("[data-action='toggle-skill-edit']").on("click", this._onToggleSkillEdit.bind(this));
     html.find("[data-action='roll-p5']").on("click", this._onRollP5.bind(this));
     html.find("[data-action='roll-n5']").on("click", this._onRollN5.bind(this));
+    html.find("[data-action='roll-shock']").on("click", this._onRollShock.bind(this));
     html.find("[data-action='roll-skill']").on("click", this._onRollSkill.bind(this));
     html.find("[data-action='toggle-roll-skill']").on("change", this._onToggleRollSkill.bind(this));
     html.find("[data-action='roll-selected-skills']").on("click", this._onRollSelectedSkills.bind(this));
@@ -375,6 +377,15 @@ export class SciFiCharacterSheet extends ActorSheet {
     });
   }
 
+  async _onRollShock(event) {
+    event.preventDefault();
+    if (!this._isPlayMode()) return;
+
+    // Include an edited Damage field in the check even before focus leaves it.
+    await this.submit({ preventClose: true });
+    await game.scifiUrpg.rollShock({ actorId: this.actor.id });
+  }
+
   async _onRollSkill(event) {
     event.preventDefault();
     if (!this._isPlayMode()) return;
@@ -403,9 +414,7 @@ export class SciFiCharacterSheet extends ActorSheet {
     await this._postChatMessage({
       title: this._rollTitle(selected),
       subtitle: this._rollSources(selected),
-      base,
-      plus: roll.plus,
-      minus: roll.minus,
+      formula: skillRollFormula(selected, roll),
       result: total
     });
   }
@@ -450,9 +459,7 @@ export class SciFiCharacterSheet extends ActorSheet {
     await this._postChatMessage({
       title: this._rollTitle(selected),
       subtitle: this._rollSources(selected),
-      base,
-      plus: roll.plus,
-      minus: roll.minus,
+      formula: skillRollFormula(selected, roll),
       result: total
     });
   }
@@ -525,7 +532,10 @@ export class SciFiCharacterSheet extends ActorSheet {
       aimZones
     });
 
-    const updateRequest = await game.scifiUrpg.updateActor(target, outcome.updateData, { token: targetToken });
+    const updateRequest = await game.scifiUrpg.updateActor(target, outcome.updateData, {
+      token: targetToken,
+      shockDamageTotal: outcome.damage > 0 ? outcome.newTargetDamage : null
+    });
 
     await this._postAttackMessage(outcome, { updateRequest });
   }
@@ -635,6 +645,8 @@ export class SciFiCharacterSheet extends ActorSheet {
       actorId: actor.id,
       actorName: actor.name,
       key,
+      value,
+      damage,
       adjustedValue: value - damage
     };
   }
@@ -668,6 +680,13 @@ export class SciFiCharacterSheet extends ActorSheet {
   async _postChatMessage({ title, subtitle = "", formula = "", base = null, plus = null, minus = null, result }) {
     const speaker = ChatMessage.getSpeaker({ actor: this.actor });
     SciFiDimensionsApp.setLatestForActor(this.actor, result);
+    if (title === "Rennen") {
+      const content = this._moveCard({ title, subtitle, formula, base, plus, minus, result });
+      const publicContent = this._moveCard({ title, subtitle, result, showFormula: false });
+      await postRollCard(this.actor, { speaker, content, publicContent, result });
+      return;
+    }
+
     const details = base === null
       ? `<div class="roll-formula">${foundry.utils.escapeHTML(formula)}</div>`
       : `<div class="roll-formula">${Number(base)} + ${Number(plus)} - ${Number(minus)}</div>`;
@@ -691,9 +710,28 @@ export class SciFiCharacterSheet extends ActorSheet {
     await postRollCard(this.actor, { speaker, content, publicContent, result });
   }
 
+  _moveCard({ title, subtitle, formula = "", base = null, plus = null, minus = null, result, showFormula = true }) {
+    const speed = formatDimensionMetersPerSecond(moveMetersPerSecondForDimension(result));
+    const details = base === null
+      ? `<div class="roll-formula">${foundry.utils.escapeHTML(formula)}</div>`
+      : `<div class="roll-formula">${Number(base)} + ${Number(plus)} - ${Number(minus)}</div>`;
+
+    return `
+      <div class="scifi-urpg-chat-card move-card" data-scifi-urpg-roll-result="${Number(result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(this.actor.id)}">
+        <h3>${foundry.utils.escapeHTML(title)}</h3>
+        ${subtitle ? `<p>${foundry.utils.escapeHTML(subtitle)}</p>` : ""}
+        ${showFormula ? details : ""}
+        <div class="initiative-result-row">
+          <div class="roll-result">${result}</div>
+          <div class="reaction-time-box"><strong>${speed} m/s</strong></div>
+        </div>
+      </div>
+    `;
+  }
+
   async _postAttackMessage(outcome, { updateRequest = null } = {}) {
     const speaker = ChatMessage.getSpeaker({ actor: this.actor });
-    const escapedTarget = foundry.utils.escapeHTML(outcome.target.name);
+    const targetName = actorNameElement(outcome.target);
     const escapedWeapon = foundry.utils.escapeHTML(outcome.weapon.name);
     const title = outcome.skillKey;
     const formula = this._attackFormula(outcome);
@@ -707,29 +745,24 @@ export class SciFiCharacterSheet extends ActorSheet {
       formula: this._armorLossFormula(outcome),
       result: fmtArmor(outcome.armorLoss.loss)
     }) : "";
-    const downHtml = outcome.targetDown
-      ? `<div class="attack-status-line">${escapedTarget} is down!</div>`
-      : "";
     const publicContent = `
       <div class="scifi-urpg-chat-card attack-card" data-scifi-urpg-roll-result="${Number(outcome.result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(this.actor.id)}">
         <h3>Attack</h3>
-        <p>${foundry.utils.escapeHTML(this.actor.name)} attacks ${escapedTarget} with ${escapedWeapon}</p>
+        <p>${actorNameElement(this.actor)} attacks ${targetName} with ${escapedWeapon}</p>
         <div class="roll-result">${outcome.result}</div>
         ${damageSection}
         ${armorLossSection}
-        ${downHtml}
       </div>
     `;
 
     const content = `
       <div class="scifi-urpg-chat-card attack-card" data-scifi-urpg-roll-result="${Number(outcome.result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(this.actor.id)}">
         <h3>${foundry.utils.escapeHTML(title)}</h3>
-        <p>${foundry.utils.escapeHTML(this.actor.name)} attacks ${escapedTarget} with ${escapedWeapon}</p>
+        <p>${actorNameElement(this.actor)} attacks ${targetName} with ${escapedWeapon}</p>
         <div class="roll-formula">${foundry.utils.escapeHTML(formula)}</div>
         <div class="roll-result">${outcome.result}</div>
         ${damageSection}
         ${armorLossSection}
-        ${downHtml}
       </div>
     `;
 

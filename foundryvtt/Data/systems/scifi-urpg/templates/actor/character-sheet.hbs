@@ -6,8 +6,11 @@
         <input class="character-name" name="name" type="text" value="{{actor.name}}" placeholder="Character Name">
         <label>
           <span>Damage</span>
-          <input type="number" name="system.health.damage" value="{{damageInput}}" min="0" max="20" step="1" placeholder="-">
+          <input type="number" name="system.health.damage" value="{{damageInput}}" min="0" step="1" placeholder="-">
         </label>
+        {{#if playMode}}
+          <button type="button" class="skill-roll attack-button header-shock-button" data-action="roll-shock" data-macro-action="shock" draggable="true" title="Drag to hotbar or roll Shock">Shock</button>
+        {{/if}}
       </div>
       <div class="meta-row character-main-row">
         <label>

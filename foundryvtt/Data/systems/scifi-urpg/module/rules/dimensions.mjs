@@ -30,7 +30,7 @@ export function buildDimensionRows(value) {
     },
     {
       label: "Move",
-      value: `${Math.round(40 * 2 ** (v / 2)) / 16} m/s = ${Math.round(144 * 2 ** (v / 2)) / 16} km/h`
+      value: `${formatDimensionMetersPerSecond(moveMetersPerSecondForDimension(current))} m/s = ${Math.round(144 * 2 ** (v / 2)) / 16} km/h`
     },
     {
       label: "Speed",
@@ -52,6 +52,15 @@ export function initiativeSecondsForDimension(value) {
   return Math.round(32 * 2 ** -v) / 8;
 }
 
+export function moveMetersPerSecondForDimension(value) {
+  const v = clampDimension(value) / 10;
+  return Math.round(40 * 2 ** (v / 2)) / 16;
+}
+
 export function formatDimensionSeconds(seconds) {
   return Number.isInteger(seconds) ? String(seconds) : seconds.toFixed(3);
+}
+
+export function formatDimensionMetersPerSecond(metersPerSecond) {
+  return Number.isInteger(metersPerSecond) ? String(metersPerSecond) : metersPerSecond.toFixed(3);
 }

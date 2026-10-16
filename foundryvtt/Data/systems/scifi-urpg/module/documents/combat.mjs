@@ -1,6 +1,7 @@
 import { rollN5 } from "../rules/dice.mjs";
 import { formatDimensionSeconds, initiativeSecondsForDimension } from "../rules/dimensions.mjs";
 import { skillRollTotal } from "../rules/skills.mjs";
+import { actorNameElement, postRollCard } from "../chat.mjs";
 
 export class SciFiCombat extends Combat {
   async rollInitiative(ids, { formula = null, updateTurn = true, messageMode, messageOptions = {} } = {}) {
@@ -16,8 +17,6 @@ export class SciFiCombat extends Combat {
     }
 
     const updates = [];
-    const messages = [];
-
     for (const [i, id] of ids.entries()) {
       const combatant = this.combatants.get(id);
       if (!combatant?.isOwner) continue;
@@ -38,12 +37,19 @@ export class SciFiCombat extends Combat {
         }
       }, messageOptions);
 
-      const chatData = foundry.documents.ChatMessage.implementation.applyMode(
-        messageData,
-        messageMode ?? (combatant.hidden ? "gm" : undefined)
-      );
-      if (i > 0) chatData.sound = null;
-      messages.push(chatData);
+      const extraMessageOptions = { ...messageOptions };
+      delete extraMessageOptions.flags;
+      if (i > 0) extraMessageOptions.sound = null;
+
+      await postRollCard(combatant.actor, {
+        speaker: messageData.speaker,
+        content: initiativeCard(combatant, initiative),
+        publicContent: publicInitiativeCard(combatant, initiative),
+        result: initiative.result,
+        flags: messageData.flags,
+        messageMode: messageMode ?? (combatant.hidden ? "gm" : null),
+        messageOptions: extraMessageOptions
+      });
     }
 
     if (!updates.length) return this;
@@ -52,7 +58,6 @@ export class SciFiCombat extends Combat {
     if (!updateTurn) updateOptions.combatTurn = this.turn;
     await this.updateEmbeddedDocuments("Combatant", updates, updateOptions);
 
-    await foundry.documents.ChatMessage.implementation.create(messages);
     return this;
   }
 
@@ -82,7 +87,7 @@ function rollSciFiInitiative(combatant) {
 }
 
 function initiativeCard(combatant, initiative) {
-  const name = foundry.utils.escapeHTML(combatant.name);
+  const name = actorNameElement(combatant.actor);
   const formula = initiativeFormula(initiative);
   const actorId = foundry.utils.escapeHTML(combatant.actor?.id ?? "");
 
@@ -91,6 +96,24 @@ function initiativeCard(combatant, initiative) {
       <h3>Initiative</h3>
       <p>${name}</p>
       <div class="roll-formula">${foundry.utils.escapeHTML(formula)}</div>
+      <div class="initiative-result-row">
+        <div class="roll-result">${initiative.result}</div>
+        <div class="reaction-time-box">
+          <strong>${initiative.time} s</strong>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function publicInitiativeCard(combatant, initiative) {
+  const name = actorNameElement(combatant.actor);
+  const actorId = foundry.utils.escapeHTML(combatant.actor?.id ?? "");
+
+  return `
+    <div class="scifi-urpg-chat-card initiative-card" data-scifi-urpg-roll-result="${Number(initiative.result)}" data-scifi-urpg-actor-id="${actorId}">
+      <h3>Initiative</h3>
+      <p>${name}</p>
       <div class="initiative-result-row">
         <div class="roll-result">${initiative.result}</div>
         <div class="reaction-time-box">

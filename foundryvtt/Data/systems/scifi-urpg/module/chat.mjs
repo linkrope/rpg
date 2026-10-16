@@ -4,13 +4,33 @@
  * NPC rolls made by a GM produce a result-only card for players and a full
  * card whispered to GMs. Non-public Foundry message modes are applied as-is.
  */
-export async function postRollCard(actor, { speaker, content, publicContent = null, privateContent = null, result, flags, actorIds = [] } = {}) {
-  const messageData = { speaker, content, flags: rollCardFlags(actor, flags, {}, actorIds) };
+export async function postRollCard(actor, {
+  speaker,
+  content,
+  publicContent = null,
+  privateContent = null,
+  result,
+  flags,
+  actorIds = [],
+  messageMode = null,
+  messageOptions = {}
+} = {}) {
+  // Hide NPC Names replaces every matching text node in a message whose speaker
+  // is the NPC. That corrupts rolls when an NPC is named "5", for example.
+  // Keep the actor out of the speaker data and let the card renderer resolve
+  // actor-name elements for each viewer instead.
+  const rollSpeaker = safeRollSpeaker(actor, speaker);
+  const messageData = {
+    ...messageOptions,
+    speaker: rollSpeaker,
+    content,
+    flags: rollCardFlags(actor, flags, {}, actorIds)
+  };
 
-  const messageMode = selectedMessageMode();
-  if (messageMode !== "public") {
+  const resolvedMessageMode = messageMode ?? selectedMessageMode();
+  if (resolvedMessageMode !== "public") {
     await ChatMessage.create(
-      foundry.documents.ChatMessage.implementation.applyMode(messageData, messageMode)
+      foundry.documents.ChatMessage.implementation.applyMode(messageData, resolvedMessageMode)
     );
     return;
   }
@@ -21,17 +41,30 @@ export async function postRollCard(actor, { speaker, content, publicContent = nu
   }
 
   await ChatMessage.create({
-    speaker,
+    ...messageOptions,
+    speaker: rollSpeaker,
     content: publicContent ?? resultOnlyCard(actor, result),
     flags: rollCardFlags(actor, flags, { publicNpcResult: true }, actorIds)
   });
 
   await ChatMessage.create({
-    speaker,
+    ...messageOptions,
+    speaker: rollSpeaker,
     content: privateContent ?? content,
     whisper: game.users.filter((user) => user.isGM).map((user) => user.id),
-    flags: rollCardFlags(actor, null, {}, actorIds)
+    flags: rollCardFlags(actor, flags, {}, actorIds),
+    sound: null
   });
+}
+
+/**
+ * Return markup whose name is resolved at render time for the current user.
+ * The unrendered name is deliberately isolated from roll values and formulas.
+ */
+export function actorNameElement(actor) {
+  const actorId = foundry.utils.escapeHTML(actor?.id ?? "");
+  const name = foundry.utils.escapeHTML(actor?.name ?? "");
+  return `<span class="scifi-urpg-actor-name" data-scifi-urpg-actor-name="${actorId}">${name}</span>`;
 }
 
 function selectedMessageMode() {
@@ -40,6 +73,14 @@ function selectedMessageMode() {
 
   const legacyMode = game.settings.get("core", "rollMode");
   return foundry.dice.Roll._mapLegacyRollMode(legacyMode) ?? "public";
+}
+
+function safeRollSpeaker(actor, speaker) {
+  if (actor?.hasPlayerOwner || typeof game.hnn?.getReplacementInfo !== "function") return speaker;
+
+  // An alias-only speaker makes Hide NPC Names skip its document-wide text
+  // replacement while retaining a useful chat header for this system to render.
+  return { alias: actor.name };
 }
 
 function shouldRedactNpcRoll(actor) {

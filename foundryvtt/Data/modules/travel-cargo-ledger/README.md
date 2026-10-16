@@ -11,12 +11,13 @@ ledger. It is not dependent on another journal module.
    form records the starting destination, opening balance, and daily travel
    rate, then creates a normal Foundry journal with a generated overview page.
 3. Set the journal's ownership in the normal Foundry permission dialog. Crew
-   members need **Owner** permission to add jumps or later events.
+   members need **Owner** permission to add jumps or edit the newest entry.
 4. Open the `Travel & Cargo Ledger` page. **Add jump** uses one form and
    derives the origin from the previous destination; its stay is the time at
-   that origin before departure. **Change jump** uses one
-   form for any later correction, reroute, changed travel/stay duration,
-   refund, shared cost, or other adjustment.
+   that origin before departure. **Change jump** records a later correction,
+   reroute, income, expense, or other adjustment. **Edit** revises only the
+   newest jump or change page. Once another entry is added, the earlier page is
+   locked.
 
 The journal contains a page per jump as requested. Both the jump pages and the
 overview are generated and read-only; they are a view of the source events.
@@ -33,13 +34,13 @@ overview are generated and read-only; they are a view of the source events.
   positive balance change of `48`; it does not change the original full travel
   cost.
 
-## Event sourcing
+## Locked history
 
-The original jump data is never edited through the ledger. A later event can
-apply a signed balance change and optionally update a selected jump's actual
-destination or actual travel duration. The generated view retains the planned
-destination while showing the current, corrected itinerary.
+The newest entry is editable so a just-recorded jump or change can be fixed
+without deleting it. Adding another entry locks it, preserving the history of
+the journey. Existing change pages can still be edited when they are the
+newest entry.
 
 Foundry owners and GMs are trusted users: as with all world data, a GM can
-disable a module or alter document flags. The module enforces append-only use
-in its own UI and prevents direct edits to generated pages.
+disable a module or alter document flags. The module limits edits to the newest
+entry in its own UI and prevents direct edits to generated pages.

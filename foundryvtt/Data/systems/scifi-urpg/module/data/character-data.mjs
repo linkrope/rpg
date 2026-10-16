@@ -25,7 +25,8 @@ export class CharacterDataModel extends foundry.abstract.TypeDataModel {
       health: new fields.SchemaField({
         value: new fields.NumberField({ required: true, nullable: false, initial: 20, min: 0, max: 20 }),
         max: new fields.NumberField({ required: true, nullable: false, initial: 20, min: 1 }),
-        damage: new fields.NumberField({ required: true, nullable: false, integer: true, initial: 0, min: 0, max: 20 })
+        damage: new fields.NumberField({ required: true, nullable: false, integer: true, initial: 0, min: 0 }),
+        unconscious: new fields.BooleanField({ required: true, nullable: false, initial: false })
       }),
       skillPoints: new fields.SchemaField({
         Allgemein: new fields.NumberField({ required: true, nullable: false, integer: true, initial: 0, min: 0 }),
@@ -108,9 +109,10 @@ export class CharacterDataModel extends foundry.abstract.TypeDataModel {
   }
 
   prepareBaseData() {
-    this.health.max = Math.max(1, Math.round(this.health.max ?? 20));
-    this.health.damage = Math.max(0, Math.min(this.health.max, Math.round(this.health.damage ?? 0)));
-    this.health.value = Math.max(0, this.health.max - this.health.damage);
+    this.health.max = 20;
+    this.health.damage = Math.max(0, Math.round(this.health.damage ?? 0));
+    // The token bar represents accumulated damage, not remaining health.
+    this.health.value = this.health.damage;
   }
 }
 

@@ -4,15 +4,22 @@ import { SciFiCombat } from "./module/documents/combat.mjs";
 import { SciFiItem } from "./module/documents/item.mjs";
 import { CharacterDataModel, GenericItemDataModel, WeaponDataModel } from "./module/data/character-data.mjs";
 import { SciFiDimensionsApp } from "./module/apps/dimensions-app.mjs";
-import { postRollCard } from "./module/chat.mjs";
+import { actorNameElement, postRollCard } from "./module/chat.mjs";
 import { SciFiCharacterSheet } from "./module/sheets/character-sheet.mjs";
 import { SciFiWeaponSheet } from "./module/sheets/weapon-sheet.mjs";
 import { rollN5, rollP5 } from "./module/rules/dice.mjs";
-import { combineSkillValues } from "./module/rules/skills.mjs";
+import { combineSkillValues, skillRollFormula } from "./module/rules/skills.mjs";
 import { DEFAULT_AIM_ZONES, resolveAttack, weaponForActor } from "./module/rules/combat.mjs";
+import { resolveShock, shockFormula } from "./module/rules/shock.mjs";
+import { formatDimensionMetersPerSecond, moveMetersPerSecondForDimension } from "./module/rules/dimensions.mjs";
+
+const handledUpdateRequests = new Set();
 
 Hooks.once("init", () => {
   CONFIG.SCI_FI = SCI_FI;
+  // Bar 1 shows accumulated damage: light red for minor wounds, dark red for severe damage.
+  CONFIG.Token.barConfig.bar1.colors.empty = Color.from("#ff8a80");
+  CONFIG.Token.barConfig.bar1.colors.full = Color.from("#7f1111");
 
   CONFIG.Actor.documentClass = SciFiActor;
   CONFIG.Combat.documentClass = SciFiCombat;
@@ -42,16 +49,33 @@ Hooks.once("init", () => {
   });
 });
 
+// Foundry's Token HUD edits a resource bar's derived `.value` field. In this
+// system that value mirrors damage, so redirect the HUD edit to the persisted,
+// uncapped damage field before Foundry applies its normal 0–20 bar clamp.
+Hooks.on("modifyTokenAttribute", (data, updates, actor) => {
+  if (actor?.type !== "character" || data.attribute !== "health" || !data.isBar) return;
+
+  const currentDamage = Math.max(0, Number(actor.system.health?.damage) || 0);
+  const requested = Number(data.value);
+  if (!Number.isFinite(requested)) return;
+
+  const damage = data.isDelta ? currentDamage + requested : requested;
+  delete updates["system.health.value"];
+  updates["system.health.damage"] = Math.max(0, Math.round(damage));
+});
+
 Hooks.once("ready", () => {
   game.scifiUrpg = game.scifiUrpg ?? {};
   game.scifiUrpg.dimensions = SciFiDimensionsApp;
   game.scifiUrpg.updateActor = updateActor;
+  game.scifiUrpg.rollShock = rollShock;
   game.scifiUrpg.macros = {
     attack,
     openDimensions,
     repairArmor,
     rollN5: rollN5Macro,
     rollP5: rollP5Macro,
+    rollShock,
     rollSkill
   };
 
@@ -86,27 +110,40 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
   }
 
   if (!message.isContentVisible) html.classList.add("scifi-urpg-hidden-roll");
-  redactHiddenNpcNames(message, html);
+  renderActorNames(message, html);
 });
 
-function redactHiddenNpcNames(message, html) {
-  if (game.user?.isGM || typeof game.hnn?.getReplacementInfo !== "function") return;
+// Alias-only speakers intentionally are not associated with the actor, so Hide
+// NPC Names cannot refresh these cards itself when its per-actor override is
+// toggled. Refresh just the affected SciFi cards in that case.
+Hooks.on("updateActor", (actor, update) => {
+  if (!update.flags?.["hide-npc-names"] || typeof game.hnn?.getReplacementInfo !== "function") return;
 
-  for (const actorId of message.getFlag("scifi-urpg", "actorIds") ?? []) {
-    const actor = game.actors?.get(actorId);
-    if (!actor || actor.hasPlayerOwner) continue;
+  for (const message of game.messages?.contents ?? []) {
+    if (!message.getFlag("scifi-urpg", "rollCard")) continue;
+    if (!message.getFlag("scifi-urpg", "actorIds")?.includes(actor.id)) continue;
 
-    const replacement = game.hnn.getReplacementInfo(actor, actor.name)?.displayName;
-    if (!replacement || replacement === actor.name) continue;
-
-    for (const element of [html, ...html.querySelectorAll("*")]) {
-      for (const node of Array.from(element.childNodes)) {
-        if (node.nodeType === Node.TEXT_NODE) {
-          node.textContent = node.textContent.replaceAll(actor.name, replacement);
-        }
-      }
-    }
+    ui.chat?.updateMessage(message);
+    for (const app of Object.values(message.apps ?? {})) app.render();
   }
+});
+
+function renderActorNames(message, html) {
+  if (typeof game.hnn?.getReplacementInfo !== "function") return;
+
+  const actorIds = message.getFlag("scifi-urpg", "actorIds") ?? [];
+  const speakerActor = game.actors?.get(actorIds[0]);
+  const sender = html.querySelector(".message-sender");
+  if (speakerActor && sender) sender.textContent = displayActorName(speakerActor);
+
+  for (const element of html.querySelectorAll("[data-scifi-urpg-actor-name]")) {
+    const actor = game.actors?.get(element.dataset.scifiUrpgActorName);
+    if (actor) element.textContent = displayActorName(actor);
+  }
+}
+
+function displayActorName(actor) {
+  return game.hnn.getReplacementInfo(actor, actor.name)?.displayName ?? actor.name;
 }
 
 Hooks.on("hotbarDrop", (bar, data, slot) => {
@@ -163,6 +200,10 @@ function buildRollMacroData(actor, data) {
     repairArmor: {
       name: "Repair Armor",
       command: `await game.scifiUrpg.macros.repairArmor({ actorId: ${actorId} });`
+    },
+    shock: {
+      name: "Shock",
+      command: `await game.scifiUrpg.macros.rollShock({ actorId: ${actorId} });`
     }
   }[data.action];
 
@@ -209,6 +250,13 @@ async function rollN5Macro({ actorId } = {}) {
   });
 }
 
+async function rollShock({ actorId } = {}) {
+  const actor = actorForMacro(actorId);
+  if (!actor) return;
+
+  await requestShockRoll(actor);
+}
+
 async function rollSkill({ actorId, skillKey } = {}) {
   const actor = actorForMacro(actorId);
   if (!actor || !skillKey) return;
@@ -234,9 +282,7 @@ async function rollSkill({ actorId, skillKey } = {}) {
   await postRollMessage(actor, {
     title: rollTitle(selected),
     subtitle: rollSources(selected),
-    base,
-    plus: roll.plus,
-    minus: roll.minus,
+    formula: skillRollFormula(selected, roll),
     result: total
   });
 }
@@ -280,7 +326,10 @@ async function attack({ actorId, bonus = 0, aimZones = DEFAULT_AIM_ZONES } = {})
     aimZones
   });
 
-  const updateRequest = await updateActor(target, outcome.updateData, { token: targetToken });
+  const updateRequest = await updateActor(target, outcome.updateData, {
+    token: targetToken,
+    shockDamageTotal: outcome.damage > 0 ? outcome.newTargetDamage : null
+  });
 
   await postAttackMessage(actor, outcome, { updateRequest });
 }
@@ -305,11 +354,17 @@ async function repairArmor({ actorId } = {}) {
   ui.notifications.info(`${actor.name}'s armor has been repaired.`);
 }
 
-async function updateActor(actor, updateData, { token = null } = {}) {
+async function updateActor(actor, updateData, { token = null, shockDamageTotal = null } = {}) {
   if (!actor || !Object.keys(updateData ?? {}).length) return null;
 
-  if (canUpdateActor(actor)) {
+  const shockDamage = normalizedShockDamage(shockDamageTotal);
+  // A player attack's Shock roll is always resolved by the GM, even where the
+  // player owns the target actor. This keeps the automatic check authoritative.
+  const mustRelayShockToGM = shockDamage !== null && !game.user?.isGM;
+
+  if (canUpdateActor(actor) && !mustRelayShockToGM) {
     await actor.update(updateData);
+    if (shockDamage !== null) await performShockRoll(actor, { damageTotal: shockDamage });
     return null;
   }
 
@@ -320,10 +375,12 @@ async function updateActor(actor, updateData, { token = null } = {}) {
   }
 
   const request = {
+    requestId: foundry.utils.randomID(),
     actorId: actor.id,
     actorUuid: actor.uuid,
     tokenUuid: token?.document?.uuid ?? token?.uuid ?? null,
     updateData,
+    shockDamageTotal: shockDamage,
     requesterId: game.user.id
   };
 
@@ -344,9 +401,11 @@ function canUpdateActor(actor) {
 
 async function handleSystemSocket(message) {
   if (!game.user?.isGM) return;
-  if (message?.type !== "updateActor") return;
 
-  await applyTargetUpdateRequest(message, "socket");
+  if (message?.type === "updateActor") {
+    await applyTargetUpdateRequest(message, "socket");
+    return;
+  }
 }
 
 async function applyChatTargetUpdate(message) {
@@ -359,6 +418,11 @@ async function applyChatTargetUpdate(message) {
 }
 
 async function applyTargetUpdateRequest(request, source) {
+  if (request.requestId && handledUpdateRequests.has(request.requestId)) return;
+  // Socket delivery and the chat-card fallback can arrive in either order.
+  // Claim the request before awaiting UUID resolution so only one can roll Shock.
+  if (request.requestId) rememberHandledUpdateRequest(request.requestId);
+
   const target = await resolveSocketUpdateTarget(request);
   if (!target?.actor) {
     console.warn(`SciFi@URPG | Could not resolve actor for ${source} update.`, request);
@@ -373,6 +437,8 @@ async function applyTargetUpdateRequest(request, source) {
 
   try {
     await target.actor.update(updateData);
+    const shockDamage = normalizedShockDamage(request.shockDamageTotal);
+    if (shockDamage !== null) await performShockRoll(target.actor, { damageTotal: shockDamage });
     console.log(`SciFi@URPG | Applied ${source} actor update.`, {
       actor: target.actor.name,
       tokenUuid: target.tokenDocument?.uuid ?? null,
@@ -383,6 +449,37 @@ async function applyTargetUpdateRequest(request, source) {
     console.error(`SciFi@URPG | Could not apply ${source} actor update.`, error, request);
     ui.notifications.error(`Could not apply damage to ${target.actor.name}. See console for details.`);
   }
+}
+
+async function requestShockRoll(actor, { damageTotal = null } = {}) {
+  const shockDamage = normalizedShockDamage(damageTotal ?? actor.system.health?.damage);
+  if (shockDamage === null) return;
+
+  if (!canUpdateActor(actor)) {
+    ui.notifications.warn("Cannot roll Shock: you do not have permission to update this actor.");
+    return;
+  }
+
+  await performShockRoll(actor, { damageTotal: shockDamage });
+}
+
+async function performShockRoll(actor, { damageTotal } = {}) {
+  const outcome = resolveShock({ damage: damageTotal ?? actor.system.health?.damage });
+  await actor.update({ "system.health.unconscious": !outcome.conscious });
+  await postShockMessage(actor, outcome);
+  return outcome;
+}
+
+function normalizedShockDamage(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(0, Math.round(number)) : null;
+}
+
+function rememberHandledUpdateRequest(requestId) {
+  handledUpdateRequests.add(requestId);
+  // Retain only a small in-memory window to avoid duplicate socket/chat work.
+  if (handledUpdateRequests.size > 100) handledUpdateRequests.delete(handledUpdateRequests.values().next().value);
 }
 
 async function resolveSocketUpdateTarget(message) {
@@ -470,6 +567,8 @@ function skillContribution(actor, skillKey) {
     actorId: actor.id,
     actorName: actor.name,
     key: skillKey,
+    value,
+    damage,
     adjustedValue: value - damage
   };
 }
@@ -489,6 +588,13 @@ function uniqueStrings(values) {
 async function postRollMessage(actor, { title, subtitle = "", formula = "", base = null, plus = null, minus = null, result }) {
   const speaker = ChatMessage.getSpeaker({ actor });
   SciFiDimensionsApp.setLatestForActor(actor, result);
+  if (title === "Rennen") {
+    const content = moveCard(actor, { title, subtitle, formula, base, plus, minus, result });
+    const publicContent = moveCard(actor, { title, subtitle, result, showFormula: false });
+    await postRollCard(actor, { speaker, content, publicContent, result });
+    return;
+  }
+
   const details = base === null
     ? `<div class="roll-formula">${foundry.utils.escapeHTML(formula)}</div>`
     : `<div class="roll-formula">${Number(base)} + ${Number(plus)} - ${Number(minus)}</div>`;
@@ -512,9 +618,54 @@ async function postRollMessage(actor, { title, subtitle = "", formula = "", base
   await postRollCard(actor, { speaker, content, publicContent, result });
 }
 
+function moveCard(actor, { title, subtitle, formula = "", base = null, plus = null, minus = null, result, showFormula = true }) {
+  const speed = formatDimensionMetersPerSecond(moveMetersPerSecondForDimension(result));
+  const details = base === null
+    ? `<div class="roll-formula">${foundry.utils.escapeHTML(formula)}</div>`
+    : `<div class="roll-formula">${Number(base)} + ${Number(plus)} - ${Number(minus)}</div>`;
+
+  return `
+    <div class="scifi-urpg-chat-card move-card" data-scifi-urpg-roll-result="${Number(result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(actor.id)}">
+      <h3>${foundry.utils.escapeHTML(title)}</h3>
+      ${subtitle ? `<p>${foundry.utils.escapeHTML(subtitle)}</p>` : ""}
+      ${showFormula ? details : ""}
+      <div class="initiative-result-row">
+        <div class="roll-result">${result}</div>
+        <div class="reaction-time-box"><strong>${speed} m/s</strong></div>
+      </div>
+    </div>
+  `;
+}
+
+async function postShockMessage(actor, outcome) {
+  const speaker = ChatMessage.getSpeaker({ actor });
+  const formula = shockFormula(outcome);
+  const downHtml = outcome.conscious
+    ? ""
+    : `<div class="attack-status-line">${actorNameElement(actor)} is down!</div>`;
+  const content = `
+    <div class="scifi-urpg-chat-card shock-card" data-scifi-urpg-roll-result="${Number(outcome.result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(actor.id)}">
+      <h3>Shock</h3>
+      <p>${actorNameElement(actor)}</p>
+      <div class="roll-formula">${foundry.utils.escapeHTML(formula)}</div>
+      <div class="roll-result">${outcome.result}</div>
+      ${downHtml}
+    </div>
+  `;
+  const publicContent = `
+    <div class="scifi-urpg-chat-card shock-card" data-scifi-urpg-roll-result="${Number(outcome.result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(actor.id)}">
+      <h3>Shock</h3>
+      <p>${actorNameElement(actor)}</p>
+      <div class="roll-result">${outcome.result}</div>
+      ${downHtml}
+    </div>
+  `;
+  await postRollCard(actor, { speaker, content, publicContent, result: outcome.result });
+}
+
 async function postAttackMessage(actor, outcome, { updateRequest = null } = {}) {
   const speaker = ChatMessage.getSpeaker({ actor });
-  const escapedTarget = foundry.utils.escapeHTML(outcome.target.name);
+  const targetName = actorNameElement(outcome.target);
   const escapedWeapon = foundry.utils.escapeHTML(outcome.weapon.name);
   const title = outcome.skillKey;
   const damageSection = outcome.hit ? attackResultSection({
@@ -527,29 +678,24 @@ async function postAttackMessage(actor, outcome, { updateRequest = null } = {}) 
     formula: armorLossFormula(outcome),
     result: fmtArmor(outcome.armorLoss.loss)
   }) : "";
-  const downHtml = outcome.targetDown
-    ? `<div class="attack-status-line">${escapedTarget} is down!</div>`
-    : "";
   const publicContent = `
     <div class="scifi-urpg-chat-card attack-card" data-scifi-urpg-roll-result="${Number(outcome.result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(actor.id)}">
       <h3>Attack</h3>
-      <p>${foundry.utils.escapeHTML(actor.name)} attacks ${escapedTarget} with ${escapedWeapon}</p>
+      <p>${actorNameElement(actor)} attacks ${targetName} with ${escapedWeapon}</p>
       <div class="roll-result">${outcome.result}</div>
       ${damageSection}
       ${armorLossSection}
-      ${downHtml}
     </div>
   `;
 
   const content = `
     <div class="scifi-urpg-chat-card attack-card" data-scifi-urpg-roll-result="${Number(outcome.result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(actor.id)}">
       <h3>${foundry.utils.escapeHTML(title)}</h3>
-      <p>${foundry.utils.escapeHTML(actor.name)} attacks ${escapedTarget} with ${escapedWeapon}</p>
+      <p>${actorNameElement(actor)} attacks ${targetName} with ${escapedWeapon}</p>
       <div class="roll-formula">${foundry.utils.escapeHTML(attackFormula(outcome))}</div>
       <div class="roll-result">${outcome.result}</div>
       ${damageSection}
       ${armorLossSection}
-      ${downHtml}
     </div>
   `;
 
