@@ -9,7 +9,9 @@ import { SciFiCharacterSheet } from "./module/sheets/character-sheet.mjs";
 import { SciFiWeaponSheet } from "./module/sheets/weapon-sheet.mjs";
 import { rollN5, rollP5 } from "./module/rules/dice.mjs";
 import { combineSkillValues, skillRollFormula } from "./module/rules/skills.mjs";
-import { DEFAULT_AIM_ZONES, resolveAttack, weaponForActor } from "./module/rules/combat.mjs";
+import { DEFAULT_AIM_ZONES, formatAttackResult, isMeleeAttack, isUnarmedWeapon, resolveAttack, weaponForActor } from "./module/rules/combat.mjs";
+import { distanceToTarget } from "./module/rules/distance.mjs";
+import "./module/canvas/target-distance.mjs";
 import { resolveShock, shockFormula } from "./module/rules/shock.mjs";
 import { formatDimensionMetersPerSecond, moveMetersPerSecondForDimension } from "./module/rules/dimensions.mjs";
 
@@ -88,7 +90,7 @@ Hooks.once("ready", () => {
 
 Hooks.on("createChatMessage", (message) => {
   const content = String(message.content ?? "");
-  const rollMatch = content.match(/data-scifi-urpg-roll-result="(-?\d+)"/);
+  const rollMatch = content.match(/data-scifi-urpg-roll-result="(-?\d+(?:\.\d+)?)"/);
   const actorMatch = content.match(/data-scifi-urpg-actor-id="([^"]+)"/);
 
   if (rollMatch && actorMatch) {
@@ -311,8 +313,8 @@ async function attack({ actorId, bonus = 0, aimZones = DEFAULT_AIM_ZONES } = {})
     return;
   }
 
-  const meleeReach = Math.max(1, Number(canvas.scene?.grid?.distance ?? 1) || 1);
-  if (!weapon.range && distance > meleeReach) {
+  const meleeReach = isUnarmedWeapon(weapon) ? 1 : Math.max(1, Number(canvas.scene?.grid?.distance ?? 1) || 1);
+  if (!weapon.range && (isUnarmedWeapon(weapon) ? !isMeleeAttack(weapon, distance) : distance > meleeReach)) {
     ui.notifications.warn(`${weapon.name} is a melee weapon. Move within ${meleeReach} ${canvas.scene?.grid?.units || "grid unit"} before attacking.`);
     return;
   }
@@ -682,7 +684,7 @@ async function postAttackMessage(actor, outcome, { updateRequest = null } = {}) 
     <div class="scifi-urpg-chat-card attack-card" data-scifi-urpg-roll-result="${Number(outcome.result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(actor.id)}">
       <h3>Attack</h3>
       <p>${actorNameElement(actor)} attacks ${targetName} with ${escapedWeapon}</p>
-      <div class="roll-result">${outcome.result}</div>
+      <div class="roll-result">${formatAttackResult(outcome)}</div>
       ${damageSection}
       ${armorLossSection}
     </div>
@@ -693,7 +695,7 @@ async function postAttackMessage(actor, outcome, { updateRequest = null } = {}) 
       <h3>${foundry.utils.escapeHTML(title)}</h3>
       <p>${actorNameElement(actor)} attacks ${targetName} with ${escapedWeapon}</p>
       <div class="roll-formula">${foundry.utils.escapeHTML(attackFormula(outcome))}</div>
-      <div class="roll-result">${outcome.result}</div>
+      <div class="roll-result">${formatAttackResult(outcome)}</div>
       ${damageSection}
       ${armorLossSection}
     </div>
@@ -724,7 +726,7 @@ function attackFormula(outcome) {
   if (outcome.damagePen > 0) parts.push(`- ${outcome.damagePen} (damage)`);
   if (outcome.bonus > 0) parts.push(`+ ${outcome.bonus} (modifier)`);
   if (outcome.bonus < 0) parts.push(`- ${Math.abs(outcome.bonus)} (modifier)`);
-  if (outcome.distPen > 0) parts.push(`- ${outcome.distPen} (distance ${outcome.distance})`);
+  if (outcome.distPen < 0) parts.push(`- ${Math.abs(outcome.distPen).toFixed(1)} (distance ${outcome.distance.toFixed(1)} m)`);
   if (outcome.aimPen > 0) parts.push(`- ${outcome.aimPen} (aim)`);
 
   parts.push(`+ ${outcome.roll.plus}`);
@@ -744,65 +746,12 @@ function attackResultSection({ title, formula, result }) {
 }
 
 function damageFormula(outcome) {
-  return `${outcome.result}/5 + ${outcome.weapon.bep} (weapon) - ${fmtArmor(outcome.armorBefore)} (${outcome.zone})`;
+  return `max(0, round(round(${formatAttackResult(outcome)}/5) + ${outcome.weapon.bep} (weapon) - ${fmtArmor(outcome.armorBefore)} (${outcome.zone}))) (displayed inputs rounded)`;
 }
 
 function armorLossFormula(outcome) {
   const { ruestungseffekt, trefferzonenPct, material, eaten } = outcome.armorLoss;
   return `${ruestungseffekt}% (effect) / ${trefferzonenPct}% (zone) x ${material.lossNum}/${material.lossDenom} (loss) x ${fmtArmor(eaten)} (damage)`;
-}
-
-function distanceToTarget(actor, targetToken) {
-  const attackerToken = attackerTokenFor(actor);
-  if (!attackerToken || !targetToken) return null;
-
-  const attackerCenter = tokenCenter(attackerToken);
-  const targetCenter = tokenCenter(targetToken);
-  const measured = measureSceneDistance(attackerCenter, targetCenter);
-  if (Number.isFinite(measured)) return Math.round(measured);
-
-  const gridSize = Number(canvas.scene?.grid?.size ?? canvas.grid?.size ?? 100) || 100;
-  const gridDistance = Number(canvas.scene?.grid?.distance ?? 1) || 1;
-  const pixelDistance = Math.hypot(targetCenter.x - attackerCenter.x, targetCenter.y - attackerCenter.y);
-
-  return Math.round((pixelDistance / gridSize) * gridDistance);
-}
-
-function attackerTokenFor(actor) {
-  const controlled = canvas.tokens?.controlled?.find((token) => token.actor?.id === actor.id);
-  if (controlled) return controlled;
-
-  const activeTokens = actor.getActiveTokens?.(false, false) ?? [];
-  return activeTokens[0] ?? null;
-}
-
-function tokenCenter(token) {
-  if (token.center) return token.center;
-
-  const document = token.document ?? token;
-  const width = Number(document.width ?? 1) * (Number(canvas.scene?.grid?.size ?? canvas.grid?.size ?? 100) || 100);
-  const height = Number(document.height ?? 1) * (Number(canvas.scene?.grid?.size ?? canvas.grid?.size ?? 100) || 100);
-  return {
-    x: Number(document.x ?? token.x ?? 0) + width / 2,
-    y: Number(document.y ?? token.y ?? 0) + height / 2
-  };
-}
-
-function measureSceneDistance(origin, destination) {
-  try {
-    if (typeof canvas.grid?.measurePath === "function") {
-      const measurement = canvas.grid.measurePath([origin, destination], { gridSpaces: true });
-      return Number(measurement?.distance ?? measurement?.distances?.[0]);
-    }
-
-    if (typeof canvas.grid?.measureDistance === "function") {
-      return Number(canvas.grid.measureDistance(origin, destination, { gridSpaces: true }));
-    }
-  } catch (error) {
-    console.warn("SciFi@URPG | Falling back to token center distance.", error);
-  }
-
-  return NaN;
 }
 
 function numberOrZero(value) {

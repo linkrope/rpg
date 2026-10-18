@@ -3,7 +3,8 @@ import { SciFiDimensionsApp } from "../apps/dimensions-app.mjs";
 import { rollN5, rollP5 } from "../rules/dice.mjs";
 import { actorNameElement, postRollCard } from "../chat.mjs";
 import { combineSkillValues, skillRollFormula } from "../rules/skills.mjs";
-import { DEFAULT_AIM_ZONES, aimPenalty, aimTotalPct, resolveAttack, weaponForActor, weaponPresetFor } from "../rules/combat.mjs";
+import { DEFAULT_AIM_ZONES, aimPenalty, aimTotalPct, formatAttackResult, isMeleeAttack, isUnarmedWeapon, resolveAttack, weaponForActor, weaponPresetFor } from "../rules/combat.mjs";
+import { distanceToTarget } from "../rules/distance.mjs";
 import { formatDimensionMetersPerSecond, moveMetersPerSecondForDimension } from "../rules/dimensions.mjs";
 
 function displayNumber(value) {
@@ -511,14 +512,14 @@ export class SciFiCharacterSheet extends ActorSheet {
 
     const weapon = weaponForActor(this.actor);
     const skillKey = this.actor.system.skills?.[weapon.skill] ? weapon.skill : "Waffenlos";
-    const distance = this._distanceToTarget(targetToken);
+    const distance = distanceToTarget(this.actor, targetToken);
     if (distance === null) {
       ui.notifications.warn("Place this actor on the scene before attacking.");
       return;
     }
 
-    const meleeReach = this._meleeReach();
-    if (!weapon.range && distance > meleeReach) {
+    const meleeReach = isUnarmedWeapon(weapon) ? 1 : this._meleeReach();
+    if (!weapon.range && (isUnarmedWeapon(weapon) ? !isMeleeAttack(weapon, distance) : distance > meleeReach)) {
       ui.notifications.warn(`${weapon.name} is a melee weapon. Move within ${meleeReach} ${canvas.scene?.grid?.units || "grid unit"} before attacking.`);
       return;
     }
@@ -560,61 +561,8 @@ export class SciFiCharacterSheet extends ActorSheet {
     event.originalEvent?.dataTransfer?.setData("text/plain", JSON.stringify(dragData));
   }
 
-  _distanceToTarget(targetToken) {
-    const attackerToken = this._attackerToken();
-    if (!attackerToken || !targetToken) return null;
-
-    const attackerCenter = this._tokenCenter(attackerToken);
-    const targetCenter = this._tokenCenter(targetToken);
-    const measured = this._measureSceneDistance(attackerCenter, targetCenter);
-    if (Number.isFinite(measured)) return Math.round(measured);
-
-    const gridSize = Number(canvas.scene?.grid?.size ?? canvas.grid?.size ?? 100) || 100;
-    const gridDistance = Number(canvas.scene?.grid?.distance ?? 1) || 1;
-    const pixelDistance = Math.hypot(targetCenter.x - attackerCenter.x, targetCenter.y - attackerCenter.y);
-
-    return Math.round((pixelDistance / gridSize) * gridDistance);
-  }
-
   _meleeReach() {
     return Math.max(1, Number(canvas.scene?.grid?.distance ?? 1) || 1);
-  }
-
-  _measureSceneDistance(origin, destination) {
-    try {
-      if (typeof canvas.grid?.measurePath === "function") {
-        const measurement = canvas.grid.measurePath([origin, destination], { gridSpaces: true });
-        return Number(measurement?.distance ?? measurement?.distances?.[0]);
-      }
-
-      if (typeof canvas.grid?.measureDistance === "function") {
-        return Number(canvas.grid.measureDistance(origin, destination, { gridSpaces: true }));
-      }
-    } catch (error) {
-      console.warn("SciFi@URPG | Falling back to token center distance.", error);
-    }
-
-    return NaN;
-  }
-
-  _attackerToken() {
-    const controlled = canvas.tokens?.controlled?.find((token) => token.actor?.id === this.actor.id);
-    if (controlled) return controlled;
-
-    const activeTokens = this.actor.getActiveTokens?.(false, false) ?? [];
-    return activeTokens[0] ?? null;
-  }
-
-  _tokenCenter(token) {
-    if (token.center) return token.center;
-
-    const document = token.document ?? token;
-    const width = Number(document.width ?? 1) * (Number(canvas.scene?.grid?.size ?? canvas.grid?.size ?? 100) || 100);
-    const height = Number(document.height ?? 1) * (Number(canvas.scene?.grid?.size ?? canvas.grid?.size ?? 100) || 100);
-    return {
-      x: Number(document.x ?? token.x ?? 0) + width / 2,
-      y: Number(document.y ?? token.y ?? 0) + height / 2
-    };
   }
 
   _getCombinedRollParticipants() {
@@ -749,7 +697,7 @@ export class SciFiCharacterSheet extends ActorSheet {
       <div class="scifi-urpg-chat-card attack-card" data-scifi-urpg-roll-result="${Number(outcome.result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(this.actor.id)}">
         <h3>Attack</h3>
         <p>${actorNameElement(this.actor)} attacks ${targetName} with ${escapedWeapon}</p>
-        <div class="roll-result">${outcome.result}</div>
+        <div class="roll-result">${formatAttackResult(outcome)}</div>
         ${damageSection}
         ${armorLossSection}
       </div>
@@ -760,7 +708,7 @@ export class SciFiCharacterSheet extends ActorSheet {
         <h3>${foundry.utils.escapeHTML(title)}</h3>
         <p>${actorNameElement(this.actor)} attacks ${targetName} with ${escapedWeapon}</p>
         <div class="roll-formula">${foundry.utils.escapeHTML(formula)}</div>
-        <div class="roll-result">${outcome.result}</div>
+        <div class="roll-result">${formatAttackResult(outcome)}</div>
         ${damageSection}
         ${armorLossSection}
       </div>
@@ -791,7 +739,7 @@ export class SciFiCharacterSheet extends ActorSheet {
     if (outcome.damagePen > 0) parts.push(`- ${outcome.damagePen} (damage)`);
     if (outcome.bonus > 0) parts.push(`+ ${outcome.bonus} (modifier)`);
     if (outcome.bonus < 0) parts.push(`- ${Math.abs(outcome.bonus)} (modifier)`);
-    if (outcome.distPen > 0) parts.push(`- ${outcome.distPen} (distance ${outcome.distance})`);
+    if (outcome.distPen < 0) parts.push(`- ${Math.abs(outcome.distPen).toFixed(1)} (distance ${outcome.distance.toFixed(1)} m)`);
     if (outcome.aimPen > 0) parts.push(`- ${outcome.aimPen} (aim)`);
 
     parts.push(`+ ${outcome.roll.plus}`);
@@ -811,7 +759,7 @@ export class SciFiCharacterSheet extends ActorSheet {
   }
 
   _damageFormula(outcome) {
-    return `${outcome.result}/5 + ${outcome.weapon.bep} (weapon) - ${fmtArmor(outcome.armorBefore)} (${outcome.zone})`;
+    return `max(0, round(round(${formatAttackResult(outcome)}/5) + ${outcome.weapon.bep} (weapon) - ${fmtArmor(outcome.armorBefore)} (${outcome.zone}))) (displayed inputs rounded)`;
   }
 
   _armorLossFormula(outcome) {

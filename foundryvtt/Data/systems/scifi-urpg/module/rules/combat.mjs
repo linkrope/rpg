@@ -43,15 +43,31 @@ export function parseRangeMeters(range) {
   if (typeof range === "number") return range;
   if (!range) return 0;
 
-  return parseInt(String(range).replace(/[^\d]/g, ""), 10) || 0;
+  return parseFloat(String(range)) || 0;
+}
+
+export function isUnarmedWeapon(weapon) {
+  return weapon?.skill === "Waffenlos" && !weapon.range;
+}
+
+/** The displayed distance determines whether a short, long, or unarmed attack is melee. */
+export function isMeleeAttack(weapon, distance) {
+  const dist = Number(distance);
+  return (isUnarmedWeapon(weapon) || ["Kurzwaffen", "Langwaffen"].includes(weapon?.skill))
+    && Number.isFinite(dist) && dist >= 0 && Number(dist.toFixed(1)) <= 1;
 }
 
 export function rangePenalty(weapon, distance) {
   const range = parseRangeMeters(weapon?.range);
   const dist = Math.max(0, Number(distance) || 0);
-  if (!range || range <= 0 || dist <= 0) return 0;
+  if (!range || range <= 0 || dist <= 0 || isMeleeAttack(weapon, dist)) return 0;
 
-  return Math.round(Math.max(0, dist / range - 1) * 5);
+  return -6 * Math.log2(1 + dist / range);
+}
+
+/** Display precision only; attack and damage calculations retain the original value. */
+export function formatAttackResult(outcome) {
+  return outcome.weapon?.range ? Number(outcome.result).toFixed(1) : fmtArmor(outcome.result);
 }
 
 export function aimTotalPct(aimZones = DEFAULT_AIM_ZONES) {
@@ -86,7 +102,7 @@ export function resolveAttack({ attacker, target, skillKey, bonus = 0, distance 
   const distPen = rangePenalty(weapon, distance);
   const aimPen = aimPenalty(aimZones);
   const n5 = rollN5();
-  const result = skillVal - damagePen + Number(bonus || 0) + n5.total - distPen - aimPen;
+  const result = skillVal - damagePen + Number(bonus || 0) + n5.total + distPen - aimPen;
   const hit = result > 0;
 
   const outcome = {
@@ -167,7 +183,7 @@ export function attackLogLines(outcome) {
 
   lines.push({
     type: "damage",
-    text: `Damage: ${outcome.result}/5 + ${outcome.weapon.bep} (weapon) - ${fmtArmor(outcome.armorBefore)} (${outcome.zone}) = ${outcome.damage}`
+    text: `Damage: max(0, round(round(${formatAttackResult(outcome)}/5) + ${outcome.weapon.bep} (weapon) - ${fmtArmor(outcome.armorBefore)} (${outcome.zone}))) = ${outcome.damage} (displayed inputs rounded)`
   });
 
   if (outcome.armorLoss && outcome.armorBefore !== outcome.armorAfter) {
