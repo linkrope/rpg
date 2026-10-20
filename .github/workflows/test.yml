@@ -15,5 +15,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: false
       - run: node --test foundryvtt/Data/systems/scifi-urpg/test/*.test.mjs
