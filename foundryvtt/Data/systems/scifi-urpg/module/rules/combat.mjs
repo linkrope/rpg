@@ -3,7 +3,6 @@ import {
   BASE_HIT_ZONE_PCT,
   RUESTUNGSEFFEKT,
   SKILL_TO_RUESTUNGSEFFEKT,
-  WEAPON_PRESETS,
   fmtArmor
 } from "../constants.mjs";
 import { rollN5 } from "./dice.mjs";
@@ -11,25 +10,32 @@ import { buildAttackCard } from "./roll-card.mjs";
 
 export const DEFAULT_AIM_ZONES = ["torso", "legs", "arms", "head"];
 
-export function weaponPresetFor(name) {
-  return WEAPON_PRESETS.find((weapon) => weapon.name === name) ?? WEAPON_PRESETS[0];
-}
+export const UNARMED_WEAPON = Object.freeze({
+  name: "Unarmed",
+  skill: "Waffenlos",
+  weight: null,
+  hand: 2,
+  bep: 2,
+  rangeModifier: 0,
+  clip: null,
+  ammo: null,
+  nozzle: null
+});
 
-/** Return the equipped embedded weapon, falling back to the pre-item presets for old actors. */
+/** Return the equipped embedded weapon, falling back to unarmed when none is selected. */
 export function weaponForActor(actor) {
   const selected = actor?.system?.weapon?.selected;
   const item = actor?.items?.get(selected);
 
   if (item?.type === "weapon") {
-    const rangeMeters = Number(item.system.range);
+    const rangeModifier = Number(item.system.rangeModifier);
     return {
       name: item.name,
       skill: item.system.skill,
       weight: item.system.weight || null,
       hand: item.system.hand,
       bep: item.system.bep,
-      range: Number.isFinite(rangeMeters) && rangeMeters > 0 ? `${rangeMeters}m` : null,
-      rate: item.system.rate ? `${item.system.rate}s` : null,
+      rangeModifier: Number.isFinite(rangeModifier) ? rangeModifier : 0,
       clip: item.system.clip,
       ammo: item.system.ammo || null,
       nozzle: item.system.nozzle || null,
@@ -37,38 +43,39 @@ export function weaponForActor(actor) {
     };
   }
 
-  return weaponPresetFor(selected);
-}
-
-export function parseRangeMeters(range) {
-  if (typeof range === "number") return range;
-  if (!range) return 0;
-
-  return parseFloat(String(range)) || 0;
+  return UNARMED_WEAPON;
 }
 
 export function isUnarmedWeapon(weapon) {
-  return weapon?.skill === "Waffenlos" && !weapon.range;
+  return weapon?.skill === "Waffenlos";
 }
 
-/** The displayed distance determines whether a short, long, or unarmed attack is melee. */
+/** A weapon without a clip is used as a melee weapon at close range. */
 export function isMeleeAttack(weapon, distance) {
   const dist = Number(distance);
-  return (isUnarmedWeapon(weapon) || ["Kurzwaffen", "Langwaffen"].includes(weapon?.skill))
+  return weapon?.clip == null
     && Number.isFinite(dist) && dist >= 0 && Number(dist.toFixed(1)) <= 1;
 }
 
-export function rangePenalty(weapon, distance) {
-  const range = parseRangeMeters(weapon?.range);
-  const dist = Math.max(0, Number(distance) || 0);
-  if (!range || range <= 0 || dist <= 0 || isMeleeAttack(weapon, dist)) return 0;
+export function primarilyRangedBonus(weapon) {
+  const muzzleVelocity = String(weapon?.nozzle ?? "").trim();
+  if (muzzleVelocity.toLowerCase() === "light") return 10;
 
-  return -6 * Math.log2(1 + dist / range);
+  const velocity = Number.parseFloat(muzzleVelocity);
+  return Number.isFinite(velocity) && velocity > 10 ? 10 : 0;
+}
+
+export function rangePenalty(weapon, distance) {
+  const dist = Math.max(0, Number(distance) || 0);
+  if (dist <= 0 || isUnarmedWeapon(weapon) || isMeleeAttack(weapon, dist)) return 0;
+
+  const modifier = Number(weapon?.rangeModifier);
+  return Math.min(0, -6 * Math.log2(dist / 5) + (Number.isFinite(modifier) ? modifier : 0));
 }
 
 /** Display precision only; attack and damage calculations retain the original value. */
 export function formatAttackResult(outcome) {
-  return outcome.weapon?.range ? Number(outcome.result).toFixed(1) : fmtArmor(outcome.result);
+  return isUnarmedWeapon(outcome.weapon) ? fmtArmor(outcome.result) : Number(outcome.result).toFixed(1);
 }
 
 export function aimTotalPct(aimZones = DEFAULT_AIM_ZONES) {
@@ -101,9 +108,10 @@ export function resolveAttack({ attacker, target, skillKey, bonus = 0, distance 
   const skillVal = Number(attacker.system.skills?.[skillKey]?.value ?? 0);
   const damagePen = Math.max(0, Number(attacker.system.health?.damage ?? 0));
   const distPen = rangePenalty(weapon, distance);
+  const rangedBonus = primarilyRangedBonus(weapon);
   const aimPen = aimPenalty(aimZones);
   const n5 = rollN5();
-  const result = skillVal - damagePen + Number(bonus || 0) + n5.total + distPen - aimPen;
+  const result = skillVal - damagePen + Number(bonus || 0) + rangedBonus + n5.total + distPen - aimPen;
   const hit = result > 0;
 
   const outcome = {
@@ -114,6 +122,7 @@ export function resolveAttack({ attacker, target, skillKey, bonus = 0, distance 
     skillVal,
     damagePen,
     bonus: Number(bonus || 0),
+    primarilyRangedBonus: rangedBonus,
     distance: Math.max(0, Number(distance) || 0),
     distPen,
     aimPen,
@@ -135,7 +144,7 @@ export function resolveAttack({ attacker, target, skillKey, bonus = 0, distance 
   const zone = rollHitZone(aimZones);
   const zoneArmor = target.system.armor?.[zone] ?? {};
   const armorBefore = Number(zoneArmor.battered ?? 0);
-  const rawDamage = Math.round(result / 5) + Number(weapon.bep ?? 0);
+  const rawDamage = result / 5 + Number(weapon.bep ?? 0);
   const damage = Math.max(0, Math.round(rawDamage - armorBefore));
   const updateData = {};
   let armorAfter = armorBefore;
@@ -171,6 +180,7 @@ export function resolveAttack({ attacker, target, skillKey, bonus = 0, distance 
     updateData
   };
 }
+
 
 export function attackLogLines(outcome) {
   const lines = [];

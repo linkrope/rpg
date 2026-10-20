@@ -1,9 +1,9 @@
-import { ARMOR_MATERIALS, ARMOR_ZONE_DEFS, BASE_HIT_ZONE_PCT, SKILL_COLUMN_BY_KEY, buildArmorMaterials, buildArmorZones, fmtArmor, buildSkillColumns, skillChangeCost, stepCostForLevel, WEAPON_OPTIONS } from "../constants.mjs";
+import { ARMOR_MATERIALS, ARMOR_ZONE_DEFS, BASE_HIT_ZONE_PCT, SKILL_COLUMN_BY_KEY, buildArmorMaterials, buildArmorZones, fmtArmor, buildSkillColumns, skillChangeCost, stepCostForLevel } from "../constants.mjs";
 import { SciFiDimensionsApp } from "../apps/dimensions-app.mjs";
 import { rollN5, rollP5 } from "../rules/dice.mjs";
 import { actorNameElement, postRollCard } from "../chat.mjs";
 import { combineSkillValues, skillRollFormula } from "../rules/skills.mjs";
-import { DEFAULT_AIM_ZONES, aimPenalty, aimTotalPct, formatAttackResult, isMeleeAttack, isUnarmedWeapon, resolveAttack, weaponForActor, weaponPresetFor } from "../rules/combat.mjs";
+import { DEFAULT_AIM_ZONES, aimPenalty, aimTotalPct, formatAttackResult, isMeleeAttack, isUnarmedWeapon, resolveAttack, UNARMED_WEAPON, weaponForActor } from "../rules/combat.mjs";
 import { buildAttackCard } from "../rules/roll-card.mjs";
 import { distanceToTarget } from "../rules/distance.mjs";
 import { formatDimensionMetersPerSecond, moveMetersPerSecondForDimension } from "../rules/dimensions.mjs";
@@ -22,6 +22,12 @@ function armorNumber(value) {
 
 function displayArmor(value) {
   return numberOrZero(value) === 0 ? "-" : fmtArmor(value ?? 0);
+}
+
+function formatRangeModifier(value) {
+  const modifier = Number(value);
+  if (!Number.isFinite(modifier) || modifier === 0) return "0";
+  return modifier > 0 ? `+${modifier}` : String(modifier);
 }
 
 function numberOrZero(value) {
@@ -129,13 +135,12 @@ export class SciFiCharacterSheet extends ActorSheet {
       }))
     }));
     context.weaponOptions = this._buildWeaponOptions();
-    const unarmed = weaponPresetFor("Unarmed");
+    const unarmed = UNARMED_WEAPON;
     context.weapons = [{
       name: unarmed.name,
       img: "systems/scifi-urpg/assets/icons/fist.webp",
       bep: unarmed.bep,
-      range: "Melee",
-      rate: unarmed.rate,
+      rangeModifier: formatRangeModifier(unarmed.rangeModifier),
       clip: unarmed.clip,
       hand: unarmed.hand,
       isUnarmed: true
@@ -146,8 +151,7 @@ export class SciFiCharacterSheet extends ActorSheet {
         name: item.name,
         img: item.img,
         bep: item.system.bep,
-        range: Number(item.system.range) > 0 ? `${item.system.range}m` : "Melee",
-        rate: item.system.rate ? `${item.system.rate}s` : "—",
+        rangeModifier: formatRangeModifier(item.system.rangeModifier),
         clip: item.system.clip,
         hand: item.system.hand,
         isUnarmed: false
@@ -201,15 +205,11 @@ export class SciFiCharacterSheet extends ActorSheet {
 
   _buildWeaponOptions() {
     const selected = this.actor.system.weapon?.selected ?? "Unarmed";
-    const options = [{ value: "Unarmed", label: "Unarmed", selected: selected === "Unarmed" }];
+    const hasSelectedItem = this.actor.items.filter((item) => item.type === "weapon" && item.id === selected).length > 0;
+    const options = [{ value: "Unarmed", label: "Unarmed", selected: !hasSelectedItem }];
 
     for (const item of this.actor.items.filter((entry) => entry.type === "weapon")) {
       options.push({ value: item.id, label: item.name, selected: selected === item.id });
-    }
-
-    // Keep existing actors functional until their preset selection is replaced by an owned item.
-    if (!options.some((option) => option.selected) && WEAPON_OPTIONS.includes(selected)) {
-      options.push({ value: selected, label: `${selected} (legacy preset)`, selected: true });
     }
 
     return options;
@@ -519,9 +519,8 @@ export class SciFiCharacterSheet extends ActorSheet {
       return;
     }
 
-    const meleeReach = isUnarmedWeapon(weapon) ? 1 : this._meleeReach();
-    if (!weapon.range && (isUnarmedWeapon(weapon) ? !isMeleeAttack(weapon, distance) : distance > meleeReach)) {
-      ui.notifications.warn(`${weapon.name} is a melee weapon. Move within ${meleeReach} ${canvas.scene?.grid?.units || "grid unit"} before attacking.`);
+    if (isUnarmedWeapon(weapon) && !isMeleeAttack(weapon, distance)) {
+      ui.notifications.warn(`${weapon.name} is a melee weapon. Move within 1 ${canvas.scene?.grid?.units || "grid unit"} before attacking.`);
       return;
     }
 
@@ -559,10 +558,6 @@ export class SciFiCharacterSheet extends ActorSheet {
     }
 
     event.originalEvent?.dataTransfer?.setData("text/plain", JSON.stringify(dragData));
-  }
-
-  _meleeReach() {
-    return Math.max(1, Number(canvas.scene?.grid?.distance ?? 1) || 1);
   }
 
   _getCombinedRollParticipants() {

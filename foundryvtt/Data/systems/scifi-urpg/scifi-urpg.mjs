@@ -13,7 +13,7 @@ import { DEFAULT_AIM_ZONES, formatAttackResult, isMeleeAttack, isUnarmedWeapon, 
 import { buildAttackCard } from "./module/rules/roll-card.mjs";
 import { distanceToTarget } from "./module/rules/distance.mjs";
 import "./module/canvas/target-distance.mjs";
-import { resolveShock, shockFormula } from "./module/rules/shock.mjs";
+import { applyShockOutcome, resolveShock, shockFormula, shouldRollShock } from "./module/rules/shock.mjs";
 import { formatDimensionMetersPerSecond, moveMetersPerSecondForDimension } from "./module/rules/dimensions.mjs";
 
 const handledUpdateRequests = new Set();
@@ -315,7 +315,7 @@ async function attack({ actorId, bonus = 0, aimZones = DEFAULT_AIM_ZONES } = {})
   }
 
   const meleeReach = isUnarmedWeapon(weapon) ? 1 : Math.max(1, Number(canvas.scene?.grid?.distance ?? 1) || 1);
-  if (!weapon.range && (isUnarmedWeapon(weapon) ? !isMeleeAttack(weapon, distance) : distance > meleeReach)) {
+  if (isUnarmedWeapon(weapon) && !isMeleeAttack(weapon, distance)) {
     ui.notifications.warn(`${weapon.name} is a melee weapon. Move within ${meleeReach} ${canvas.scene?.grid?.units || "grid unit"} before attacking.`);
     return;
   }
@@ -472,8 +472,10 @@ async function requestShockRoll(actor, { damageTotal = null } = {}) {
 }
 
 async function performShockRoll(actor, { damageTotal } = {}) {
+  if (!shouldRollShock(actor)) return null;
+
   const outcome = resolveShock({ damage: damageTotal ?? actor.system.health?.damage });
-  await actor.update({ "system.health.unconscious": !outcome.conscious });
+  await applyShockOutcome(actor, outcome);
   await postShockMessage(actor, outcome);
   return outcome;
 }

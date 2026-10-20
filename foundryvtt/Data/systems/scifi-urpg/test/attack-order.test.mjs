@@ -10,7 +10,7 @@ test("a character-sheet attack posts its card before the resulting Shock card", 
     getSpeaker: () => ({}),
     create: async (data) => { cards.push(data.content.includes("attack-card") ? "Attack" : "Shock"); }
   };
-  const weapon = { type: "weapon", name: "Test", system: { range: 10, skill: "Test", bep: 1 } };
+  const weapon = { type: "weapon", name: "Test", system: { rangeModifier: 0, skill: "Test", bep: 1 } };
   const attacker = { id: "attacker", name: "Attacker", hasPlayerOwner: true, system: { weapon: { selected: "w" }, skills: { Test: { value: 20 } }, health: {} }, items: new Map([["w", weapon]]) };
   const target = { id: "target", name: "Target", type: "character", system: { health: {}, armor: {} } };
   const targetToken = { actor: target, center: { x: 100, y: 0 }, document: { elevation: 0 } };
