@@ -4,6 +4,7 @@ import { rollN5, rollP5 } from "../rules/dice.mjs";
 import { actorNameElement, postRollCard } from "../chat.mjs";
 import { combineSkillValues, skillRollFormula } from "../rules/skills.mjs";
 import { DEFAULT_AIM_ZONES, aimPenalty, aimTotalPct, formatAttackResult, isMeleeAttack, isUnarmedWeapon, resolveAttack, weaponForActor, weaponPresetFor } from "../rules/combat.mjs";
+import { buildAttackCard } from "../rules/roll-card.mjs";
 import { distanceToTarget } from "../rules/distance.mjs";
 import { formatDimensionMetersPerSecond, moveMetersPerSecondForDimension } from "../rules/dimensions.mjs";
 
@@ -533,12 +534,11 @@ export class SciFiCharacterSheet extends ActorSheet {
       aimZones
     });
 
-    const updateRequest = await game.scifiUrpg.updateActor(target, outcome.updateData, {
+    await game.scifiUrpg.updateActor(target, outcome.updateData, {
       token: targetToken,
-      shockDamageTotal: outcome.damage > 0 ? outcome.newTargetDamage : null
+      shockDamageTotal: outcome.damage > 0 ? outcome.newTargetDamage : null,
+      beforeApply: (updateRequest) => this._postAttackMessage(outcome, { updateRequest })
     });
-
-    await this._postAttackMessage(outcome, { updateRequest });
   }
 
   _onDragRollMacro(event) {
@@ -682,17 +682,9 @@ export class SciFiCharacterSheet extends ActorSheet {
     const targetName = actorNameElement(outcome.target);
     const escapedWeapon = foundry.utils.escapeHTML(outcome.weapon.name);
     const title = outcome.skillKey;
-    const formula = this._attackFormula(outcome);
-    const damageSection = outcome.hit ? this._attackResultSection({
-      title: "Damage",
-      formula: this._damageFormula(outcome),
-      result: outcome.damage
-    }) : "";
-    const armorLossSection = outcome.armorLoss && outcome.armorBefore !== outcome.armorAfter ? this._attackResultSection({
-      title: "Armor Loss",
-      formula: this._armorLossFormula(outcome),
-      result: fmtArmor(outcome.armorLoss.loss)
-    }) : "";
+    const card = buildAttackCard(outcome);
+    const damageSection = card.damage ? this._attackResultSection(card.damage) : "";
+    const armorLossSection = card.armorLoss ? this._attackResultSection(card.armorLoss) : "";
     const publicContent = `
       <div class="scifi-urpg-chat-card attack-card" data-scifi-urpg-roll-result="${Number(outcome.result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(this.actor.id)}">
         <h3>Attack</h3>
@@ -707,7 +699,7 @@ export class SciFiCharacterSheet extends ActorSheet {
       <div class="scifi-urpg-chat-card attack-card" data-scifi-urpg-roll-result="${Number(outcome.result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(this.actor.id)}">
         <h3>${foundry.utils.escapeHTML(title)}</h3>
         <p>${actorNameElement(this.actor)} attacks ${targetName} with ${escapedWeapon}</p>
-        <div class="roll-formula">${foundry.utils.escapeHTML(formula)}</div>
+        <div class="roll-formula">${foundry.utils.escapeHTML(card.attackFormula)}</div>
         <div class="roll-result">${formatAttackResult(outcome)}</div>
         ${damageSection}
         ${armorLossSection}
@@ -733,21 +725,6 @@ export class SciFiCharacterSheet extends ActorSheet {
     });
   }
 
-  _attackFormula(outcome) {
-    const parts = [`${outcome.skillVal} (skill)`];
-
-    if (outcome.damagePen > 0) parts.push(`- ${outcome.damagePen} (damage)`);
-    if (outcome.bonus > 0) parts.push(`+ ${outcome.bonus} (modifier)`);
-    if (outcome.bonus < 0) parts.push(`- ${Math.abs(outcome.bonus)} (modifier)`);
-    if (outcome.distPen < 0) parts.push(`- ${Math.abs(outcome.distPen).toFixed(1)} (distance ${outcome.distance.toFixed(1)} m)`);
-    if (outcome.aimPen > 0) parts.push(`- ${outcome.aimPen} (aim)`);
-
-    parts.push(`+ ${outcome.roll.plus}`);
-    parts.push(`- ${outcome.roll.minus}`);
-
-    return parts.join(" ");
-  }
-
   _attackResultSection({ title, formula, result }) {
     return `
       <section class="attack-result-section">
@@ -756,15 +733,6 @@ export class SciFiCharacterSheet extends ActorSheet {
         <div class="roll-result">${foundry.utils.escapeHTML(String(result))}</div>
       </section>
     `;
-  }
-
-  _damageFormula(outcome) {
-    return `max(0, round(round(${formatAttackResult(outcome)}/5) + ${outcome.weapon.bep} (weapon) - ${fmtArmor(outcome.armorBefore)} (${outcome.zone}))) (displayed inputs rounded)`;
-  }
-
-  _armorLossFormula(outcome) {
-    const { ruestungseffekt, trefferzonenPct, material, eaten } = outcome.armorLoss;
-    return `${ruestungseffekt}% (effect) / ${trefferzonenPct}% (zone) x ${material.lossNum}/${material.lossDenom} (loss) x ${fmtArmor(eaten)} (damage)`;
   }
 
   _onOpenDimensions(event) {

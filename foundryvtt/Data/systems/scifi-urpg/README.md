@@ -31,3 +31,13 @@ For quick Foundry testing, place or symlink this folder as:
 ```
 
 Then start Foundry and create a world using the `SciFi@URPG` system.
+
+## Tests
+
+Run the system's regression tests from the repository root:
+
+```sh
+node --test foundryvtt/Data/systems/scifi-urpg/test/*.test.mjs
+```
+
+GitHub Actions runs this command for every pushed commit and pull request.

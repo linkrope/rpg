@@ -7,6 +7,7 @@ import {
   fmtArmor
 } from "../constants.mjs";
 import { rollN5 } from "./dice.mjs";
+import { buildAttackCard } from "./roll-card.mjs";
 
 export const DEFAULT_AIM_ZONES = ["torso", "legs", "arms", "head"];
 
@@ -181,9 +182,10 @@ export function attackLogLines(outcome) {
     return lines;
   }
 
+  const card = buildAttackCard(outcome);
   lines.push({
     type: "damage",
-    text: `Damage: max(0, round(round(${formatAttackResult(outcome)}/5) + ${outcome.weapon.bep} (weapon) - ${fmtArmor(outcome.armorBefore)} (${outcome.zone}))) = ${outcome.damage} (displayed inputs rounded)`
+    text: `Damage: ${card.damage.formula} = ${card.damage.result}`
   });
 
   if (outcome.armorLoss && outcome.armorBefore !== outcome.armorAfter) {

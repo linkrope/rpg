@@ -1,4 +1,4 @@
-import { SCI_FI, displaySkillName, fmtArmor } from "./module/constants.mjs";
+import { SCI_FI, displaySkillName } from "./module/constants.mjs";
 import { SciFiActor } from "./module/documents/actor.mjs";
 import { SciFiCombat } from "./module/documents/combat.mjs";
 import { SciFiItem } from "./module/documents/item.mjs";
@@ -10,6 +10,7 @@ import { SciFiWeaponSheet } from "./module/sheets/weapon-sheet.mjs";
 import { rollN5, rollP5 } from "./module/rules/dice.mjs";
 import { combineSkillValues, skillRollFormula } from "./module/rules/skills.mjs";
 import { DEFAULT_AIM_ZONES, formatAttackResult, isMeleeAttack, isUnarmedWeapon, resolveAttack, weaponForActor } from "./module/rules/combat.mjs";
+import { buildAttackCard } from "./module/rules/roll-card.mjs";
 import { distanceToTarget } from "./module/rules/distance.mjs";
 import "./module/canvas/target-distance.mjs";
 import { resolveShock, shockFormula } from "./module/rules/shock.mjs";
@@ -328,12 +329,11 @@ async function attack({ actorId, bonus = 0, aimZones = DEFAULT_AIM_ZONES } = {})
     aimZones
   });
 
-  const updateRequest = await updateActor(target, outcome.updateData, {
+  await updateActor(target, outcome.updateData, {
     token: targetToken,
-    shockDamageTotal: outcome.damage > 0 ? outcome.newTargetDamage : null
+    shockDamageTotal: outcome.damage > 0 ? outcome.newTargetDamage : null,
+    beforeApply: (updateRequest) => postAttackMessage(actor, outcome, { updateRequest })
   });
-
-  await postAttackMessage(actor, outcome, { updateRequest });
 }
 
 function openDimensions({ actorId } = {}) {
@@ -356,8 +356,11 @@ async function repairArmor({ actorId } = {}) {
   ui.notifications.info(`${actor.name}'s armor has been repaired.`);
 }
 
-async function updateActor(actor, updateData, { token = null, shockDamageTotal = null } = {}) {
-  if (!actor || !Object.keys(updateData ?? {}).length) return null;
+async function updateActor(actor, updateData, { token = null, shockDamageTotal = null, beforeApply = null } = {}) {
+  if (!actor || !Object.keys(updateData ?? {}).length) {
+    await beforeApply?.(null);
+    return null;
+  }
 
   const shockDamage = normalizedShockDamage(shockDamageTotal);
   // A player attack's Shock roll is always resolved by the GM, even where the
@@ -365,6 +368,7 @@ async function updateActor(actor, updateData, { token = null, shockDamageTotal =
   const mustRelayShockToGM = shockDamage !== null && !game.user?.isGM;
 
   if (canUpdateActor(actor) && !mustRelayShockToGM) {
+    await beforeApply?.(null);
     await actor.update(updateData);
     if (shockDamage !== null) await performShockRoll(actor, { damageTotal: shockDamage });
     return null;
@@ -373,6 +377,7 @@ async function updateActor(actor, updateData, { token = null, shockDamageTotal =
   const activeGMs = activeGMUsers();
   if (!activeGMs.length) {
     ui.notifications.warn("Cannot apply target damage: no active GM is available.");
+    await beforeApply?.(null);
     return null;
   }
 
@@ -386,6 +391,7 @@ async function updateActor(actor, updateData, { token = null, shockDamageTotal =
     requesterId: game.user.id
   };
 
+  await beforeApply?.(request);
   game.socket.emit("system.scifi-urpg", {
     type: "updateActor",
     ...request
@@ -670,16 +676,9 @@ async function postAttackMessage(actor, outcome, { updateRequest = null } = {}) 
   const targetName = actorNameElement(outcome.target);
   const escapedWeapon = foundry.utils.escapeHTML(outcome.weapon.name);
   const title = outcome.skillKey;
-  const damageSection = outcome.hit ? attackResultSection({
-    title: "Damage",
-    formula: damageFormula(outcome),
-    result: outcome.damage
-  }) : "";
-  const armorLossSection = outcome.armorLoss && outcome.armorBefore !== outcome.armorAfter ? attackResultSection({
-    title: "Armor Loss",
-    formula: armorLossFormula(outcome),
-    result: fmtArmor(outcome.armorLoss.loss)
-  }) : "";
+  const card = buildAttackCard(outcome);
+  const damageSection = card.damage ? attackResultSection(card.damage) : "";
+  const armorLossSection = card.armorLoss ? attackResultSection(card.armorLoss) : "";
   const publicContent = `
     <div class="scifi-urpg-chat-card attack-card" data-scifi-urpg-roll-result="${Number(outcome.result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(actor.id)}">
       <h3>Attack</h3>
@@ -694,7 +693,7 @@ async function postAttackMessage(actor, outcome, { updateRequest = null } = {}) 
     <div class="scifi-urpg-chat-card attack-card" data-scifi-urpg-roll-result="${Number(outcome.result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(actor.id)}">
       <h3>${foundry.utils.escapeHTML(title)}</h3>
       <p>${actorNameElement(actor)} attacks ${targetName} with ${escapedWeapon}</p>
-      <div class="roll-formula">${foundry.utils.escapeHTML(attackFormula(outcome))}</div>
+      <div class="roll-formula">${foundry.utils.escapeHTML(card.attackFormula)}</div>
       <div class="roll-result">${formatAttackResult(outcome)}</div>
       ${damageSection}
       ${armorLossSection}
@@ -720,21 +719,6 @@ async function postAttackMessage(actor, outcome, { updateRequest = null } = {}) 
   });
 }
 
-function attackFormula(outcome) {
-  const parts = [`${outcome.skillVal} (skill)`];
-
-  if (outcome.damagePen > 0) parts.push(`- ${outcome.damagePen} (damage)`);
-  if (outcome.bonus > 0) parts.push(`+ ${outcome.bonus} (modifier)`);
-  if (outcome.bonus < 0) parts.push(`- ${Math.abs(outcome.bonus)} (modifier)`);
-  if (outcome.distPen < 0) parts.push(`- ${Math.abs(outcome.distPen).toFixed(1)} (distance ${outcome.distance.toFixed(1)} m)`);
-  if (outcome.aimPen > 0) parts.push(`- ${outcome.aimPen} (aim)`);
-
-  parts.push(`+ ${outcome.roll.plus}`);
-  parts.push(`- ${outcome.roll.minus}`);
-
-  return parts.join(" ");
-}
-
 function attackResultSection({ title, formula, result }) {
   return `
     <section class="attack-result-section">
@@ -743,15 +727,6 @@ function attackResultSection({ title, formula, result }) {
       <div class="roll-result">${foundry.utils.escapeHTML(String(result))}</div>
     </section>
   `;
-}
-
-function damageFormula(outcome) {
-  return `max(0, round(round(${formatAttackResult(outcome)}/5) + ${outcome.weapon.bep} (weapon) - ${fmtArmor(outcome.armorBefore)} (${outcome.zone}))) (displayed inputs rounded)`;
-}
-
-function armorLossFormula(outcome) {
-  const { ruestungseffekt, trefferzonenPct, material, eaten } = outcome.armorLoss;
-  return `${ruestungseffekt}% (effect) / ${trefferzonenPct}% (zone) x ${material.lossNum}/${material.lossDenom} (loss) x ${fmtArmor(eaten)} (damage)`;
 }
 
 function numberOrZero(value) {
