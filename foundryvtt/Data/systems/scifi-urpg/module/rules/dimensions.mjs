@@ -14,11 +14,7 @@ export function buildDimensionRows(value) {
   return [
     {
       label: "Accuracy",
-      value: `${Math.round(100 * (1 - 1 / (2.5 * 2 ** v)))} % - ${Math.round(100 / (1 - 1 / (2.5 * 2 ** v)))} %`
-    },
-    {
-      label: "Combat",
-      value: `${formatDimensionSeconds(initiativeSecondsForDimension(current))} s`
+      value: `${Math.round(100 * (1 - 1 / (2 * 2 ** v)))} % - ${Math.round(100 / (1 - 1 / (2 * 2 ** v)))} %`
     },
     {
       label: "Healing",
@@ -30,19 +26,23 @@ export function buildDimensionRows(value) {
     },
     {
       label: "Move",
-      value: `${formatDimensionMetersPerSecond(moveMetersPerSecondForDimension(current))} m/s = ${Math.round(144 * 2 ** (v / 2)) / 16} km/h`
+      value: `${formatDimensionMetersPerSecond(moveMetersPerSecondForDimension(current))} m/s = ${Math.round(72 * 2 ** (v / 2)) / 8} km/h`
     },
     {
-      label: "Speed",
-      value: `${Math.round(400 * 2 ** -v)} %`
+      label: "Time/Speed",
+      value: `${Math.round(100 * 2 ** -v)} %`
     },
     {
       label: "Yield",
       value: `${Math.round(8 * 2 ** v) / 8}`
     },
     {
-      label: "Yield (T)",
-      value: `${Math.round(8 * 2 ** -v) / 8}`
+      label: "Range",
+      value: `${Math.max(5, Math.round(5 * 2 ** (-(10 / 6) * v)))} m`
+    },
+    {
+      label: "Accident",
+      value: `${Math.max(0, Math.min(100, -20 * v))} %`
     }
   ];
 }

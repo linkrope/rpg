@@ -45,8 +45,8 @@ export class SciFiDimensionsApp extends Application {
       template: "systems/scifi-urpg/templates/apps/dimensions-app.hbs",
       title: "Dimensions",
       width: 430,
-      height: 390,
-      resizable: false
+      height: 500,
+      resizable: true
     });
   }
 

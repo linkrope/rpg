@@ -933,13 +933,13 @@
           <table class="dim-table">
             <tbody>
               <tr><td>Accuracy</td><td id="dim1">-</td></tr>
-              <tr><td>Combat</td><td id="dim2">-</td></tr>
-              <tr><td>Healing</td><td id="dim3">-</td></tr>
-              <tr><td>Initiative</td><td id="dim4">-</td></tr>
-              <tr><td>Move</td><td id="dim5">-</td></tr>
-              <tr><td>Speed</td><td id="dim6">-</td></tr>
-              <tr><td>Yield</td><td id="dim7">-</td></tr>
-              <tr><td>Yield (T)</td><td id="dim8">-</td></tr>
+              <tr><td>Healing</td><td id="dim2">-</td></tr>
+              <tr><td>Initiative</td><td id="dim3">-</td></tr>
+              <tr><td>Move</td><td id="dim4">-</td></tr>
+              <tr><td>Time/Speed</td><td id="dim5">-</td></tr>
+              <tr><td>Yield</td><td id="dim6">-</td></tr>
+              <tr><td>Range</td><td id="dim7">-</td></tr>
+              <tr><td>Accident</td><td id="dim8">-</td></tr>
             </tbody>
           </table>
         </div>
@@ -1607,14 +1607,14 @@ function updateDimensionsFromSlider() {
   const v = current / 10;
 
   dim0.textContent = String(current);
-  dim1.textContent = `${Math.round(100 * (1 - 1 / (2.5 * 2 ** v)))} % - ${Math.round(100 / (1 - 1 / (2.5 * 2 ** v)))} %`;
-  dim2.textContent = `${Math.round(32 * 2 ** -v) / 8} s`;
-  dim3.textContent = `${Math.round(8 * 2 ** -v) / 8} day/pt`;
-  dim4.textContent = `${Math.round(32 * 2 ** -v) / 8} s`;
-  dim5.textContent = `${Math.round(40 * 2 ** (v / 2)) / 16} m/s = ${Math.round(144 * 2 ** (v / 2)) / 16} km/h`;
-  dim6.textContent = `${Math.round(400 * 2 ** -v)} %`;
-  dim7.textContent = `${Math.round(8 * 2 ** v) / 8}`;
-  dim8.textContent = `${Math.round(8 * 2 ** -v) / 8}`;
+  dim1.textContent = `${Math.round(100 * (1 - 1 / (2 * 2 ** v)))} % - ${Math.round(100 / (1 - 1 / (2 * 2 ** v)))} %`;
+  dim2.textContent = `${Math.round(8 * 2 ** -v) / 8} day/pt`;
+  dim3.textContent = `${Math.round(32 * 2 ** -v) / 8} s`;
+  dim4.textContent = `${Math.round(20 * 2 ** (v / 2)) / 8} m/s = ${Math.round(72 * 2 ** (v / 2)) / 8} km/h`;
+  dim5.textContent = `${Math.round(100 * 2 ** -v)} %`;
+  dim6.textContent = `${Math.round(8 * 2 ** v) / 8}`;
+  dim7.textContent = `${Math.max(5, Math.round(5 * 2 ** -(10 / 6 * v)))} m`;
+  dim8.textContent = `${Math.max(0, Math.min(100, -20 * v))} %`;
 }
 
 function setDimensionsValue(value, syncRollResult = true) {
