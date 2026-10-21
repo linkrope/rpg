@@ -264,11 +264,6 @@ async function rollSkill({ actorId, skillKey } = {}) {
   const actor = actorForMacro(actorId);
   if (!actor || !skillKey) return;
 
-  if (skillKey === "Initiative") {
-    await actor.rollInitiative({ createCombatants: true, rerollInitiative: true });
-    return;
-  }
-
   const selected = rollParticipants(actor)
     .map((participant) => skillContribution(participant, skillKey))
     .filter(Boolean);

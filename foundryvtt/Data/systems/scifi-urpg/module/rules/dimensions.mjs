@@ -14,7 +14,7 @@ export function buildDimensionRows(value) {
   return [
     {
       label: "Accuracy",
-      value: `${Math.round(100 * (1 - 1 / (2 * 2 ** v)))} % - ${Math.round(100 / (1 - 1 / (2 * 2 ** v)))} %`
+      value: `${Math.max(0, Math.round(100 * (1 - 1 / (2 ** v))))} % – ${v > 0 ? Math.round(100 / (1 - 1 / (2 ** v))) : "∞"} %`
     },
     {
       label: "Healing",
@@ -54,7 +54,7 @@ export function initiativeSecondsForDimension(value) {
 
 export function moveMetersPerSecondForDimension(value) {
   const v = clampDimension(value) / 10;
-  return Math.round(40 * 2 ** (v / 2)) / 16;
+  return Math.round(20 * 2 ** (v / 2)) / 8;
 }
 
 export function formatDimensionSeconds(seconds) {

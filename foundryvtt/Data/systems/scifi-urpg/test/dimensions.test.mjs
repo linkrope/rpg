@@ -13,7 +13,7 @@ test("dimensions use the calculator's categories and baseline formulas", () => {
     "Accuracy", "Healing", "Initiative", "Move", "Time/Speed", "Yield", "Range", "Accident"
   ]);
   assert.deepEqual(rows, {
-    Accuracy: "50 % - 200 %",
+    Accuracy: "0 % – ∞ %",
     Healing: "1 day/pt",
     Initiative: "4 s",
     Move: "2.500 m/s = 9 km/h",
@@ -24,9 +24,9 @@ test("dimensions use the calculator's categories and baseline formulas", () => {
   });
 });
 
-test("dimensions calculate range and accident according to the calculator", () => {
+test("dimensions calculate Accuracy, range, and accident according to the calculator", () => {
   assert.deepEqual(dimensionsAt(-20), {
-    Accuracy: "-100 % - -100 %",
+    Accuracy: "0 % – ∞ %",
     Healing: "4 day/pt",
     Initiative: "16 s",
     Move: "1.250 m/s = 4.5 km/h",
@@ -35,4 +35,12 @@ test("dimensions calculate range and accident according to the calculator", () =
     Range: "50 m",
     Accident: "40 %"
   });
+});
+
+test("dimensions use the calculator's finite Accuracy ceiling above zero", () => {
+  assert.equal(dimensionsAt(20).Accuracy, "75 % – 133 %");
+});
+
+test("dimensions use the calculator's Move rounding", () => {
+  assert.equal(dimensionsAt(-50).Move, "0.500 m/s = 1.625 km/h");
 });

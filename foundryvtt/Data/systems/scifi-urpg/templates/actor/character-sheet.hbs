@@ -13,14 +13,10 @@
         {{/if}}
       </div>
       <div class="meta-row character-main-row">
-        <label>
+        <div class="equipped-weapon-display">
           <span>Weapon</span>
-          <select name="system.weapon.selected">
-            {{#each weaponOptions}}
-              <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
-            {{/each}}
-          </select>
-        </label>
+          <strong>{{attack.weapon.name}}</strong>
+        </div>
         {{#if playMode}}
           <label>
             <span>Modifier</span>
@@ -44,7 +40,7 @@
     <a class="item" data-tab="armor">Armor</a>
     <a class="item" data-tab="talents">Talente</a>
     <a class="item" data-tab="notes">Notes</a>
-    <a class="item" data-tab="aim">Aim</a>
+    <a class="item aim-tab-link" data-tab="aim">Aim{{#if attack.hasAimPenalty}} <span title="Aiming penalty">−{{attack.aimPen}}</span>{{/if}}</a>
   </nav>
 
   <section class="sheet-body">
@@ -122,12 +118,14 @@
       </div>
       <div class="weapons-list">
         {{#each weapons}}
-          <article class="weapon-row">
-            <img src="{{img}}" alt="">
-            <div class="weapon-row-details">
-              <strong>{{name}}</strong>
-              <span>BEP {{bep}} · Range {{rangeModifier}}{{#if clip}} · [{{clip}}]{{/if}} · {{hand}}-Hand</span>
-            </div>
+          <article class="weapon-row{{#if equipped}} equipped{{/if}}">
+            <button type="button" class="weapon-row-select" data-action="equip-weapon" data-weapon-id="{{selectionId}}" aria-pressed="{{#if equipped}}true{{else}}false{{/if}}" title="Equip {{name}}">
+              <img src="{{img}}" alt="">
+              <span class="weapon-row-details">
+                <strong>{{name}}</strong>
+                <span>BEP {{bep}} · Range {{rangeModifier}}{{#if clip}} · [{{clip}}]{{/if}} · {{hand}}-Hand</span>
+              </span>
+            </button>
             {{#unless isUnarmed}}
               <div class="weapon-row-actions">
                 <button type="button" data-action="edit-weapon" data-item-id="{{id}}">Edit</button>

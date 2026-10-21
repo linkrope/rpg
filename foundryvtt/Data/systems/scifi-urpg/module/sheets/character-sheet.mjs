@@ -134,27 +134,33 @@ export class SciFiCharacterSheet extends ActorSheet {
         })
       }))
     }));
-    context.weaponOptions = this._buildWeaponOptions();
+    const selectedWeaponId = system.weapon?.selected ?? "Unarmed";
+    const hasSelectedWeapon = this.actor.items.filter((item) => item.type === "weapon" && item.id === selectedWeaponId).length > 0;
+    const equippedWeaponId = hasSelectedWeapon ? selectedWeaponId : "Unarmed";
     const unarmed = UNARMED_WEAPON;
     context.weapons = [{
+      selectionId: "Unarmed",
       name: unarmed.name,
       img: "systems/scifi-urpg/assets/icons/fist.webp",
       bep: unarmed.bep,
       rangeModifier: formatRangeModifier(unarmed.rangeModifier),
       clip: unarmed.clip,
       hand: unarmed.hand,
-      isUnarmed: true
+      isUnarmed: true,
+      equipped: equippedWeaponId === "Unarmed"
     }, ...this.actor.items
       .filter((item) => item.type === "weapon")
       .map((item) => ({
         id: item.id,
+        selectionId: item.id,
         name: item.name,
         img: item.img,
         bep: item.system.bep,
         rangeModifier: formatRangeModifier(item.system.rangeModifier),
         clip: item.system.clip,
         hand: item.system.hand,
-        isUnarmed: false
+        isUnarmed: false,
+        equipped: equippedWeaponId === item.id
       }))];
     context.attack = this._buildAttackContext(system);
     context.damageInput = inputNumber(system.health?.damage);
@@ -201,18 +207,7 @@ export class SciFiCharacterSheet extends ActorSheet {
     html.find("[data-action='toggle-notes-edit']").on("click", this._onToggleNotesEdit.bind(this));
     html.find("[data-action='edit-weapon']").on("click", this._onEditWeapon.bind(this));
     html.find("[data-action='delete-weapon']").on("click", this._onDeleteWeapon.bind(this));
-  }
-
-  _buildWeaponOptions() {
-    const selected = this.actor.system.weapon?.selected ?? "Unarmed";
-    const hasSelectedItem = this.actor.items.filter((item) => item.type === "weapon" && item.id === selected).length > 0;
-    const options = [{ value: "Unarmed", label: "Unarmed", selected: !hasSelectedItem }];
-
-    for (const item of this.actor.items.filter((entry) => entry.type === "weapon")) {
-      options.push({ value: item.id, label: item.name, selected: selected === item.id });
-    }
-
-    return options;
+    html.find("[data-action='equip-weapon']").on("click", this._onEquipWeapon.bind(this));
   }
 
   _buildActiveArmorZone(armor) {
@@ -257,6 +252,7 @@ export class SciFiCharacterSheet extends ActorSheet {
       bonusInput: inputNumber(this._attackBonus),
       aimPct,
       aimPen,
+      hasAimPenalty: aimPen > 0,
       aimSummary: aimPen > 0 ? `${aimPct}% / -${aimPen}` : `${aimPct}%`,
       zoneState: {
         torso: this._attackAimZones.has("torso"),
@@ -397,11 +393,6 @@ export class SciFiCharacterSheet extends ActorSheet {
   }
 
   async rollSkill(key) {
-    if (key === "Initiative") {
-      await this.actor.rollInitiative({ createCombatants: true, rerollInitiative: true });
-      return;
-    }
-
     const participants = this._getCombinedRollParticipants();
     const selected = participants
       .map((actor) => this._skillContributionForActor(actor, key))
@@ -446,11 +437,6 @@ export class SciFiCharacterSheet extends ActorSheet {
 
     if (!selected.length) {
       ui.notifications.warn("Select one or more skills first.");
-      return;
-    }
-
-    if (selected.length === 1 && selected[0].actorId === this.actor.id && selected[0].key === "Initiative") {
-      await this.actor.rollInitiative({ createCombatants: true, rerollInitiative: true });
       return;
     }
 
@@ -818,6 +804,15 @@ export class SciFiCharacterSheet extends ActorSheet {
   _onEditWeapon(event) {
     event.preventDefault();
     this._weaponFromEvent(event)?.sheet.render(true);
+  }
+
+  async _onEquipWeapon(event) {
+    event.preventDefault();
+
+    const selected = event.currentTarget.dataset.weaponId;
+    if (!selected || selected === this.actor.system.weapon?.selected) return;
+
+    await this.actor.update({ "system.weapon.selected": selected });
   }
 
   async _onDeleteWeapon(event) {

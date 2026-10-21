@@ -13,7 +13,8 @@ export async function postRollCard(actor, {
   flags,
   actorIds = [],
   messageMode = null,
-  messageOptions = {}
+  messageOptions = {},
+  whisperRecipients = null
 } = {}) {
   // Hide NPC Names replaces every matching text node in a message whose speaker
   // is the NPC. That corrupts rolls when an NPC is named "5", for example.
@@ -26,6 +27,11 @@ export async function postRollCard(actor, {
     content,
     flags: rollCardFlags(actor, flags, {}, actorIds)
   };
+
+  if (whisperRecipients) {
+    await ChatMessage.create({ ...messageData, whisper: whisperRecipients });
+    return;
+  }
 
   const resolvedMessageMode = messageMode ?? selectedMessageMode();
   if (resolvedMessageMode !== "public") {
