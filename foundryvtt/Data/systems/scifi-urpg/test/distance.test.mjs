@@ -1,15 +1,36 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { formatAttackResult, isMeleeAttack, rangePenalty, resolveAttack, weaponPresetFor } from "../module/rules/combat.mjs";
+import { formatAttackResult, isMeleeAttack, primarilyRangedBonus, rangePenalty, resolveAttack, weaponForActor } from "../module/rules/combat.mjs";
 import { tokenDistance } from "../module/rules/distance.mjs";
+import { buildAttackCard } from "../module/rules/roll-card.mjs";
 
-test("range modifier is continuous and reaches the specified doubling points", () => {
-  const weapon = { range: "10m" };
-  for (const [distance, expected] of [[0, 0], [10, -6], [30, -12], [70, -18], [150, -24]]) {
+test("range penalty uses the five-metre curve and clamps positive modifiers", () => {
+  const weapon = { rangeModifier: 0 };
+  for (const [distance, expected] of [[0, 0], [5, 0], [10, -6], [20, -12], [40, -18]]) {
     assert.equal(rangePenalty(weapon, distance), expected);
   }
-  assert.ok(Math.abs(rangePenalty(weapon, 10 * (2 ** (1 / 6) - 1)) + 1) < 1e-12);
-  assert.equal(rangePenalty({ range: null }, 20), 0);
+  assert.equal(rangePenalty({ rangeModifier: 2 }, 10), -4);
+  assert.equal(rangePenalty({ rangeModifier: 20 }, 10), 0);
+  assert.equal(rangePenalty({ rangeModifier: 0 }, 4), 0);
+});
+
+test("a missing equipped weapon item falls back to unarmed", () => {
+  const weapon = weaponForActor({
+    system: { weapon: { selected: "Heavy Gun" } },
+    items: new Map()
+  });
+
+  assert.deepEqual(weapon, {
+    name: "Unarmed",
+    skill: "Waffenlos",
+    weight: null,
+    hand: 2,
+    bep: 2,
+    rangeModifier: 0,
+    clip: null,
+    ammo: null,
+    nozzle: null
+  });
 });
 
 test("distance includes elevation without rounding and attacks apply the full modifier", () => {
@@ -21,41 +42,64 @@ test("distance includes elevation without rounding and attacks apply the full mo
   target.center.y = 100;
   const distance = tokenDistance(source, target, scene);
   assert.equal(distance, Math.sqrt(10));
-  const weapon = { type: "weapon", name: "Test", system: { range: 10, skill: "Test", bep: 1 } };
+  const weapon = { type: "weapon", name: "Test", system: { rangeModifier: 0, skill: "Test", bep: 1 } };
   const attacker = { system: { weapon: { selected: "w" }, skills: { Test: { value: 20 } }, health: {} }, items: new Map([["w", weapon]]) };
   const originalRandom = Math.random;
   try {
     Math.random = () => 0; // Both n5 rolls terminate at zero.
     const outcome = resolveAttack({ attacker, target: { system: { health: {}, armor: {} } }, skillKey: "Test", distance });
-    assert.equal(outcome.result, 20 + rangePenalty({ range: "10m" }, distance));
-    assert.notEqual(outcome.distPen, Number(outcome.distPen.toFixed(1)));
+    assert.equal(outcome.result, 20 + rangePenalty({ rangeModifier: 0 }, distance));
+    assert.equal(outcome.distPen, 0);
     assert.equal(formatAttackResult(outcome), outcome.result.toFixed(1));
   } finally {
     Math.random = originalRandom;
   }
 });
 
-test("short and long weapons use melee at displayed 1.0 m and throwing penalties beyond it", () => {
+test("weapons without a clip use melee at displayed 1.0 m", () => {
   const originalRandom = Math.random;
   try {
     Math.random = () => 0;
-    for (const name of ["Short Weapon", "Long Weapon"]) {
-      const preset = weaponPresetFor(name);
-      const attacker = { system: { weapon: { selected: name }, skills: { [preset.skill]: { value: 13 } }, health: {} }, items: new Map() };
+    for (const weapon of [
+      { type: "weapon", name: "Short Weapon", system: { skill: "Kurzwaffen", bep: 5, clip: null, rangeModifier: 0 } },
+      { type: "weapon", name: "Long Weapon", system: { skill: "Langwaffen", bep: 7, clip: null, rangeModifier: 0 } }
+    ]) {
+      const attacker = { system: { weapon: { selected: "weapon" }, skills: { [weapon.system.skill]: { value: 13 } }, health: {} }, items: new Map([["weapon", weapon]]) };
       const target = { system: { health: {}, armor: {} } };
-      const melee = resolveAttack({ attacker, target, skillKey: preset.skill, distance: 1.04 });
-      const thrown = resolveAttack({ attacker, target, skillKey: preset.skill, distance: 1.06 });
-      assert.equal(isMeleeAttack(preset, 1), true);
-      assert.equal(isMeleeAttack(preset, 1.04), true);
-      assert.equal(isMeleeAttack(preset, 1.06), false);
+      const melee = resolveAttack({ attacker, target, skillKey: weapon.system.skill, distance: 1.04 });
+      const thrown = resolveAttack({ attacker, target, skillKey: weapon.system.skill, distance: 1.06 });
+      assert.equal(isMeleeAttack(weapon.system, 1), true);
+      assert.equal(isMeleeAttack(weapon.system, 1.04), true);
+      assert.equal(isMeleeAttack(weapon.system, 1.06), false);
       assert.equal(melee.distPen, 0);
       assert.equal(melee.result, 13);
-      assert.equal(melee.damage, 3 + preset.bep);
-      assert.ok(thrown.distPen < 0);
-      assert.equal(thrown.result, 13 + thrown.distPen);
-      assert.equal(thrown.damage, 2 + preset.bep);
+      assert.equal(melee.damage, 3 + weapon.system.bep);
+      assert.equal(thrown.distPen, 0);
+      assert.equal(thrown.result, 13);
+      assert.equal(thrown.damage, 3 + weapon.system.bep);
     }
-    assert.ok(rangePenalty({ skill: "Geschosswaffen", range: "10m" }, 1) < 0);
+    assert.equal(isMeleeAttack({ skill: "Geschosswaffen", clip: null }, 1), true);
+    assert.equal(isMeleeAttack({ skill: "Kurzwaffen", clip: 1 }, 1), false);
+    assert.equal(rangePenalty({ skill: "Geschosswaffen", rangeModifier: 0 }, 10), -6);
+  } finally {
+    Math.random = originalRandom;
+  }
+});
+
+test("primarily ranged weapons add ten to the attack", () => {
+  assert.equal(primarilyRangedBonus({ nozzle: "10m/s" }), 0);
+  assert.equal(primarilyRangedBonus({ nozzle: "11m/s" }), 10);
+  assert.equal(primarilyRangedBonus({ nozzle: "Light" }), 10);
+
+  const weapon = { type: "weapon", name: "Test", system: { clip: 1, nozzle: "Light", rangeModifier: 0, skill: "Test", bep: 1 } };
+  const attacker = { system: { weapon: { selected: "w" }, skills: { Test: { value: 20 } }, health: {} }, items: new Map([["w", weapon]]) };
+  const originalRandom = Math.random;
+  try {
+    Math.random = () => 0;
+    const outcome = resolveAttack({ attacker, target: { system: { health: {}, armor: {} } }, skillKey: "Test", distance: 5 });
+    assert.equal(outcome.primarilyRangedBonus, 10);
+    assert.equal(outcome.result, 30);
+    assert.match(buildAttackCard(outcome).attackFormula, /\+ 10 \(ranged\)/);
   } finally {
     Math.random = originalRandom;
   }
@@ -83,7 +127,7 @@ test("target badges redraw on movement, elevation, selection, and weapon changes
   }
   globalThis.PIXI = { Container, Graphics };
   globalThis.foundry = { canvas: { containers: { PreciseText: Text } } };
-  const weapon = { type: "weapon", name: "Test", system: { range: 10, skill: "Test" } };
+  const weapon = { type: "weapon", name: "Test", system: { rangeModifier: 0, skill: "Test" } };
   const actor = { type: "character", system: { weapon: { selected: "w" } }, items: new Map([["w", weapon]]) };
   const source = { actor, center: { x: 0, y: 0 }, document: { elevation: 0 } };
   const target = { actor: { type: "character" }, visible: true, center: { x: 300, y: 0 }, h: 100, document: { elevation: 4 } };
@@ -94,19 +138,19 @@ test("target badges redraw on movement, elevation, selection, and weapon changes
   await import("../module/canvas/target-distance.mjs");
   hooks.get("canvasReady")(); flush();
   const label = () => parent.children[0].children[0]?.children[1]?.text;
-  assert.equal(label(), `5.0 m · ${rangePenalty({ range: 10 }, 5).toFixed(1)}`);
+  assert.equal(label(), `5.0 m · ${rangePenalty({ rangeModifier: 0 }, 5).toFixed(1)}`);
   source.center.x = 100;
   hooks.get("refreshToken")(source); flush();
-  assert.equal(label(), `${Math.sqrt(20).toFixed(1)} m · ${rangePenalty({ range: 10 }, Math.sqrt(20)).toFixed(1)}`);
+  assert.equal(label(), `${Math.sqrt(20).toFixed(1)} m · ${rangePenalty({ rangeModifier: 0 }, Math.sqrt(20)).toFixed(1)}`);
   target.center.x = 500;
   hooks.get("updateToken")(target.document); flush();
-  assert.equal(label(), `${Math.sqrt(32).toFixed(1)} m · ${rangePenalty({ range: 10 }, Math.sqrt(32)).toFixed(1)}`);
+  assert.equal(label(), `${Math.sqrt(32).toFixed(1)} m · ${rangePenalty({ rangeModifier: 0 }, Math.sqrt(32)).toFixed(1)}`);
   target.document.elevation = 0;
   hooks.get("updateToken")(target.document); flush();
-  assert.equal(label(), `4.0 m · ${rangePenalty({ range: 10 }, 4).toFixed(1)}`);
-  weapon.system.range = 20;
+  assert.equal(label(), `4.0 m · ${rangePenalty({ rangeModifier: 0 }, 4).toFixed(1)}`);
+  weapon.system.rangeModifier = -2;
   hooks.get("updateItem")(weapon); flush();
-  assert.equal(label(), `4.0 m · ${rangePenalty({ range: 20 }, 4).toFixed(1)}`);
+  assert.equal(label(), `4.0 m · ${rangePenalty({ rangeModifier: -2 }, 4).toFixed(1)}`);
   weapon.system.skill = "Kurzwaffen";
   target.center.x = 200;
   hooks.get("updateItem")(weapon); flush();
@@ -116,7 +160,7 @@ test("target badges redraw on movement, elevation, selection, and weapon changes
   assert.equal(label(), "1.0 m · Melee");
   target.center.x = 206;
   hooks.get("refreshToken")(target); flush();
-  assert.equal(label(), `1.1 m · ${rangePenalty({ skill: "Kurzwaffen", range: 20 }, 1.06).toFixed(1)}`);
+  assert.equal(label(), `1.1 m · ${rangePenalty({ skill: "Kurzwaffen", rangeModifier: -2 }, 1.06).toFixed(1)}`);
   actor.system.weapon.selected = "Unarmed";
   target.center.x = 200;
   hooks.get("updateActor")(actor); flush();

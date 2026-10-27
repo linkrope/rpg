@@ -25,8 +25,7 @@ export class CharacterDataModel extends foundry.abstract.TypeDataModel {
       health: new fields.SchemaField({
         value: new fields.NumberField({ required: true, nullable: false, initial: 20, min: 0, max: 20 }),
         max: new fields.NumberField({ required: true, nullable: false, initial: 20, min: 1 }),
-        damage: new fields.NumberField({ required: true, nullable: false, integer: true, initial: 0, min: 0 }),
-        unconscious: new fields.BooleanField({ required: true, nullable: false, initial: false })
+        damage: new fields.NumberField({ required: true, nullable: false, integer: true, initial: 0, min: 0 })
       }),
       skillPoints: new fields.SchemaField({
         Allgemein: new fields.NumberField({ required: true, nullable: false, integer: true, initial: 0, min: 0 }),
@@ -73,6 +72,8 @@ export class CharacterDataModel extends foundry.abstract.TypeDataModel {
         damage: Math.round((1 - health) * 20)
       };
     }
+
+    if (source.health?.unconscious !== undefined) delete source.health.unconscious;
 
     if (source.talents) {
       source.talents = source.talents.map((talent) => ({
@@ -132,12 +133,20 @@ export class WeaponDataModel extends foundry.abstract.TypeDataModel {
       weight: new fields.StringField({ required: false, nullable: false, blank: true, initial: "" }),
       hand: new fields.NumberField({ required: true, nullable: false, integer: true, initial: 1, min: 1 }),
       bep: new fields.NumberField({ required: true, nullable: false, initial: 0, min: 0 }),
-      range: new fields.NumberField({ required: false, nullable: true, initial: null, min: 0 }),
-      rate: new fields.NumberField({ required: true, nullable: false, initial: 1, min: 0 }),
+      rangeModifier: new fields.NumberField({ required: true, nullable: false, initial: 0 }),
       clip: new fields.NumberField({ required: false, nullable: true, integer: true, initial: null, min: 0 }),
       ammo: new fields.StringField({ required: false, nullable: false, blank: true, initial: "" }),
       nozzle: new fields.StringField({ required: false, nullable: false, blank: true, initial: "" })
     };
+  }
+
+  static migrateData(source) {
+    // A metre range cannot be converted to a single modifier because the old
+    // and new range-penalty curves differ. Existing weapons become neutral.
+    if (source.rangeModifier === undefined) source.rangeModifier = 0;
+    delete source.range;
+    delete source.rate;
+    return super.migrateData(source);
   }
 }
 

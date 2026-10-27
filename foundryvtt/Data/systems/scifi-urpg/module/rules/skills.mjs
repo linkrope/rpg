@@ -20,16 +20,22 @@ export function skillRollTotal(base, damage, n5) {
 }
 
 /**
- * Make the damage penalty visible rather than folding it silently into a
- * contribution's combined value. The ⊕ notation matches combined skill rolls.
+ * A single skill roll shows its damage penalty. For combined rolls, expose
+ * only the calculated combined skill value so the individual contributions
+ * remain private.
  */
 export function skillRollFormula(contributions, roll) {
+  if (contributions.length > 1) {
+    const combinedValue = combineSkillValues(contributions.map((contribution) => contribution.adjustedValue));
+    return `${combinedValue} + ${Number(roll.plus)} - ${Number(roll.minus)}`;
+  }
+
   const terms = contributions.map((contribution) => {
     const value = Number(contribution.value) || 0;
     const damage = Math.max(0, Number(contribution.damage) || 0);
     return damage > 0 ? `${value} - ${damage} (damage)` : String(value);
   });
-  const base = terms.length > 1 ? terms.map((term) => `(${term})`).join(" ⊕ ") : terms[0] ?? "0";
+  const base = terms[0] ?? "0";
 
   return `${base} + ${Number(roll.plus)} - ${Number(roll.minus)}`;
 }

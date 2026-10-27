@@ -26,7 +26,6 @@ function draw() {
   if (controlled.length !== 1 || controlled[0].actor?.type !== "character") return;
   const source = controlled[0];
   const weapon = weaponForActor(source.actor);
-  const reach = Math.max(1, Number(canvas.scene?.grid?.distance ?? 1) || 1);
 
   for (const target of game.user?.targets ?? []) {
     if (target === source || !target.visible || target.actor?.type !== "character") continue;
@@ -34,9 +33,7 @@ function draw() {
     if (distance === null) continue;
     const unarmed = isUnarmedWeapon(weapon);
     const modifier = unarmed ? isMeleeAttack(weapon, distance) ? "Melee" : "−∞"
-      : isMeleeAttack(weapon, distance) ? "Melee" : weapon.range
-      ? rangePenalty(weapon, distance).toFixed(1)
-      : distance > reach ? "Out of reach" : "In reach";
+      : isMeleeAttack(weapon, distance) ? "Melee" : rangePenalty(weapon, distance).toFixed(1);
     const text = `${distance.toFixed(1)} m · ${modifier}`;
     const Text = foundry.canvas.containers.PreciseText;
     const label = new Text(text, Text.getTextStyle({ fontFamily: "Signika", fontSize: 14, fill: 0xffffff, strokeThickness: 3 }));

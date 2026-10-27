@@ -1,9 +1,10 @@
-import { ARMOR_MATERIALS, ARMOR_ZONE_DEFS, BASE_HIT_ZONE_PCT, SKILL_COLUMN_BY_KEY, buildArmorMaterials, buildArmorZones, fmtArmor, buildSkillColumns, skillChangeCost, stepCostForLevel, WEAPON_OPTIONS } from "../constants.mjs";
+import { ARMOR_MATERIALS, ARMOR_ZONE_DEFS, BASE_HIT_ZONE_PCT, SKILL_COLUMN_BY_KEY, buildArmorMaterials, buildArmorZones, fmtArmor, buildSkillColumns, skillChangeCost, stepCostForLevel } from "../constants.mjs";
 import { SciFiDimensionsApp } from "../apps/dimensions-app.mjs";
 import { rollN5, rollP5 } from "../rules/dice.mjs";
 import { actorNameElement, postRollCard } from "../chat.mjs";
 import { combineSkillValues, skillRollFormula } from "../rules/skills.mjs";
-import { DEFAULT_AIM_ZONES, aimPenalty, aimTotalPct, formatAttackResult, isMeleeAttack, isUnarmedWeapon, resolveAttack, weaponForActor, weaponPresetFor } from "../rules/combat.mjs";
+import { DEFAULT_AIM_ZONES, aimPenalty, aimTotalPct, formatAttackResult, isMeleeAttack, isUnarmedWeapon, resolveAttack, UNARMED_WEAPON, weaponForActor } from "../rules/combat.mjs";
+import { buildAttackCard } from "../rules/roll-card.mjs";
 import { distanceToTarget } from "../rules/distance.mjs";
 import { formatDimensionMetersPerSecond, moveMetersPerSecondForDimension } from "../rules/dimensions.mjs";
 
@@ -21,6 +22,12 @@ function armorNumber(value) {
 
 function displayArmor(value) {
   return numberOrZero(value) === 0 ? "-" : fmtArmor(value ?? 0);
+}
+
+function formatRangeModifier(value) {
+  const modifier = Number(value);
+  if (!Number.isFinite(modifier) || modifier === 0) return "0";
+  return modifier > 0 ? `+${modifier}` : String(modifier);
 }
 
 function numberOrZero(value) {
@@ -127,29 +134,33 @@ export class SciFiCharacterSheet extends ActorSheet {
         })
       }))
     }));
-    context.weaponOptions = this._buildWeaponOptions();
-    const unarmed = weaponPresetFor("Unarmed");
+    const selectedWeaponId = system.weapon?.selected ?? "Unarmed";
+    const hasSelectedWeapon = this.actor.items.filter((item) => item.type === "weapon" && item.id === selectedWeaponId).length > 0;
+    const equippedWeaponId = hasSelectedWeapon ? selectedWeaponId : "Unarmed";
+    const unarmed = UNARMED_WEAPON;
     context.weapons = [{
+      selectionId: "Unarmed",
       name: unarmed.name,
       img: "systems/scifi-urpg/assets/icons/fist.webp",
       bep: unarmed.bep,
-      range: "Melee",
-      rate: unarmed.rate,
+      rangeModifier: formatRangeModifier(unarmed.rangeModifier),
       clip: unarmed.clip,
       hand: unarmed.hand,
-      isUnarmed: true
+      isUnarmed: true,
+      equipped: equippedWeaponId === "Unarmed"
     }, ...this.actor.items
       .filter((item) => item.type === "weapon")
       .map((item) => ({
         id: item.id,
+        selectionId: item.id,
         name: item.name,
         img: item.img,
         bep: item.system.bep,
-        range: Number(item.system.range) > 0 ? `${item.system.range}m` : "Melee",
-        rate: item.system.rate ? `${item.system.rate}s` : "—",
+        rangeModifier: formatRangeModifier(item.system.rangeModifier),
         clip: item.system.clip,
         hand: item.system.hand,
-        isUnarmed: false
+        isUnarmed: false,
+        equipped: equippedWeaponId === item.id
       }))];
     context.attack = this._buildAttackContext(system);
     context.damageInput = inputNumber(system.health?.damage);
@@ -196,22 +207,7 @@ export class SciFiCharacterSheet extends ActorSheet {
     html.find("[data-action='toggle-notes-edit']").on("click", this._onToggleNotesEdit.bind(this));
     html.find("[data-action='edit-weapon']").on("click", this._onEditWeapon.bind(this));
     html.find("[data-action='delete-weapon']").on("click", this._onDeleteWeapon.bind(this));
-  }
-
-  _buildWeaponOptions() {
-    const selected = this.actor.system.weapon?.selected ?? "Unarmed";
-    const options = [{ value: "Unarmed", label: "Unarmed", selected: selected === "Unarmed" }];
-
-    for (const item of this.actor.items.filter((entry) => entry.type === "weapon")) {
-      options.push({ value: item.id, label: item.name, selected: selected === item.id });
-    }
-
-    // Keep existing actors functional until their preset selection is replaced by an owned item.
-    if (!options.some((option) => option.selected) && WEAPON_OPTIONS.includes(selected)) {
-      options.push({ value: selected, label: `${selected} (legacy preset)`, selected: true });
-    }
-
-    return options;
+    html.find("[data-action='equip-weapon']").on("click", this._onEquipWeapon.bind(this));
   }
 
   _buildActiveArmorZone(armor) {
@@ -256,6 +252,7 @@ export class SciFiCharacterSheet extends ActorSheet {
       bonusInput: inputNumber(this._attackBonus),
       aimPct,
       aimPen,
+      hasAimPenalty: aimPen > 0,
       aimSummary: aimPen > 0 ? `${aimPct}% / -${aimPen}` : `${aimPct}%`,
       zoneState: {
         torso: this._attackAimZones.has("torso"),
@@ -396,11 +393,6 @@ export class SciFiCharacterSheet extends ActorSheet {
   }
 
   async rollSkill(key) {
-    if (key === "Initiative") {
-      await this.actor.rollInitiative({ createCombatants: true, rerollInitiative: true });
-      return;
-    }
-
     const participants = this._getCombinedRollParticipants();
     const selected = participants
       .map((actor) => this._skillContributionForActor(actor, key))
@@ -445,11 +437,6 @@ export class SciFiCharacterSheet extends ActorSheet {
 
     if (!selected.length) {
       ui.notifications.warn("Select one or more skills first.");
-      return;
-    }
-
-    if (selected.length === 1 && selected[0].actorId === this.actor.id && selected[0].key === "Initiative") {
-      await this.actor.rollInitiative({ createCombatants: true, rerollInitiative: true });
       return;
     }
 
@@ -518,9 +505,8 @@ export class SciFiCharacterSheet extends ActorSheet {
       return;
     }
 
-    const meleeReach = isUnarmedWeapon(weapon) ? 1 : this._meleeReach();
-    if (!weapon.range && (isUnarmedWeapon(weapon) ? !isMeleeAttack(weapon, distance) : distance > meleeReach)) {
-      ui.notifications.warn(`${weapon.name} is a melee weapon. Move within ${meleeReach} ${canvas.scene?.grid?.units || "grid unit"} before attacking.`);
+    if (isUnarmedWeapon(weapon) && !isMeleeAttack(weapon, distance)) {
+      ui.notifications.warn(`${weapon.name} is a melee weapon. Move within 1 ${canvas.scene?.grid?.units || "grid unit"} before attacking.`);
       return;
     }
 
@@ -533,12 +519,11 @@ export class SciFiCharacterSheet extends ActorSheet {
       aimZones
     });
 
-    const updateRequest = await game.scifiUrpg.updateActor(target, outcome.updateData, {
+    await game.scifiUrpg.updateActor(target, outcome.updateData, {
       token: targetToken,
-      shockDamageTotal: outcome.damage > 0 ? outcome.newTargetDamage : null
+      shockDamageTotal: outcome.damage > 0 ? outcome.newTargetDamage : null,
+      beforeApply: (updateRequest) => this._postAttackMessage(outcome, { updateRequest })
     });
-
-    await this._postAttackMessage(outcome, { updateRequest });
   }
 
   _onDragRollMacro(event) {
@@ -559,10 +544,6 @@ export class SciFiCharacterSheet extends ActorSheet {
     }
 
     event.originalEvent?.dataTransfer?.setData("text/plain", JSON.stringify(dragData));
-  }
-
-  _meleeReach() {
-    return Math.max(1, Number(canvas.scene?.grid?.distance ?? 1) || 1);
   }
 
   _getCombinedRollParticipants() {
@@ -682,17 +663,9 @@ export class SciFiCharacterSheet extends ActorSheet {
     const targetName = actorNameElement(outcome.target);
     const escapedWeapon = foundry.utils.escapeHTML(outcome.weapon.name);
     const title = outcome.skillKey;
-    const formula = this._attackFormula(outcome);
-    const damageSection = outcome.hit ? this._attackResultSection({
-      title: "Damage",
-      formula: this._damageFormula(outcome),
-      result: outcome.damage
-    }) : "";
-    const armorLossSection = outcome.armorLoss && outcome.armorBefore !== outcome.armorAfter ? this._attackResultSection({
-      title: "Armor Loss",
-      formula: this._armorLossFormula(outcome),
-      result: fmtArmor(outcome.armorLoss.loss)
-    }) : "";
+    const card = buildAttackCard(outcome);
+    const damageSection = card.damage ? this._attackResultSection(card.damage) : "";
+    const armorLossSection = card.armorLoss ? this._attackResultSection(card.armorLoss) : "";
     const publicContent = `
       <div class="scifi-urpg-chat-card attack-card" data-scifi-urpg-roll-result="${Number(outcome.result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(this.actor.id)}">
         <h3>Attack</h3>
@@ -707,7 +680,7 @@ export class SciFiCharacterSheet extends ActorSheet {
       <div class="scifi-urpg-chat-card attack-card" data-scifi-urpg-roll-result="${Number(outcome.result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(this.actor.id)}">
         <h3>${foundry.utils.escapeHTML(title)}</h3>
         <p>${actorNameElement(this.actor)} attacks ${targetName} with ${escapedWeapon}</p>
-        <div class="roll-formula">${foundry.utils.escapeHTML(formula)}</div>
+        <div class="roll-formula">${foundry.utils.escapeHTML(card.attackFormula)}</div>
         <div class="roll-result">${formatAttackResult(outcome)}</div>
         ${damageSection}
         ${armorLossSection}
@@ -733,21 +706,6 @@ export class SciFiCharacterSheet extends ActorSheet {
     });
   }
 
-  _attackFormula(outcome) {
-    const parts = [`${outcome.skillVal} (skill)`];
-
-    if (outcome.damagePen > 0) parts.push(`- ${outcome.damagePen} (damage)`);
-    if (outcome.bonus > 0) parts.push(`+ ${outcome.bonus} (modifier)`);
-    if (outcome.bonus < 0) parts.push(`- ${Math.abs(outcome.bonus)} (modifier)`);
-    if (outcome.distPen < 0) parts.push(`- ${Math.abs(outcome.distPen).toFixed(1)} (distance ${outcome.distance.toFixed(1)} m)`);
-    if (outcome.aimPen > 0) parts.push(`- ${outcome.aimPen} (aim)`);
-
-    parts.push(`+ ${outcome.roll.plus}`);
-    parts.push(`- ${outcome.roll.minus}`);
-
-    return parts.join(" ");
-  }
-
   _attackResultSection({ title, formula, result }) {
     return `
       <section class="attack-result-section">
@@ -756,15 +714,6 @@ export class SciFiCharacterSheet extends ActorSheet {
         <div class="roll-result">${foundry.utils.escapeHTML(String(result))}</div>
       </section>
     `;
-  }
-
-  _damageFormula(outcome) {
-    return `max(0, round(round(${formatAttackResult(outcome)}/5) + ${outcome.weapon.bep} (weapon) - ${fmtArmor(outcome.armorBefore)} (${outcome.zone}))) (displayed inputs rounded)`;
-  }
-
-  _armorLossFormula(outcome) {
-    const { ruestungseffekt, trefferzonenPct, material, eaten } = outcome.armorLoss;
-    return `${ruestungseffekt}% (effect) / ${trefferzonenPct}% (zone) x ${material.lossNum}/${material.lossDenom} (loss) x ${fmtArmor(eaten)} (damage)`;
   }
 
   _onOpenDimensions(event) {
@@ -855,6 +804,15 @@ export class SciFiCharacterSheet extends ActorSheet {
   _onEditWeapon(event) {
     event.preventDefault();
     this._weaponFromEvent(event)?.sheet.render(true);
+  }
+
+  async _onEquipWeapon(event) {
+    event.preventDefault();
+
+    const selected = event.currentTarget.dataset.weaponId;
+    if (!selected || selected === this.actor.system.weapon?.selected) return;
+
+    await this.actor.update({ "system.weapon.selected": selected });
   }
 
   async _onDeleteWeapon(event) {

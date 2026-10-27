@@ -1,4 +1,4 @@
-import { COMBAT_SKILL_GROUPS, displaySkillName } from "../constants.mjs";
+import { SKILL_COLUMNS, SKILL_TO_RUESTUNGSEFFEKT, displaySkillName } from "../constants.mjs";
 
 export class SciFiWeaponSheet extends ItemSheet {
   static get defaultOptions() {
@@ -17,14 +17,14 @@ export class SciFiWeaponSheet extends ItemSheet {
   async getData(options = {}) {
     const context = await super.getData(options);
     context.system = this.item.system;
-    context.skillGroups = COMBAT_SKILL_GROUPS.map(({ group, skills }) => ({
+    context.skillGroups = SKILL_COLUMNS.Speziell.map(({ group, skills }) => ({
       group: group.toUpperCase(),
-      skills: skills.map((key) => ({
+      skills: skills.filter((key) => SKILL_TO_RUESTUNGSEFFEKT[key]).map((key) => ({
         key,
         label: displaySkillName(key),
         selected: this.item.system.skill === key
       }))
-    }));
+    })).filter(({ skills }) => skills.length);
     return context;
   }
 

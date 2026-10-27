@@ -39,44 +39,6 @@ export const SKILL_GROUP_BY_KEY = Object.fromEntries(
   )
 );
 
-export const WEAPON_OPTIONS = [
-  "Unarmed",
-  "Short Weapon",
-  "Long Weapon",
-  "Bow",
-  "Light Gun",
-  "Heavy Gun",
-  "Light Rifle",
-  "Heavy Rifle",
-  "Mounted Machine Gun",
-  "Carried Grenade Launcher",
-  "Energy Blaster Mk I",
-  "Energy Blaster Mk II",
-  "Energy Blaster Mk III"
-];
-
-export const WEAPON_PRESETS = [
-  { name: "Unarmed", skill: "Waffenlos", weight: null, hand: 2, bep: 2, range: null, rate: "4s", clip: null, ammo: null, nozzle: null },
-  { name: "Short Weapon", skill: "Kurzwaffen", weight: "300g", hand: 1, bep: 5, range: "5m", rate: "4s", clip: null, ammo: null, nozzle: null },
-  { name: "Long Weapon", skill: "Langwaffen", weight: "1.3kg", hand: 1, bep: 7, range: "5m", rate: "4s", clip: null, ammo: "1.3kg", nozzle: "6m/s" },
-  { name: "Bow", skill: "Bögen", weight: "1.5kg", hand: 2, bep: 8, range: "20m", rate: "6s", clip: 20, ammo: "80g", nozzle: "100m/s" },
-  { name: "Light Gun", skill: "Geschosswaffen", weight: "1kg", hand: 1, bep: 6, range: "20m", rate: "2s", clip: 20, ammo: "10g", nozzle: "600m/s" },
-  { name: "Heavy Gun", skill: "Geschosswaffen", weight: "2kg", hand: 1, bep: 18, range: "20m", rate: "3s", clip: 10, ammo: "20g", nozzle: "900m/s" },
-  { name: "Light Rifle", skill: "Geschosswaffen", weight: "4kg", hand: 2, bep: 12, range: "40m", rate: "2s", clip: 30, ammo: "20g", nozzle: "600m/s" },
-  { name: "Heavy Rifle", skill: "Geschosswaffen", weight: "6kg", hand: 2, bep: 24, range: "40m", rate: "4s", clip: 20, ammo: "40g", nozzle: "600m/s" },
-  { name: "Mounted Machine Gun", skill: "Montierte", weight: "25kg", hand: 2, bep: 36, range: "40m", rate: "1s", clip: 120, ammo: "40g", nozzle: "900m/s" },
-  { name: "Carried Grenade Launcher", skill: "Tragbare", weight: "3kg", hand: 2, bep: 50, range: "40m", rate: "12s", clip: 1, ammo: "500g", nozzle: "100m/s" },
-  { name: "Energy Blaster Mk I", skill: "Energiewaffen", weight: "2.5kg", hand: 2, bep: 10, range: "50m", rate: "1s", clip: 250, ammo: "250g", nozzle: "Light" },
-  { name: "Energy Blaster Mk II", skill: "Energiewaffen", weight: "5kg", hand: 2, bep: 20, range: "50m", rate: "1s", clip: 1000, ammo: "1kg", nozzle: "Light" },
-  { name: "Energy Blaster Mk III", skill: "Energiewaffen", weight: "10kg", hand: 2, bep: 40, range: "50m", rate: "1s", clip: 2000, ammo: "2kg", nozzle: "Light" }
-];
-
-export const COMBAT_SKILL_GROUPS = [
-  { group: "Fernkampfwaffen", skills: ["Bögen", "Geschosswaffen", "Energiewaffen"] },
-  { group: "Nahkampfwaffen", skills: ["Waffenlos", "Kurzwaffen", "Langwaffen"] },
-  { group: "Artillerie", skills: ["Tragbare", "Montierte", "Eingebettete"] }
-];
-
 export const BASE_HIT_ZONE_PCT = {
   torso: 40,
   legs: 30,
@@ -124,9 +86,6 @@ export const SCI_FI = {
   SKILL_KEYS,
   SKILL_COLUMN_BY_KEY,
   SKILL_GROUP_BY_KEY,
-  WEAPON_OPTIONS,
-  WEAPON_PRESETS,
-  COMBAT_SKILL_GROUPS,
   BASE_HIT_ZONE_PCT,
   RUESTUNGSEFFEKT,
   SKILL_TO_RUESTUNGSEFFEKT,

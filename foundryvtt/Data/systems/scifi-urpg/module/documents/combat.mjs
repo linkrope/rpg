@@ -48,7 +48,10 @@ export class SciFiCombat extends Combat {
         result: initiative.result,
         flags: messageData.flags,
         messageMode: messageMode ?? (combatant.hidden ? "gm" : null),
-        messageOptions: extraMessageOptions
+        messageOptions: extraMessageOptions,
+        // Combat Initiative formulas are private. The GM receives every card;
+        // each player receives only cards for actors they own.
+        whisperRecipients: initiativeRecipients(combatant.actor)
       });
     }
 
@@ -67,6 +70,11 @@ export class SciFiCombat extends Combat {
     if (ia !== ib) return ia < ib ? -1 : 1;
     return a.id > b.id ? 1 : -1;
   }
+}
+
+function initiativeRecipients(actor) {
+  return (game.users?.filter((user) => user.isGM || actor.testUserPermission?.(user, "OWNER")) ?? [])
+    .map((user) => user.id);
 }
 
 function rollSciFiInitiative(combatant) {
