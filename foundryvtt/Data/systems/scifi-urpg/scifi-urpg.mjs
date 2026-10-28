@@ -3,11 +3,14 @@ import { SciFiActor } from "./module/documents/actor.mjs";
 import { SciFiCombat } from "./module/documents/combat.mjs";
 import { SciFiItem } from "./module/documents/item.mjs";
 import { CharacterDataModel, GenericItemDataModel, WeaponDataModel } from "./module/data/character-data.mjs";
+import { ShipDataModel, ShipWeaponDataModel } from "./module/data/ship-data.mjs";
 import { SciFiDimensionsApp } from "./module/apps/dimensions-app.mjs";
 import { actorNameElement, postRollCard } from "./module/chat.mjs";
 import { SciFiCharacterSheet } from "./module/sheets/character-sheet.mjs";
 import { SciFiWeaponSheet } from "./module/sheets/weapon-sheet.mjs";
-import { rollN5, rollP5 } from "./module/rules/dice.mjs";
+import { SciFiShipSheet } from "./module/sheets/ship-sheet.mjs";
+import { SciFiShipWeaponSheet } from "./module/sheets/ship-weapon-sheet.mjs";
+import { n5Formula, rollN5, rollP5 } from "./module/rules/dice.mjs";
 import { combineSkillValues, skillRollFormula } from "./module/rules/skills.mjs";
 import { DEFAULT_AIM_ZONES, formatAttackResult, isMeleeAttack, isUnarmedWeapon, resolveAttack, weaponForActor } from "./module/rules/combat.mjs";
 import { buildAttackCard } from "./module/rules/roll-card.mjs";
@@ -30,12 +33,14 @@ Hooks.once("init", () => {
   CONFIG.Item.documentClass = SciFiItem;
 
   CONFIG.Actor.dataModels = {
-    character: CharacterDataModel
+    character: CharacterDataModel,
+    ship: ShipDataModel
   };
 
   CONFIG.Item.dataModels = {
     item: GenericItemDataModel,
-    weapon: WeaponDataModel
+    weapon: WeaponDataModel,
+    shipWeapon: ShipWeaponDataModel
   };
 
   Actors.unregisterSheet("core", ActorSheet);
@@ -44,11 +49,21 @@ Hooks.once("init", () => {
     makeDefault: true,
     label: "SCI_FI.Sheets.Character"
   });
+  Actors.registerSheet("scifi-urpg", SciFiShipSheet, {
+    types: ["ship"],
+    makeDefault: true,
+    label: "SCI_FI.Sheets.Ship"
+  });
   Items.unregisterSheet("core", ItemSheet, { types: ["weapon"] });
   Items.registerSheet("scifi-urpg", SciFiWeaponSheet, {
     types: ["weapon"],
     makeDefault: true,
     label: "SCI_FI.Sheets.Weapon"
+  });
+  Items.registerSheet("scifi-urpg", SciFiShipWeaponSheet, {
+    types: ["shipWeapon"],
+    makeDefault: true,
+    label: "SCI_FI.Sheets.ShipWeapon"
   });
 });
 
@@ -71,6 +86,7 @@ Hooks.once("ready", () => {
   game.scifiUrpg = game.scifiUrpg ?? {};
   game.scifiUrpg.dimensions = SciFiDimensionsApp;
   game.scifiUrpg.updateActor = updateActor;
+  game.scifiUrpg.updateShip = updateShip;
   game.scifiUrpg.rollShock = rollShock;
   game.scifiUrpg.macros = {
     attack,
@@ -100,6 +116,7 @@ Hooks.on("createChatMessage", (message) => {
   }
 
   void applyChatTargetUpdate(message);
+  void applyChatShipUpdate(message);
 });
 
 Hooks.on("renderChatMessageHTML", (message, html) => {
@@ -248,7 +265,7 @@ async function rollN5Macro({ actorId } = {}) {
   const roll = rollN5();
   await postRollMessage(actor, {
     title: "n5",
-    formula: `${roll.plus} - ${roll.minus}`,
+    formula: n5Formula(roll, { leadingPlus: false }),
     result: roll.total
   });
 }
@@ -394,6 +411,39 @@ async function updateActor(actor, updateData, { token = null, shockDamageTotal =
   return request;
 }
 
+/** Apply a ship-combat result, relaying a player-owned attack to the GM when necessary. */
+async function updateShip(actor, updateData, { token = null, beforeApply = null } = {}) {
+  if (!actor || actor.type !== "ship" || !Object.keys(updateData ?? {}).length) {
+    await beforeApply?.(null);
+    return null;
+  }
+
+  if (canUpdateActor(actor)) {
+    await beforeApply?.(null);
+    await actor.update(sanitizeShipUpdateData(updateData));
+    return null;
+  }
+
+  const activeGMs = activeGMUsers();
+  if (!activeGMs.length) {
+    ui.notifications.warn("Cannot apply ship damage: no active GM is available.");
+    await beforeApply?.(null);
+    return null;
+  }
+
+  const request = {
+    requestId: foundry.utils.randomID(),
+    actorId: actor.id,
+    actorUuid: actor.uuid,
+    tokenUuid: token?.document?.uuid ?? token?.uuid ?? null,
+    updateData: sanitizeShipUpdateData(updateData),
+    requesterId: game.user.id
+  };
+  await beforeApply?.(request);
+  game.socket.emit("system.scifi-urpg", { type: "updateShip", ...request });
+  return request;
+}
+
 function canUpdateActor(actor) {
   if (typeof actor.canUserModify === "function") {
     return actor.canUserModify(game.user, "update");
@@ -409,6 +459,8 @@ async function handleSystemSocket(message) {
     await applyTargetUpdateRequest(message, "socket");
     return;
   }
+
+  if (message?.type === "updateShip") await applyShipUpdateRequest(message, "socket");
 }
 
 async function applyChatTargetUpdate(message) {
@@ -418,6 +470,12 @@ async function applyChatTargetUpdate(message) {
   if (!request) return;
 
   await applyTargetUpdateRequest(request, "chat");
+}
+
+async function applyChatShipUpdate(message) {
+  if (!game.user?.isGM) return;
+  const request = message.getFlag("scifi-urpg", "shipUpdate");
+  if (request) await applyShipUpdateRequest(request, "chat");
 }
 
 async function applyTargetUpdateRequest(request, source) {
@@ -451,6 +509,26 @@ async function applyTargetUpdateRequest(request, source) {
   } catch (error) {
     console.error(`SciFi@URPG | Could not apply ${source} actor update.`, error, request);
     ui.notifications.error(`Could not apply damage to ${target.actor.name}. See console for details.`);
+  }
+}
+
+async function applyShipUpdateRequest(request, source) {
+  if (request.requestId && handledUpdateRequests.has(request.requestId)) return;
+  if (request.requestId) rememberHandledUpdateRequest(request.requestId);
+
+  const target = await resolveShipUpdateTarget(request);
+  if (!target) {
+    console.warn(`SciFi@URPG | Could not resolve ship for ${source} update.`, request);
+    return;
+  }
+
+  const updateData = sanitizeShipUpdateData(request.updateData);
+  if (!Object.keys(updateData).length) return;
+  try {
+    await target.update(updateData);
+  } catch (error) {
+    console.error(`SciFi@URPG | Could not apply ${source} ship update.`, error, request);
+    ui.notifications.error(`Could not apply ship damage to ${target.name}. See console for details.`);
   }
 }
 
@@ -502,6 +580,17 @@ async function resolveSocketUpdateTarget(message) {
   return null;
 }
 
+async function resolveShipUpdateTarget(message) {
+  const tokenDocument = message.tokenUuid ? await fromUuid(message.tokenUuid) : null;
+  if (tokenDocument?.actor?.type === "ship") return tokenDocument.actor;
+
+  const fromActorUuid = message.actorUuid ? await fromUuid(message.actorUuid) : null;
+  if (fromActorUuid?.type === "ship") return fromActorUuid;
+
+  const worldActor = game.actors?.get(message.actorId);
+  return worldActor?.type === "ship" ? worldActor : null;
+}
+
 function activeGMUsers() {
   return game.users
     ?.filter((user) => user.active && user.isGM)
@@ -522,6 +611,17 @@ function sanitizeCombatUpdateData(updateData) {
     if (Number.isFinite(number)) sanitized[key] = Math.max(0, number);
   }
 
+  return sanitized;
+}
+
+function sanitizeShipUpdateData(updateData) {
+  const allowed = [/^system\.hull\.value$/, /^system\.shields\.value$/, /^system\.energy\.value$/];
+  const sanitized = {};
+  for (const [key, value] of Object.entries(flattenUpdateData(updateData))) {
+    if (!allowed.some((pattern) => pattern.test(key))) continue;
+    const number = Number(value);
+    if (Number.isFinite(number)) sanitized[key] = Math.max(0, number);
+  }
   return sanitized;
 }
 
@@ -602,7 +702,7 @@ async function postRollMessage(actor, { title, subtitle = "", formula = "", base
 
   const details = base === null
     ? `<div class="roll-formula">${foundry.utils.escapeHTML(formula)}</div>`
-    : `<div class="roll-formula">${Number(base)} + ${Number(plus)} - ${Number(minus)}</div>`;
+    : `<div class="roll-formula">${Number(base)} ${n5Formula({ plus, minus })}</div>`;
 
   const content = `
     <div class="scifi-urpg-chat-card" data-scifi-urpg-roll-result="${Number(result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(actor.id)}">
@@ -627,7 +727,7 @@ function moveCard(actor, { title, subtitle, formula = "", base = null, plus = nu
   const speed = formatDimensionMetersPerSecond(moveMetersPerSecondForDimension(result));
   const details = base === null
     ? `<div class="roll-formula">${foundry.utils.escapeHTML(formula)}</div>`
-    : `<div class="roll-formula">${Number(base)} + ${Number(plus)} - ${Number(minus)}</div>`;
+    : `<div class="roll-formula">${Number(base)} ${n5Formula({ plus, minus })}</div>`;
 
   return `
     <div class="scifi-urpg-chat-card move-card" data-scifi-urpg-roll-result="${Number(result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(actor.id)}">

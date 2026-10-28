@@ -37,7 +37,7 @@ test("character-sheet Initiative rolls combine selected actors without creating 
   assert.deepEqual(cards, [{
     title: "Initiative",
     subtitle: "Pilot, Co-pilot",
-    formula: "25 + 0 - 0",
+    formula: "25 + (0 - 0) (n5)",
     result: 25
   }]);
 });

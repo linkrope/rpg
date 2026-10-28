@@ -1,4 +1,4 @@
-import { rollN5 } from "../rules/dice.mjs";
+import { n5Formula, rollN5 } from "../rules/dice.mjs";
 import { formatDimensionSeconds, initiativeSecondsForDimension } from "../rules/dimensions.mjs";
 import { skillRollTotal } from "../rules/skills.mjs";
 import { actorNameElement, postRollCard } from "../chat.mjs";
@@ -137,8 +137,7 @@ function initiativeFormula(initiative) {
 
   if (initiative.damage > 0) parts.push(`- ${initiative.damage} (damage)`);
 
-  parts.push(`+ ${initiative.roll.plus}`);
-  parts.push(`- ${initiative.roll.minus}`);
+  parts.push(n5Formula(initiative.roll));
 
   return parts.join(" ");
 }

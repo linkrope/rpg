@@ -28,3 +28,10 @@ export function rollN5() {
     total: plus - minus
   };
 }
+
+/** Format n5 with its rolled p5 values, while retaining the n5 label. */
+export function n5Formula(roll = {}, { leadingPlus = true } = {}) {
+  const plus = Number(roll.plus) || 0;
+  const minus = Number(roll.minus) || 0;
+  return `${leadingPlus ? "+ " : ""}(${plus} - ${minus}) (n5)`;
+}

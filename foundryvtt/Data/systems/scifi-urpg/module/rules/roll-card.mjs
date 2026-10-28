@@ -1,4 +1,5 @@
 import { fmtArmor } from "../constants.mjs";
+import { n5Formula } from "./dice.mjs";
 
 /**
  * Build the calculation details shown on an attack roll card.
@@ -32,8 +33,7 @@ function attackFormula(outcome) {
   if (outcome.distPen < 0) parts.push(`- ${Math.abs(outcome.distPen).toFixed(1)} (distance ${outcome.distance.toFixed(1)} m)`);
   if (outcome.aimPen > 0) parts.push(`- ${outcome.aimPen} (aim)`);
 
-  parts.push(`+ ${outcome.roll.plus}`);
-  parts.push(`- ${outcome.roll.minus}`);
+  parts.push(n5Formula(outcome.roll));
 
   return parts.join(" ");
 }

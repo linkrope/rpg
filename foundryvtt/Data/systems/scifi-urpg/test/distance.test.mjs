@@ -171,6 +171,12 @@ test("target badges redraw on movement, elevation, selection, and weapon changes
   target.center.x = 206;
   hooks.get("refreshToken")(target); flush();
   assert.equal(label(), "1.1 m · −∞");
+  actor.type = "ship";
+  target.actor.type = "ship";
+  source.center.x = 0;
+  target.center.x = 200000;
+  hooks.get("updateActor")(actor); flush();
+  assert.equal(label(), "2.00 km · -6.0");
   game.user.targets.clear();
   hooks.get("targetToken")(); flush();
   assert.equal(label(), undefined);

@@ -11,6 +11,17 @@ export class SciFiActor extends Actor {
   _preCreate(data, options, user) {
     super._preCreate(data, options, user);
 
+    if (this.type === "ship") {
+      this.updateSource({
+        "prototypeToken.actorLink": true,
+        "prototypeToken.bar1.attribute": "hull",
+        "prototypeToken.bar2.attribute": "shields",
+        "prototypeToken.displayName": CONST.TOKEN_DISPLAY_MODES.OWNER_HOVER,
+        "prototypeToken.displayBars": CONST.TOKEN_DISPLAY_MODES.OWNER_HOVER
+      });
+      return;
+    }
+
     if (this.type !== "character") return;
 
     this.updateSource({

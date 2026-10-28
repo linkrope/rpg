@@ -1,6 +1,6 @@
 import { ARMOR_MATERIALS, ARMOR_ZONE_DEFS, BASE_HIT_ZONE_PCT, SKILL_COLUMN_BY_KEY, buildArmorMaterials, buildArmorZones, fmtArmor, buildSkillColumns, skillChangeCost, stepCostForLevel } from "../constants.mjs";
 import { SciFiDimensionsApp } from "../apps/dimensions-app.mjs";
-import { rollN5, rollP5 } from "../rules/dice.mjs";
+import { n5Formula, rollN5, rollP5 } from "../rules/dice.mjs";
 import { actorNameElement, postRollCard } from "../chat.mjs";
 import { combineSkillValues, skillRollFormula } from "../rules/skills.mjs";
 import { DEFAULT_AIM_ZONES, aimPenalty, aimTotalPct, formatAttackResult, isMeleeAttack, isUnarmedWeapon, resolveAttack, UNARMED_WEAPON, weaponForActor } from "../rules/combat.mjs";
@@ -370,7 +370,7 @@ export class SciFiCharacterSheet extends ActorSheet {
     const roll = rollN5();
     await this._postChatMessage({
       title: "n5",
-      formula: `${roll.plus} - ${roll.minus}`,
+      formula: n5Formula(roll, { leadingPlus: false }),
       result: roll.total
     });
   }
@@ -618,7 +618,7 @@ export class SciFiCharacterSheet extends ActorSheet {
 
     const details = base === null
       ? `<div class="roll-formula">${foundry.utils.escapeHTML(formula)}</div>`
-      : `<div class="roll-formula">${Number(base)} + ${Number(plus)} - ${Number(minus)}</div>`;
+      : `<div class="roll-formula">${Number(base)} ${n5Formula({ plus, minus })}</div>`;
 
     const content = `
       <div class="scifi-urpg-chat-card" data-scifi-urpg-roll-result="${Number(result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(this.actor.id)}">
@@ -643,7 +643,7 @@ export class SciFiCharacterSheet extends ActorSheet {
     const speed = formatDimensionMetersPerSecond(moveMetersPerSecondForDimension(result));
     const details = base === null
       ? `<div class="roll-formula">${foundry.utils.escapeHTML(formula)}</div>`
-      : `<div class="roll-formula">${Number(base)} + ${Number(plus)} - ${Number(minus)}</div>`;
+      : `<div class="roll-formula">${Number(base)} ${n5Formula({ plus, minus })}</div>`;
 
     return `
       <div class="scifi-urpg-chat-card move-card" data-scifi-urpg-roll-result="${Number(result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(this.actor.id)}">

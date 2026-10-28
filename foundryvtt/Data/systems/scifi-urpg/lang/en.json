@@ -1,4 +1,6 @@
 {
   "SCI_FI.Sheets.Character": "SciFi@URPG Character",
-  "SCI_FI.Sheets.Weapon": "SciFi@URPG Weapon"
+  "SCI_FI.Sheets.Weapon": "SciFi@URPG Weapon",
+  "SCI_FI.Sheets.Ship": "SciFi@URPG Ship",
+  "SCI_FI.Sheets.ShipWeapon": "SciFi@URPG Ship Weapon"
 }

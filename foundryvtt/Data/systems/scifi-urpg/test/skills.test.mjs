@@ -11,6 +11,6 @@ test("combined skill roll formula shows only the combined skill value", () => {
   const combinedValue = combineSkillValues(contributions.map((contribution) => contribution.adjustedValue));
   const formula = skillRollFormula(contributions, roll);
 
-  assert.equal(formula, `${combinedValue} + 4 - 1`);
+  assert.equal(formula, `${combinedValue} + (4 - 1) (n5)`);
   assert.doesNotMatch(formula, /20|18|damage|⊕/);
 });

@@ -1,3 +1,5 @@
+import { n5Formula } from "./dice.mjs";
+
 export function combineTwoSkills(firstValue, secondValue) {
   const a = Math.max(firstValue, secondValue);
   const b = Math.min(firstValue, secondValue);
@@ -27,7 +29,7 @@ export function skillRollTotal(base, damage, n5) {
 export function skillRollFormula(contributions, roll) {
   if (contributions.length > 1) {
     const combinedValue = combineSkillValues(contributions.map((contribution) => contribution.adjustedValue));
-    return `${combinedValue} + ${Number(roll.plus)} - ${Number(roll.minus)}`;
+    return `${combinedValue} ${n5Formula(roll)}`;
   }
 
   const terms = contributions.map((contribution) => {
@@ -37,5 +39,5 @@ export function skillRollFormula(contributions, roll) {
   });
   const base = terms[0] ?? "0";
 
-  return `${base} + ${Number(roll.plus)} - ${Number(roll.minus)}`;
+  return `${base} ${n5Formula(roll)}`;
 }

@@ -1,4 +1,4 @@
-import { rollN5 } from "./dice.mjs";
+import { n5Formula, rollN5 } from "./dice.mjs";
 
 /** Damage is displayed on a 20-point token bar, but it is never capped there. */
 export const SHOCK_DAMAGE_LIMIT = 20;
@@ -30,5 +30,5 @@ export function resolveShock({ damage = 0, roll = rollN5() } = {}) {
 }
 
 export function shockFormula(outcome) {
-  return `${SHOCK_DAMAGE_LIMIT} - ${outcome.damage} (damage) + ${outcome.roll.plus} - ${outcome.roll.minus}`;
+  return `${SHOCK_DAMAGE_LIMIT} - ${outcome.damage} (damage) ${n5Formula(outcome.roll)}`;
 }
