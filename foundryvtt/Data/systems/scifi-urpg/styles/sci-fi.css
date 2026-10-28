@@ -388,8 +388,10 @@
 .scifi-urpg-ship-sheet .ship-weapon-select span { color: var(--ship-dim); display: block; font-size: 12px; }
 .scifi-urpg-ship-sheet .ship-weapon-select strong { color: var(--ship-head); }
 .scifi-urpg-ship-sheet .ship-weapon-actions { display: flex; flex-wrap: nowrap; gap: 4px; white-space: nowrap; }
-.scifi-urpg-ship-sheet .ship-crew-row { grid-template-columns: 36px 1fr auto; }
+.scifi-urpg-ship-sheet .ship-crew-row { grid-template-columns: 36px 1fr auto auto auto; }
 .scifi-urpg-ship-sheet .ship-crew-row img { border-radius: 4px; height: 30px; object-fit: cover; width: 30px; }
+.scifi-urpg-ship-sheet .ship-crew-row label { align-items: center; display: flex; gap: 4px; white-space: nowrap; }
+.scifi-urpg-ship-sheet .ship-crew-row label input[type="checkbox"] { width: auto; }
 .scifi-urpg-ship-sheet .ship-rule-note { color: var(--ship-dim); font-size: 12px; margin: 0; }
 .scifi-urpg-ship-sheet .ship-notes textarea { min-height: 120px; width: 100%; }
 .scifi-urpg-ship-weapon-sheet .weapon-sheet-header { align-items: center; display: grid; gap: 10px; grid-template-columns: 64px 1fr; }
@@ -412,7 +414,6 @@
 .scifi-urpg-character-sheet .skill-label input {
   width: 14px;
   height: 14px;
-  accent-color: var(--sf-accent);
 }
 
 .scifi-urpg-character-sheet .skill-label.no-check {

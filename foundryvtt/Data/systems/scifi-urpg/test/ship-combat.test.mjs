@@ -11,6 +11,12 @@ import {
 } from "../module/rules/ship-combat.mjs";
 
 const gunner = (value) => ({ system: { skills: { Eingebettete: { value } } } });
+const crewActor = ({ gunnery = 0, piloting = 0, damage = 0 } = {}) => ({
+  system: {
+    skills: { Eingebettete: { value: gunnery }, Raumfahrzeuge: { value: piloting } },
+    health: { damage },
+  },
+});
 const ship = (system) => ({ type: "ship", system });
 
 test("ship range uses one kilometre as the neutral distance", () => {
@@ -20,11 +26,11 @@ test("ship range uses one kilometre as the neutral distance", () => {
   assert.equal(shipRangePenalty({ rangeModifier: 3 }, 2_000), -3);
 });
 
-test("ship attacks combine gunners, drain a unified shield pool, then damage hull", () => {
+test("ship attacks combine gunners, drain shields, then damage hull", () => {
   const target = ship({ hull: { value: 20 }, shields: { value: 5 } });
   const outcome = resolveShipAttack({
     attacker: ship({}), target,
-    weapon: { system: { damage: 4, accuracy: 0, rangeModifier: 0 } },
+    weapon: { system: { bep: 4, accuracy: 0, rangeModifier: 0 } },
     gunners: [gunner(10), gunner(10)],
     distance: 1_000,
     roll: { plus: 0, minus: 0, total: 0 },
@@ -36,6 +42,63 @@ test("ship attacks combine gunners, drain a unified shield pool, then damage hul
   assert.equal(outcome.shieldDamage, 5);
   assert.equal(outcome.hullDamage, 2);
   assert.deepEqual(outcome.updateData, { "system.shields.value": 0, "system.hull.value": 18 });
+});
+
+test("repeated generic crew members combine their gunnery contributions", () => {
+  const target = ship({ hull: { value: 20 }, shields: { value: 0 } });
+  const pirate = gunner(0);
+  const outcome = resolveShipAttack({
+    attacker: ship({}), target,
+    weapon: { system: { bep: 1, accuracy: 0, rangeModifier: 0 } },
+    gunners: [pirate, pirate, pirate, pirate],
+    distance: 1_000,
+    roll: { plus: 0, minus: 0, total: 0 },
+  });
+
+  assert.equal(outcome.gunnery, 10);
+  assert.equal(outcome.result, 10);
+  assert.equal(outcome.hit, true);
+});
+
+test("crew rows apply injury and multitasking before combining role skills", () => {
+  const target = ship({ hull: { value: 20 }, shields: { value: 0 } });
+  const sharedNpc = crewActor({ gunnery: 12, piloting: 10, damage: 2 });
+  const outcome = resolveShipAttack({
+    attacker: ship({}), target,
+    weapon: { system: { bep: 3, accuracy: 0, rangeModifier: 0 } },
+    // These are two physical crew members sharing a single NPC Actor.
+    crewMembers: [
+      { actor: sharedNpc, pilot: true, gunner: true },
+      { actor: sharedNpc, pilot: true, gunner: true },
+    ],
+    targetCrewMembers: [{ actor: crewActor({ piloting: 10, damage: 2 }), pilot: true, gunner: false }],
+    distance: 1_000,
+    roll: { plus: 0, minus: 0, total: 0 },
+  });
+
+  // (12 − 5 multitasking − 2 damage) ⊕ itself = 5 ⊕ 5 = 10.
+  assert.equal(outcome.gunnery, 10);
+  // The defending pilot is not multitasking: 10 − 2 damage = 8.
+  assert.equal(outcome.evasion, 8);
+  assert.equal(outcome.result, 2);
+  assert.equal(outcome.hit, true);
+  assert.equal(outcome.rawDamage, 3);
+});
+
+test("a ship with no assigned pilot has zero evasion", () => {
+  const target = ship({ hull: { value: 20 }, shields: { value: 0 } });
+  const outcome = resolveShipAttack({
+    attacker: ship({}), target,
+    weapon: { system: { bep: 1, accuracy: 0, rangeModifier: 0 } },
+    crewMembers: [{ actor: crewActor({ gunnery: 4 }), gunner: true }],
+    targetCrewMembers: [],
+    distance: 1_000,
+    roll: { plus: 0, minus: 0, total: 0 },
+  });
+
+  assert.equal(outcome.evasion, 0);
+  assert.equal(outcome.result, 4);
+  assert.equal(outcome.hit, true);
 });
 
 test("recharging shields moves battery charge without repairing a shield component", () => {

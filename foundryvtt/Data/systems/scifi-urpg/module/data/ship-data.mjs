@@ -26,7 +26,11 @@ export class ShipDataModel extends foundry.abstract.TypeDataModel {
         velocityY: new fields.NumberField({ initial: 0, required: true }),
       }),
       crew: new fields.SchemaField({
-        gunners: new fields.ArrayField(new fields.StringField(), { initial: [] }),
+        members: new fields.ArrayField(new fields.SchemaField({
+          actorId: new fields.StringField({ required: true, nullable: false, initial: "" }),
+          pilot: new fields.BooleanField({ required: true, nullable: false, initial: false }),
+          gunner: new fields.BooleanField({ required: true, nullable: false, initial: false }),
+        }), { initial: [] }),
       }),
       weapon: new fields.SchemaField({
         selected: new fields.StringField({ required: true, nullable: false, initial: "" }),
@@ -44,10 +48,17 @@ export class ShipDataModel extends foundry.abstract.TypeDataModel {
 }
 
 export class ShipWeaponDataModel extends foundry.abstract.TypeDataModel {
+  /** Preserve weapons created before ship-weapon damage was named correctly. */
+  static migrateData(source) {
+    if (source.bep === undefined && source.damage !== undefined) source.bep = source.damage;
+    delete source.damage;
+    return super.migrateData(source);
+  }
+
   static defineSchema() {
     return {
       description: new fields.HTMLField({ required: false, nullable: false, initial: "" }),
-      damage: new fields.NumberField({ initial: 1, min: 0, required: true }),
+      bep: new fields.NumberField({ initial: 1, min: 0, required: true }),
       accuracy: new fields.NumberField({ initial: 0, required: true }),
       rangeModifier: new fields.NumberField({ initial: 0, required: true }),
     };

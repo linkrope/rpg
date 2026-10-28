@@ -18,31 +18,66 @@ export function shipRangePenalty(weapon, distance) {
   return Math.min(0, -6 * Math.log2(meters / SHIP_RANGE_BASELINE_METERS) + modifier);
 }
 
-export function shipGunneryTotal(gunners = []) {
-  const scores = gunners
-    .map((gunner) => number(gunner?.system?.skills?.Eingebettete?.value))
-    .filter((score) => score > 0);
+/** One crew-member entry is a physical person, even when several entries use the same Actor. */
+export function crewMemberRoleValue(member, skill) {
+  const actor = member?.actor ?? member;
+  const skillValue = number(actor?.system?.skills?.[skill]?.value);
+  const damage = Math.max(0, number(actor?.system?.health?.damage));
+  const multitaskingPenalty = member?.pilot && member?.gunner ? 5 : 0;
+  return skillValue - multitaskingPenalty - damage;
+}
+
+export function shipCrewRoleTotal(crewMembers = [], role, skill) {
+  // TODO(rules): confirm whether negative values from injury/multitasking are
+  // legal. Until then, pass them to the normal combined-effort calculation.
+  const scores = crewMembers
+    .filter((member) => member?.[role])
+    .map((member) => crewMemberRoleValue(member, skill));
   return scores.length ? combineSkillValues(scores) : 0;
+}
+
+export function shipGunneryTotal(gunners = []) {
+  return shipCrewRoleTotal(gunners.map((gunner) => ({ actor: gunner, gunner: true })), "gunner", "Eingebettete");
+}
+
+export function shipPilotEvasionTotal(pilots = []) {
+  return shipCrewRoleTotal(pilots.map((pilot) => ({ actor: pilot, pilot: true })), "pilot", "Raumfahrzeuge");
 }
 
 /**
  * Resolve one independent weapon attack.
  *
- * Shields are an omnidirectional energy pool: damage absorbed by the shield
- * reduces only its available charge.  It never degrades a component.
+ * Shields are an omnidirectional energy pool. Damage crosses shields first;
+ * only the remainder reduces hull integrity.
  */
-export function resolveShipAttack({ attacker, target, weapon, gunners = [], bonus = 0, distance = 0, roll = rollN5() } = {}) {
-  const gunnery = shipGunneryTotal(gunners);
+export function resolveShipAttack({
+  attacker,
+  target,
+  weapon,
+  crewMembers,
+  targetCrewMembers,
+  // Retained for callers that have not yet moved to crew-member rows.
+  gunners = [],
+  pilots = [],
+  bonus = 0,
+  distance = 0,
+  roll = rollN5(),
+} = {}) {
+  const attackingCrew = crewMembers ?? gunners.map((actor) => ({ actor, gunner: true }));
+  const defendingCrew = targetCrewMembers ?? pilots.map((actor) => ({ actor, pilot: true }));
+  const gunnery = shipCrewRoleTotal(attackingCrew, "gunner", "Eingebettete");
+  // TODO(rules): confirm the provisional rule that an unpiloted ship evades at 0.
+  const evasion = shipCrewRoleTotal(defendingCrew, "pilot", "Raumfahrzeuge");
   const rangePenalty = shipRangePenalty(weapon, distance);
   const weaponBonus = number(weapon?.system?.accuracy);
   const attackBonus = number(bonus);
-  const result = gunnery + attackBonus + weaponBonus + rangePenalty + number(roll?.total);
+  const result = gunnery + attackBonus + weaponBonus + rangePenalty + number(roll?.total) - evasion;
   const hit = result > 0;
   const shieldsBefore = Math.max(0, number(target?.system?.shields?.value));
   const hullBefore = Math.max(0, number(target?.system?.hull?.value));
 
   const rawDamage = hit
-    ? Math.max(0, Math.floor(result / 5) + Math.max(0, number(weapon?.system?.damage)))
+    ? Math.max(0, Math.floor(result / 5) + Math.max(0, number(weapon?.system?.bep)))
     : 0;
   const shieldDamage = Math.min(shieldsBefore, rawDamage);
   const hullDamage = Math.max(0, rawDamage - shieldDamage);
@@ -53,8 +88,10 @@ export function resolveShipAttack({ attacker, target, weapon, gunners = [], bonu
     attacker,
     target,
     weapon,
-    gunners,
+    crewMembers: attackingCrew,
+    targetCrewMembers: defendingCrew,
     gunnery,
+    evasion,
     bonus: attackBonus,
     rangePenalty,
     weaponBonus,

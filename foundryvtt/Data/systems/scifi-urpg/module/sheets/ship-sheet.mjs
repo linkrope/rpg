@@ -14,6 +14,17 @@ function number(value) {
   return Number.isFinite(result) ? result : 0;
 }
 
+function resolvedCrewMembers(ship) {
+  return (ship?.system?.crew?.members ?? []).flatMap((member) => {
+    const actor = game.actors?.get(member.actorId);
+    return actor?.type === "character" ? [{
+      actor,
+      pilot: !!member.pilot,
+      gunner: !!member.gunner,
+    }] : [];
+  });
+}
+
 export class SciFiShipSheet extends ActorSheet {
   constructor(...args) {
     super(...args);
@@ -39,24 +50,26 @@ export class SciFiShipSheet extends ActorSheet {
   async getData(options = {}) {
     const context = await super.getData(options);
     const system = this.actor.system;
-    const gunnerIds = system.crew?.gunners ?? [];
 
     context.system = system;
-    context.gunners = gunnerIds
-      .map((id) => game.actors?.get(id))
-      .filter((actor) => actor?.type === "character")
-      .map((actor) => ({
-      id: actor.id,
-      name: actor.name,
-      img: actor.img,
-    }));
+    context.crewMembers = (system.crew?.members ?? []).flatMap((member, index) => {
+      const actor = game.actors?.get(member.actorId);
+      return actor?.type === "character" ? [{
+        index,
+        id: actor.id,
+        name: actor.name,
+        img: actor.img,
+        pilot: !!member.pilot,
+        gunner: !!member.gunner,
+      }] : [];
+    });
     const weapons = this.actor.items
       .filter((item) => item.type === "shipWeapon")
       .map((item) => ({
         id: item.id,
         name: item.name,
         img: item.img,
-        damage: number(item.system.damage),
+        bep: number(item.system.bep),
         accuracy: number(item.system.accuracy),
         rangeModifier: number(item.system.rangeModifier),
         selected: item.id === system.weapon?.selected,
@@ -79,7 +92,8 @@ export class SciFiShipSheet extends ActorSheet {
     super.activateListeners(html);
     if (!this.isEditable) return;
 
-    html.find("[data-action='delete-gunner']").on("click", this._onDeleteGunner.bind(this));
+    html.find("[data-action='delete-crew-member']").on("click", this._onDeleteCrewMember.bind(this));
+    html.find("[data-action='toggle-crew-role']").on("change", this._onToggleCrewRole.bind(this));
     html.find("[data-action='attack-target']").on("click", this._onAttackTarget.bind(this));
     html.find("[data-field='attack-bonus']").on("input change", this._onAttackBonusChange.bind(this));
     html.find("[data-action='select-weapon']").on("click", this._onSelectWeapon.bind(this));
@@ -96,29 +110,46 @@ export class SciFiShipSheet extends ActorSheet {
   }
 
   async _onDrop(event) {
-    const crewTab = event.target.closest("[data-tab='crew']");
+    // Foundry's DragDrop controller can retarget a drop to the form instead of
+    // the element under the pointer. In that case, use the visible Crew tab.
+    const crewTab = event.target?.closest?.(".sheet-body .tab[data-tab='crew']")
+      ?? this.element?.find(".sheet-body .tab[data-tab='crew'].active")?.[0];
     if (!crewTab) return super._onDrop(event);
 
     const data = TextEditor.getDragEventData(event);
     if (data?.type !== "Actor") return super._onDrop(event);
     const actor = data.uuid ? await fromUuid(data.uuid) : game.actors?.get(data.id);
     if (actor?.type !== "character") {
-      ui.notifications.warn("Only SciFi character actors can be assigned as ship gunners.");
+      ui.notifications.warn("Only SciFi character actors can be assigned as ship crew.");
       return false;
     }
 
-    const gunners = new Set(this.actor.system.crew?.gunners ?? []);
-    gunners.add(actor.id);
-    await this.actor.update({ "system.crew.gunners": [...gunners] });
+    const members = [...(this.actor.system.crew?.members ?? []), {
+      actorId: actor.id,
+      pilot: false,
+      gunner: false,
+    }];
+    await this.actor.update({ "system.crew.members": members });
     return false;
   }
 
-  async _onDeleteGunner(event) {
+  async _onDeleteCrewMember(event) {
     event.preventDefault();
-    const id = event.currentTarget.dataset.actorId;
-    if (!id) return;
-    const gunners = (this.actor.system.crew?.gunners ?? []).filter((actorId) => actorId !== id);
-    await this.actor.update({ "system.crew.gunners": gunners });
+    const index = Number(event.currentTarget.dataset.crewIndex);
+    if (!Number.isInteger(index) || index < 0) return;
+    const members = [...(this.actor.system.crew?.members ?? [])];
+    members.splice(index, 1);
+    await this.actor.update({ "system.crew.members": members });
+  }
+
+  async _onToggleCrewRole(event) {
+    const index = Number(event.currentTarget.dataset.crewIndex);
+    const role = event.currentTarget.dataset.crewRole;
+    if (!Number.isInteger(index) || index < 0 || !["pilot", "gunner"].includes(role)) return;
+    const members = [...(this.actor.system.crew?.members ?? [])];
+    if (!members[index]) return;
+    members[index] = { ...members[index], [role]: !!event.currentTarget.checked };
+    await this.actor.update({ "system.crew.members": members });
   }
 
   _onAttackBonusChange(event) {
@@ -147,15 +178,21 @@ export class SciFiShipSheet extends ActorSheet {
       ui.notifications.warn("Place both ships on the scene before firing.");
       return;
     }
-    const gunners = (this.actor.system.crew?.gunners ?? [])
-      .map((id) => game.actors?.get(id))
-      .filter((actor) => actor?.type === "character");
-    if (!gunners.length) {
+    const crewMembers = resolvedCrewMembers(this.actor);
+    if (!crewMembers.some((member) => member.gunner)) {
       ui.notifications.warn("Assign at least one gunner before firing.");
       return;
     }
 
-    const outcome = resolveShipAttack({ attacker: this.actor, target, weapon, gunners, bonus: this._attackBonus, distance });
+    const outcome = resolveShipAttack({
+      attacker: this.actor,
+      target,
+      weapon,
+      crewMembers,
+      targetCrewMembers: resolvedCrewMembers(target),
+      bonus: this._attackBonus,
+      distance,
+    });
     await game.scifiUrpg.updateShip(target, outcome.updateData, {
       token: targetToken,
       beforeApply: (updateRequest) => this._postAttackMessage(outcome, { updateRequest }),
@@ -239,28 +276,27 @@ export class SciFiShipSheet extends ActorSheet {
 
   async _postAttackMessage(outcome, { updateRequest = null } = {}) {
     const formula = [
-      String(outcome.gunnery),
+      `${outcome.gunnery} (Eingebettete)`,
       outcome.bonus ? `${outcome.bonus >= 0 ? "+" : "−"} ${Math.abs(outcome.bonus)}` : null,
+      outcome.weaponBonus ? `${outcome.weaponBonus >= 0 ? "+" : "−"} ${Math.abs(outcome.weaponBonus)}` : null,
+      outcome.rangePenalty ? `${outcome.rangePenalty >= 0 ? "+" : "−"} ${Math.abs(outcome.rangePenalty)}` : null,
+      `− ${outcome.evasion} (Raumfahrzeuge)`,
+      // Keep the random roll last so the deterministic comparison is easy to read.
       `+ ${n5Formula(outcome.roll, { leadingPlus: false })}`,
     ].filter(Boolean).join(" ");
+    const weaponName = foundry.utils.escapeHTML(outcome.weapon?.name ?? "ship weapon");
     const damage = outcome.hit
-      ? `<p>Damage ${outcome.rawDamage}: shields absorb ${outcome.shieldDamage}; hull takes ${outcome.hullDamage}.</p>`
+      ? `<p>BEP ${outcome.rawDamage}: shields absorb ${outcome.shieldDamage}; hull takes ${outcome.hullDamage}.</p>`
       : "<p>Miss: no damage.</p>";
     const content = `
       <div class="scifi-urpg-chat-card attack-card">
         <h3>Eingebettete</h3>
-        <p>${actorNameElement(this.actor)} attacks ${actorNameElement(outcome.target)} with Embedded Artillery</p>
+        <p>${actorNameElement(this.actor)} attacks ${actorNameElement(outcome.target)} with ${weaponName}</p>
         <div class="roll-formula">${foundry.utils.escapeHTML(formula)}</div>
         <div class="roll-result">${outcome.result.toFixed(1)}</div>
         ${damage}
       </div>`;
-    const publicContent = `
-      <div class="scifi-urpg-chat-card attack-card">
-        <h3>Eingebettete</h3>
-        <p>${actorNameElement(this.actor)} attacks ${actorNameElement(outcome.target)} with Embedded Artillery</p>
-        <div class="roll-result">${outcome.result.toFixed(1)}</div>
-        ${damage}
-      </div>`;
+    const publicContent = content;
     const flags = updateRequest ? { "scifi-urpg": { shipUpdate: updateRequest } } : undefined;
     await postRollCard(this.actor, {
       speaker: ChatMessage.getSpeaker({ actor: this.actor }),
