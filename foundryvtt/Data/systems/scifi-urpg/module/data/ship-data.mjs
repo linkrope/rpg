@@ -48,10 +48,12 @@ export class ShipDataModel extends foundry.abstract.TypeDataModel {
 }
 
 export class ShipWeaponDataModel extends foundry.abstract.TypeDataModel {
-  /** Preserve weapons created before ship-weapon damage was named correctly. */
+  /** Preserve weapons created before ship-weapon fields were named correctly. */
   static migrateData(source) {
     if (source.bep === undefined && source.damage !== undefined) source.bep = source.damage;
+    if (source.energy === undefined && source.accuracy !== undefined) source.energy = source.accuracy;
     delete source.damage;
+    delete source.accuracy;
     return super.migrateData(source);
   }
 
@@ -59,7 +61,7 @@ export class ShipWeaponDataModel extends foundry.abstract.TypeDataModel {
     return {
       description: new fields.HTMLField({ required: false, nullable: false, initial: "" }),
       bep: new fields.NumberField({ initial: 1, min: 0, required: true }),
-      accuracy: new fields.NumberField({ initial: 0, required: true }),
+      energy: new fields.NumberField({ initial: 0, min: 0, required: true }),
       rangeModifier: new fields.NumberField({ initial: 0, required: true }),
     };
   }

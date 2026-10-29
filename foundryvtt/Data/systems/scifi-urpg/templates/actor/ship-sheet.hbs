@@ -45,10 +45,10 @@
     </div>
 
     <div class="tab" data-group="primary" data-tab="weapons">
-      <div class="ship-toolbar"><span>Every weapon fires independently and may target any direction.</span><button type="button" data-action="add-weapon">Add weapon</button></div>
+      <div class="ship-toolbar"><span>Every weapon fires independently and may target any direction.</span><button type="button" class="ship-add-weapon" data-action="add-weapon">Add weapon</button></div>
       {{#each weapons}}
         <article class="ship-weapon-row{{#if selected}} selected{{/if}}">
-          <button type="button" class="ship-weapon-select" data-action="select-weapon" data-item-id="{{id}}" aria-pressed="{{#if selected}}true{{else}}false{{/if}}"><img src="{{img}}" alt=""><span><strong>{{name}}</strong><span>BEP {{bep}} · Accuracy {{accuracy}} · Range {{rangeModifier}}</span></span></button>
+          <button type="button" class="ship-weapon-select" data-action="select-weapon" data-item-id="{{id}}" aria-pressed="{{#if selected}}true{{else}}false{{/if}}"><img src="{{img}}" alt=""><span><strong>{{name}}</strong><span>BEP {{bep}} · Energy {{energy}} kWs · Range {{rangeModifier}}</span></span></button>
           <div class="ship-weapon-actions"><button type="button" data-action="edit-weapon" data-item-id="{{id}}">Edit</button><button type="button" data-action="delete-weapon" data-item-id="{{id}}">Delete</button></div>
         </article>
       {{else}}<p>No ship weapons. Add one here or drag a Ship Weapon item onto this ship.</p>{{/each}}
@@ -56,13 +56,19 @@
     </div>
 
     <div class="tab" data-group="primary" data-tab="crew">
-      <div class="ship-toolbar"><span>Drag Actors here to add physical crew members. Assign each member to Pilot, Gunner, or both.</span></div>
+      <div class="ship-crew-toolbar">
+        <div class="ship-crew-rolls">
+          <div class="ship-crew-roll"><span>Eingebettete</span><button type="button" class="skill-roll" data-action="roll-crew-skill" data-crew-role="gunner">Roll</button></div>
+          <div class="ship-crew-roll"><span>Raumfahrzeuge</span><button type="button" class="skill-roll" data-action="roll-crew-skill" data-crew-role="pilot">Roll</button></div>
+        </div>
+      </div>
+      <p class="ship-crew-hint">Drag Actors here to add physical crew members. Assign each member to Pilot, Gunner, or both.</p>
       {{#each crewMembers}}
         <article class="ship-crew-row">
           <img src="{{img}}" alt="">
           <strong>{{name}}</strong>
-          <label><input type="checkbox" data-action="toggle-crew-role" data-crew-index="{{index}}" data-crew-role="pilot" {{#if pilot}}checked{{/if}}> Pilot</label>
-          <label><input type="checkbox" data-action="toggle-crew-role" data-crew-index="{{index}}" data-crew-role="gunner" {{#if gunner}}checked{{/if}}> Gunner</label>
+          <span class="ship-crew-role"><input id="crew-{{index}}-gunner" type="checkbox" data-action="toggle-crew-role" data-crew-index="{{index}}" data-crew-role="gunner" {{#if gunner}}checked{{/if}}><label for="crew-{{index}}-gunner">Gunner</label></span>
+          <span class="ship-crew-role"><input id="crew-{{index}}-pilot" type="checkbox" data-action="toggle-crew-role" data-crew-index="{{index}}" data-crew-role="pilot" {{#if pilot}}checked{{/if}}><label for="crew-{{index}}-pilot">Pilot</label></span>
           <button type="button" data-action="delete-crew-member" data-crew-index="{{index}}">Delete</button>
         </article>
       {{/each}}

@@ -18,6 +18,11 @@ export function shipRangePenalty(weapon, distance) {
   return Math.min(0, -6 * Math.log2(meters / SHIP_RANGE_BASELINE_METERS) + modifier);
 }
 
+/** Energy drawn from the ship battery for one shot. */
+export function shipWeaponEnergyCost(weapon) {
+  return Math.max(0, number(weapon?.system?.energy));
+}
+
 /** One crew-member entry is a physical person, even when several entries use the same Actor. */
 export function crewMemberRoleValue(member, skill) {
   const actor = member?.actor ?? member;
@@ -69,9 +74,10 @@ export function resolveShipAttack({
   // TODO(rules): confirm the provisional rule that an unpiloted ship evades at 0.
   const evasion = shipCrewRoleTotal(defendingCrew, "pilot", "Raumfahrzeuge");
   const rangePenalty = shipRangePenalty(weapon, distance);
-  const weaponBonus = number(weapon?.system?.accuracy);
+  const energyCost = shipWeaponEnergyCost(weapon);
+  const energyBefore = Math.max(0, number(attacker?.system?.energy?.value));
   const attackBonus = number(bonus);
-  const result = gunnery + attackBonus + weaponBonus + rangePenalty + number(roll?.total) - evasion;
+  const result = gunnery + attackBonus + rangePenalty + number(roll?.total) - evasion;
   const hit = result > 0;
   const shieldsBefore = Math.max(0, number(target?.system?.shields?.value));
   const hullBefore = Math.max(0, number(target?.system?.hull?.value));
@@ -94,7 +100,9 @@ export function resolveShipAttack({
     evasion,
     bonus: attackBonus,
     rangePenalty,
-    weaponBonus,
+    energyCost,
+    energyBefore,
+    energyAfter: energyBefore - energyCost,
     distance: Math.max(0, number(distance)),
     roll,
     result,
@@ -109,6 +117,9 @@ export function resolveShipAttack({
     updateData: hit ? {
       "system.shields.value": shieldsAfter,
       "system.hull.value": hullAfter,
+    } : {},
+    attackerUpdateData: energyCost > 0 ? {
+      "system.energy.value": energyBefore - energyCost,
     } : {},
   };
 }

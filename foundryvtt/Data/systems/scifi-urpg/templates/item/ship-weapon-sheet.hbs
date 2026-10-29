@@ -2,9 +2,8 @@
   <header class="weapon-sheet-header"><img class="profile-img" src="{{item.img}}" data-edit="img" height="64" width="64"><input name="name" type="text" value="{{item.name}}" placeholder="Ship weapon name"></header>
   <div class="weapon-sheet-grid">
     <label><span>BEP</span><input name="system.bep" type="number" min="0" step="1" value="{{system.bep}}"></label>
-    <label><span>Accuracy</span><input name="system.accuracy" type="number" step="1" value="{{system.accuracy}}"></label>
+    <label><span>Energy (kWs)</span><input name="system.energy" type="number" min="0" step="1" value="{{system.energy}}"></label>
     <label><span>Range modifier</span><input name="system.rangeModifier" type="number" step="1" value="{{system.rangeModifier}}"></label>
   </div>
-  <p>Range modifier is 0 at 1 km. Each doubling of distance applies -6 before this modifier.</p>
   <label class="weapon-description"><span>Description</span><textarea name="system.description">{{system.description}}</textarea></label>
 </form>

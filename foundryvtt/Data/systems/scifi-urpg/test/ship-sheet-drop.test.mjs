@@ -50,3 +50,50 @@ test("crew role checkboxes update one physical crew-member row", async () => {
     ],
   });
 });
+
+test("crew skill rolls use the assigned crew's current combined role value", async () => {
+  const originalRandom = Math.random;
+  Math.random = () => 0; // p5 rolls a 1, so n5 is 0.
+
+  globalThis.foundry = { utils: { escapeHTML: (value) => String(value) } };
+  globalThis.game = {
+    actors: new Map([
+      ["gunner-1", { id: "gunner-1", type: "character", name: "Ari", system: { skills: { Eingebettete: { value: 10 } }, health: { damage: 0 } } }],
+      ["gunner-2", { id: "gunner-2", type: "character", name: "Bea", system: { skills: { Eingebettete: { value: 10 } }, health: { damage: 0 } } }],
+    ]),
+    settings: { get: () => "public" },
+    user: { isGM: false },
+  };
+  const messages = [];
+  globalThis.ChatMessage = {
+    getSpeaker: () => ({ alias: "ship" }),
+    create: async (message) => { messages.push(message); },
+  };
+
+  try {
+    const { SciFiShipSheet } = await import(`../module/sheets/ship-sheet.mjs?test=${Date.now()}`);
+    const sheet = Object.create(SciFiShipSheet.prototype);
+    sheet.actor = {
+      id: "ship-1",
+      name: "Odyssey",
+      hasPlayerOwner: true,
+      system: { crew: { members: [
+        { actorId: "gunner-1", pilot: false, gunner: true },
+        { actorId: "gunner-2", pilot: false, gunner: true },
+      ] } },
+    };
+    sheet.submit = async () => {};
+
+    await sheet._onRollCrewSkill({
+      preventDefault: () => {},
+      currentTarget: { dataset: { crewRole: "gunner" } },
+    });
+
+    assert.equal(messages.length, 1);
+    assert.match(messages[0].content, /<h3>Eingebettete<\/h3>/);
+    assert.match(messages[0].content, /15 \+ \(0 - 0\) \(n5\)/);
+    assert.match(messages[0].content, /<div class="roll-result">15<\/div>/);
+  } finally {
+    Math.random = originalRandom;
+  }
+});

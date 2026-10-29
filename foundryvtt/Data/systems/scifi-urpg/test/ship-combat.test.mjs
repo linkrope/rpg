@@ -101,6 +101,25 @@ test("a ship with no assigned pilot has zero evasion", () => {
   assert.equal(outcome.hit, true);
 });
 
+test("ship weapons spend energy for every shot and no longer add Accuracy", () => {
+  const attacker = ship({ energy: { value: 100 } });
+  const target = ship({ hull: { value: 20 }, shields: { value: 0 } });
+  const outcome = resolveShipAttack({
+    attacker,
+    target,
+    // Accuracy is deliberately ignored after the field was replaced by Energy.
+    weapon: { system: { bep: 1, accuracy: 100, energy: 25, rangeModifier: 0 } },
+    gunners: [gunner(0)],
+    distance: 1_000,
+    roll: { plus: 0, minus: 0, total: 0 },
+  });
+
+  assert.equal(outcome.result, 0);
+  assert.equal(outcome.hit, false);
+  assert.equal(outcome.energyCost, 25);
+  assert.deepEqual(outcome.attackerUpdateData, { "system.energy.value": 75 });
+});
+
 test("recharging shields moves battery charge without repairing a shield component", () => {
   const result = rechargeShields(ship({ shields: { value: 3, max: 10 }, energy: { value: 4 } }));
   assert.equal(result.transfer, 4);
