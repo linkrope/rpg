@@ -4,16 +4,16 @@
     <div class="ship-header-fields">
       <div class="ship-title-row">
         <input class="ship-name" name="name" type="text" value="{{actor.name}}" placeholder="Ship name">
-        <label><span>Mark</span><select name="system.mark"><option value="I" {{#if (eq system.mark "I")}}selected{{/if}}>I</option><option value="II" {{#if (eq system.mark "II")}}selected{{/if}}>II</option><option value="III" {{#if (eq system.mark "III")}}selected{{/if}}>III</option><option value="IV" {{#if (eq system.mark "IV")}}selected{{/if}}>IV</option><option value="V" {{#if (eq system.mark "V")}}selected{{/if}}>V</option></select></label>
+        <div class="ship-design-origin"><span>Design</span><strong>{{#if isCustomDesign}}Custom{{else}}Standard{{/if}} · Mk-{{design.baseMark}}</strong></div>
       </div>
       <div class="ship-status-grid">
-        <label><span>Battery (kWs)</span><input name="system.energy.value" type="number" min="0" max="{{system.energy.max}}" value="{{system.energy.value}}"> / {{system.energy.max}}</label>
-        <label><span>Hull (BEP)</span><input name="system.hull.value" type="number" min="0" max="{{system.hull.max}}" value="{{system.hull.value}}"> / {{system.hull.max}}</label>
-        <label><span>Shields (BEP)</span><input name="system.shields.value" type="number" min="0" max="{{system.shields.max}}" value="{{system.shields.value}}"> / {{system.shields.max}}</label>
+        <label><span>Battery (MWs)</span><input name="system.energy.value" type="text" inputmode="decimal" min="0" max="{{system.energy.max}}" value="{{system.energy.value}}"> / {{system.energy.max}}</label>
+        <label><span>Hull (kBEP)</span><input name="system.hull.value" type="text" inputmode="decimal" min="0" max="{{system.hull.max}}" value="{{system.hull.value}}"> / {{system.hull.max}}</label>
+        <label><span>Shields (kBEP)</span><input name="system.shields.value" type="text" inputmode="decimal" min="0" max="{{system.shields.max}}" value="{{system.shields.value}}"> / {{system.shields.max}}</label>
       </div>
       <div class="ship-attack-row">
         <div class="equipped-weapon-display"><span>Weapon</span><strong>{{attack.weaponName}}</strong></div>
-        <label><span>Modifier</span><input type="number" data-field="attack-bonus" value="{{attack.bonusInput}}" step="1" placeholder="-"></label>
+        <label><span>Modifier</span><input type="text" inputmode="decimal" data-field="attack-bonus" value="{{attack.bonusInput}}" step="1" placeholder="-"></label>
         <div class="ship-header-attack-control"><span class="ship-header-attack-label">&nbsp;</span><div class="ship-header-attack-row"><button type="button" class="attack-button ship-skill-roll" data-action="attack-target" {{#unless attack.hasWeapon}}disabled{{/unless}}>Attack</button></div></div>
       </div>
     </div>
@@ -29,26 +29,55 @@
 
   <section class="sheet-body">
     <div class="tab" data-group="primary" data-tab="overview">
+      <section class="ship-design-panel">
+        <div class="ship-design-heading"><div><h2>Ship design</h2><p>{{#if isCustomDesign}}Custom design based on Mk-{{design.baseMark}}.{{else}}Standard Mk-{{design.baseMark}} design.{{/if}}</p></div><button type="button" class="{{#if editingDesign}}active{{/if}}" data-action="toggle-design-edit">{{#if editingDesign}}Done{{else}}Edit{{/if}}</button></div>
+        <div class="ship-design-editor" {{#unless editingDesign}}hidden{{/unless}}>
+          <div class="ship-stat-grid">
+            <label><span>Mk</span><select data-field="design-mark"><option value="I" {{#if (eq designEdit.baseMark "I")}}selected{{/if}}>I</option><option value="II" {{#if (eq designEdit.baseMark "II")}}selected{{/if}}>II</option><option value="III" {{#if (eq designEdit.baseMark "III")}}selected{{/if}}>III</option><option value="IV" {{#if (eq designEdit.baseMark "IV")}}selected{{/if}}>IV</option><option value="V" {{#if (eq designEdit.baseMark "V")}}selected{{/if}}>V</option></select></label>
+            <label><span>Length (m)</span><input data-field="design-length" type="text" inputmode="decimal" min="0" step="1" value="{{designEdit.length}}"></label>
+            <label><span>Tonnage (t)</span><input data-field="design-tonnage-override" type="text" inputmode="decimal" min="0" step="0.1" value="{{designEditTonnage}}"></label>
+            <label><span>Hull thickness (mm)</span><input data-field="design-hull-thickness" type="text" inputmode="decimal" min="1" step="1" value="{{designEditSpecification.hullThickness}}"></label>
+            <label><span>Battery (t)</span><input data-field="design-component-mass" data-design-override="batteryMassOverride" type="text" inputmode="decimal" min="0" step="0.001" value="{{designEditSpecification.batteryMass}}"></label>
+            <label><span>Generator (t)</span><input data-field="design-component-mass" data-design-override="generatorMassOverride" type="text" inputmode="decimal" min="0" step="0.001" value="{{designEditSpecification.generatorMass}}"></label>
+            <label><span>Shields (t)</span><input data-field="design-component-mass" data-design-override="shieldMassOverride" type="text" inputmode="decimal" min="0" step="0.001" value="{{designEditSpecification.shieldMass}}"></label>
+            <label><span>Guns (t)</span><input data-field="design-component-mass" data-design-override="gunMassOverride" type="text" inputmode="decimal" min="0" step="0.001" value="{{designEditSpecification.gunMass}}"></label>
+          </div>
+          <p class="ship-rule-note">Each component mass is recommended at {{designEditSpecification.recommendedComponentMass}} t (Tonnage ÷ 8). Editing one keeps the other recommendations intact.</p>
+        </div>
+      </section>
       <div class="ship-stat-grid">
-        <label><span>Mass (t)</span><input name="system.mass" type="number" min="0" step="0.1" value="{{system.mass}}"></label>
-        <label><span>Hull maximum (BEP)</span><input name="system.hull.max" type="number" min="1" value="{{system.hull.max}}"></label>
-        <label><span>Shield maximum (BEP)</span><input name="system.shields.max" type="number" min="0" value="{{system.shields.max}}"></label>
-        <label><span>Battery maximum (kWs)</span><input name="system.energy.max" type="number" min="0" value="{{system.energy.max}}"></label>
-        <label><span>Reactor (kW)</span><input name="system.reactor.output" type="number" min="0" value="{{system.reactor.output}}"></label>
-        <label><span>Dilithium (t)</span><input name="system.dilithium" type="number" min="0" step="0.001" value="{{system.dilithium}}"></label>
+        <div><span>Length</span><strong>{{specificationDisplay.length}} m</strong></div>
+        <div><span>Tonnage</span><strong>{{specificationDisplay.tonnage}} t</strong></div>
+        <div><span>Surface</span><strong>{{specificationDisplay.surface}} m³</strong></div>
+        <div><span>Hull thickness</span><strong>{{specificationDisplay.hullThickness}} mm</strong></div>
+        <div><span>Hull mass</span><strong>{{specificationDisplay.hullMass}} t</strong></div>
+        <div><span>Hull protection</span><strong>{{specificationDisplay.hullProtection}} BEP</strong></div>
+        <div><span>Battery mass</span><strong>{{specificationDisplay.batteryMass}} t</strong></div>
+        <div><span>Battery capacity</span><strong>{{specificationDisplay.batteryCapacity}} MWs</strong></div>
+        <div><span>Generator mass</span><strong>{{specificationDisplay.generatorMass}} t</strong></div>
+        <div><span>Generator output</span><strong>{{specificationDisplay.generatorOutput}} kW</strong></div>
+        <div><span>Shield mass</span><strong>{{specificationDisplay.shieldMass}} t</strong></div>
+        <div><span>Shield capacity</span><strong>{{specificationDisplay.shieldCapacity}} kBEP</strong></div>
+        <div><span>Gun mass</span><strong>{{specificationDisplay.gunMass}} t</strong></div>
+        <div><span>Gun rate</span><strong>{{specificationDisplay.gunRate}} kBEP/s</strong></div>
+        <div><span>Gun power</span><strong>{{specificationDisplay.gunPower}} MW</strong></div>
+        <div><span>Gun count</span><strong>{{specificationDisplay.gunCount}}</strong></div>
+        <div><span>Nominal crew</span><strong>{{specificationDisplay.crew}}</strong></div>
+        <div><span>Payload</span><strong>{{specificationDisplay.freeTonnage}} t</strong></div>
+        <label><span>Dilithium (t)</span><input name="system.dilithium" type="text" inputmode="decimal" min="0" step="0.001" value="{{system.dilithium}}"></label>
       </div>
       <button type="button" data-action="recharge-shields">Recharge shields from battery</button>
       <button type="button" data-action="generate-reactor-energy">Generate one round of reactor energy</button>
-      <label><span>Convert Dilithium (t)</span><input data-field="dilithium-conversion" type="number" min="0" step="0.000001" value="{{dilithiumConversion}}"></label>
+      <label><span>Convert Dilithium (t)</span><input data-field="dilithium-conversion" type="text" inputmode="decimal" min="0" step="0.000001" value="{{dilithiumConversion}}"></label>
       <button type="button" data-action="convert-dilithium">Convert Dilithium to battery energy</button>
-      <p class="ship-rule-note">Shields cover every direction. BEP is absorbed by shields before it reaches the hull. Shields and weapons do not take conventional Loss.</p>
+      <p class="ship-rule-note">Shields cover every direction. kBEP is absorbed by shields before it reaches the hull. Shields and weapons do not take conventional Loss.</p>
     </div>
 
     <div class="tab" data-group="primary" data-tab="weapons">
       <div class="ship-toolbar"><span>Every weapon fires independently and may target any direction.</span><button type="button" class="ship-add-weapon" data-action="add-weapon">Add weapon</button></div>
       {{#each weapons}}
         <article class="ship-weapon-row{{#if selected}} selected{{/if}}">
-          <button type="button" class="ship-weapon-select" data-action="select-weapon" data-item-id="{{id}}" aria-pressed="{{#if selected}}true{{else}}false{{/if}}"><img src="{{img}}" alt=""><span><strong>{{name}}</strong><span>BEP {{bep}} · Energy {{energy}} kWs · Range {{rangeModifier}}</span></span></button>
+          <button type="button" class="ship-weapon-select" data-action="select-weapon" data-item-id="{{id}}" aria-pressed="{{#if selected}}true{{else}}false{{/if}}"><img src="{{img}}" alt=""><span><strong>{{name}}</strong><span>Damage {{bep}} kBEP · Energy {{energy}} kWs · Range {{rangeModifier}}</span></span></button>
           <div class="ship-weapon-actions"><button type="button" data-action="edit-weapon" data-item-id="{{id}}">Edit</button><button type="button" data-action="delete-weapon" data-item-id="{{id}}">Delete</button></div>
         </article>
       {{else}}<p>No ship weapons. Add one here or drag a Ship Weapon item onto this ship.</p>{{/each}}
@@ -75,8 +104,8 @@
     </div>
 
     <div class="tab" data-group="primary" data-tab="movement">
-      <div class="ship-stat-grid"><label><span>Velocity X</span><input name="system.movement.velocityX" type="number" value="{{system.movement.velocityX}}"></label><label><span>Velocity Y</span><input name="system.movement.velocityY" type="number" value="{{system.movement.velocityY}}"></label><div><span>Speed</span><strong>{{speed}}</strong></div></div>
-      <div class="ship-stat-grid"><label><span>Acceleration X</span><input data-field="acceleration-x" type="number" value="{{acceleration.x}}"></label><label><span>Acceleration Y</span><input data-field="acceleration-y" type="number" value="{{acceleration.y}}"></label><button type="button" data-action="apply-acceleration">Accelerate / brake</button></div>
+      <div class="ship-stat-grid"><label><span>Velocity X</span><input name="system.movement.velocityX" type="text" inputmode="decimal" value="{{system.movement.velocityX}}"></label><label><span>Velocity Y</span><input name="system.movement.velocityY" type="text" inputmode="decimal" value="{{system.movement.velocityY}}"></label><div><span>Speed</span><strong>{{speed}}</strong></div></div>
+      <div class="ship-stat-grid"><label><span>Acceleration X</span><input data-field="acceleration-x" type="text" inputmode="decimal" value="{{acceleration.x}}"></label><label><span>Acceleration Y</span><input data-field="acceleration-y" type="text" inputmode="decimal" value="{{acceleration.y}}"></label><button type="button" data-action="apply-acceleration">Accelerate / brake</button></div>
       <p class="ship-rule-note">Dragging a token is free bookkeeping. Only a change in velocity costs energy: (|ΔX| + |ΔY|) × mass. Rotation and firing direction are unrestricted.</p>
     </div>
 

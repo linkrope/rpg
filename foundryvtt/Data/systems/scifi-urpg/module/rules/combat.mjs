@@ -18,8 +18,7 @@ export const UNARMED_WEAPON = Object.freeze({
   bep: 2,
   rangeModifier: 0,
   clip: null,
-  ammo: null,
-  nozzle: null
+  ammo: null
 });
 
 /** Return the equipped embedded weapon, falling back to unarmed when none is selected. */
@@ -38,7 +37,6 @@ export function weaponForActor(actor) {
       rangeModifier: Number.isFinite(rangeModifier) ? rangeModifier : 0,
       clip: item.system.clip,
       ammo: item.system.ammo || null,
-      nozzle: item.system.nozzle || null,
       itemId: item.id
     };
   }
@@ -57,20 +55,24 @@ export function isMeleeAttack(weapon, distance) {
     && Number.isFinite(dist) && dist >= 0 && Number(dist.toFixed(1)) <= 1;
 }
 
-export function primarilyRangedBonus(weapon) {
-  const muzzleVelocity = String(weapon?.nozzle ?? "").trim();
-  if (muzzleVelocity.toLowerCase() === "light") return 10;
-
-  const velocity = Number.parseFloat(muzzleVelocity);
-  return Number.isFinite(velocity) && velocity > 10 ? 10 : 0;
+export function rangePenalty(weapon, distance) {
+  return rangePenaltyParts(weapon, distance).total;
 }
 
-export function rangePenalty(weapon, distance) {
+function rangePenaltyParts(weapon, distance) {
   const dist = Math.max(0, Number(distance) || 0);
-  if (dist <= 0 || isUnarmedWeapon(weapon) || isMeleeAttack(weapon, dist)) return 0;
+  if (dist <= 0 || isUnarmedWeapon(weapon) || isMeleeAttack(weapon, dist)) {
+    return { range: 0, modifier: 0, total: 0 };
+  }
 
   const modifier = Number(weapon?.rangeModifier);
-  return Math.min(0, -6 * Math.log2(dist / 5) + (Number.isFinite(modifier) ? modifier : 0));
+  const range = -6 * Math.log2(dist / 5);
+  const rangeModifier = Number.isFinite(modifier) ? modifier : 0;
+  return {
+    range,
+    modifier: rangeModifier,
+    total: Math.min(0, range + rangeModifier)
+  };
 }
 
 /** Display precision only; attack and damage calculations retain the original value. */
@@ -107,11 +109,11 @@ export function resolveAttack({ attacker, target, skillKey, bonus = 0, distance 
   const weapon = weaponForActor(attacker);
   const skillVal = Number(attacker.system.skills?.[skillKey]?.value ?? 0);
   const damagePen = Math.max(0, Number(attacker.system.health?.damage ?? 0));
-  const distPen = rangePenalty(weapon, distance);
-  const rangedBonus = primarilyRangedBonus(weapon);
+  const range = rangePenaltyParts(weapon, distance);
+  const distPen = range.total;
   const aimPen = aimPenalty(aimZones);
   const n5 = rollN5();
-  const result = skillVal - damagePen + Number(bonus || 0) + rangedBonus + n5.total + distPen - aimPen;
+  const result = skillVal - damagePen + Number(bonus || 0) + n5.total + distPen - aimPen;
   const hit = result > 0;
 
   const outcome = {
@@ -122,9 +124,10 @@ export function resolveAttack({ attacker, target, skillKey, bonus = 0, distance 
     skillVal,
     damagePen,
     bonus: Number(bonus || 0),
-    primarilyRangedBonus: rangedBonus,
     distance: Math.max(0, Number(distance) || 0),
     distPen,
+    rangePen: range.range,
+    rangeModifier: range.modifier,
     aimPen,
     roll: n5,
     result,

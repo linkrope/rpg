@@ -135,8 +135,7 @@ export class WeaponDataModel extends foundry.abstract.TypeDataModel {
       bep: new fields.NumberField({ required: true, nullable: false, initial: 0, min: 0 }),
       rangeModifier: new fields.NumberField({ required: true, nullable: false, initial: 0 }),
       clip: new fields.NumberField({ required: false, nullable: true, integer: true, initial: null, min: 0 }),
-      ammo: new fields.StringField({ required: false, nullable: false, blank: true, initial: "" }),
-      nozzle: new fields.StringField({ required: false, nullable: false, blank: true, initial: "" })
+      ammo: new fields.StringField({ required: false, nullable: false, blank: true, initial: "" })
     };
   }
 
@@ -146,6 +145,7 @@ export class WeaponDataModel extends foundry.abstract.TypeDataModel {
     if (source.rangeModifier === undefined) source.rangeModifier = 0;
     delete source.range;
     delete source.rate;
+    delete source.nozzle;
     return super.migrateData(source);
   }
 }

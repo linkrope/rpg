@@ -1,3 +1,6 @@
+import { calculateShipSpecification, standardShipDesign } from "../rules/ship-design.mjs";
+import { starterShipWeaponSource } from "../constants.mjs";
+
 export class SciFiActor extends Actor {
   async toggleStatusEffect(statusId, options = {}) {
     if (this.type === "character" && statusId === "unconscious") {
@@ -12,10 +15,27 @@ export class SciFiActor extends Actor {
     super._preCreate(data, options, user);
 
     if (this.type === "ship") {
+      const suppliedSystem = data.system ?? {};
+      const design = suppliedSystem.design ?? standardShipDesign(suppliedSystem.mark ?? this.system.mark);
+      const specification = calculateShipSpecification(design);
+      this.updateSource({
+        "system.design": design,
+        "system.mark": design.baseMark,
+        "system.hull.value": specification.hullProtection,
+        "system.shields.value": specification.shieldCapacity,
+        "system.energy.value": specification.batteryCapacity,
+      });
+      const items = Array.isArray(data.items) ? data.items : (this._source.items ?? []);
+      if (!items.some((item) => item.type === "shipWeapon")) {
+        this.updateSource({ items: [...items, starterShipWeaponSource(specification)] });
+      }
       this.updateSource({
         "prototypeToken.actorLink": true,
         "prototypeToken.bar1.attribute": "hull",
         "prototypeToken.bar2.attribute": "shields",
+        // Ship illustrations are drawn in landscape. Rotate their token so a
+        // right-facing sprite points south on the tactical map by default.
+        "prototypeToken.rotation": 90,
         "prototypeToken.displayName": CONST.TOKEN_DISPLAY_MODES.OWNER_HOVER,
         "prototypeToken.displayBars": CONST.TOKEN_DISPLAY_MODES.OWNER_HOVER
       });

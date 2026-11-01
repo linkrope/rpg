@@ -34,7 +34,7 @@ export async function postRollCard(actor, {
   }
 
   const resolvedMessageMode = messageMode ?? selectedMessageMode();
-  if (resolvedMessageMode !== "public") {
+  if (!isPublicMessageMode(resolvedMessageMode)) {
     await ChatMessage.create(
       foundry.documents.ChatMessage.implementation.applyMode(messageData, resolvedMessageMode)
     );
@@ -42,16 +42,17 @@ export async function postRollCard(actor, {
   }
 
   if (!shouldRedactNpcRoll(actor)) {
-    await ChatMessage.create(messageData);
+    await ChatMessage.create(applyPublicMessageMode(messageData, resolvedMessageMode));
     return;
   }
 
-  await ChatMessage.create({
+  const publicMessageData = {
     ...messageOptions,
     speaker: rollSpeaker,
     content: publicContent ?? resultOnlyCard(actor, result),
     flags: rollCardFlags(actor, flags, { publicNpcResult: true }, actorIds)
-  });
+  };
+  await ChatMessage.create(applyPublicMessageMode(publicMessageData, resolvedMessageMode));
 
   await ChatMessage.create({
     ...messageOptions,
@@ -79,6 +80,17 @@ function selectedMessageMode() {
 
   const legacyMode = game.settings.get("core", "rollMode");
   return foundry.dice.Roll._mapLegacyRollMode(legacyMode) ?? "public";
+}
+
+function isPublicMessageMode(messageMode) {
+  // Foundry's "Public as Character" mode ("ic") is still visible to all
+  // players, so it needs the same NPC formula redaction as plain public chat.
+  return messageMode === "public" || messageMode === "ic";
+}
+
+function applyPublicMessageMode(messageData, messageMode) {
+  if (messageMode === "public") return messageData;
+  return foundry.documents.ChatMessage.implementation.applyMode(messageData, messageMode);
 }
 
 function safeRollSpeaker(actor, speaker) {

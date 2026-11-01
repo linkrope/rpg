@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-test("weapon migration replaces legacy range and rate with a neutral range modifier", async () => {
+test("weapon migration removes legacy range, rate, and ranged classification data", async () => {
   globalThis.foundry = {
     abstract: {
       TypeDataModel: class {
@@ -15,7 +15,6 @@ test("weapon migration replaces legacy range and rate with a neutral range modif
 
   assert.deepEqual(WeaponDataModel.migrateData(source), {
     rangeModifier: 0,
-    nozzle: "600m/s",
     clip: 30
   });
 });

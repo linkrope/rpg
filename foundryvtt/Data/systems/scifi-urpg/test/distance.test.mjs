@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { formatAttackResult, isMeleeAttack, primarilyRangedBonus, rangePenalty, resolveAttack, weaponForActor } from "../module/rules/combat.mjs";
+import { formatAttackResult, isMeleeAttack, rangePenalty, resolveAttack, weaponForActor } from "../module/rules/combat.mjs";
 import { tokenDistance } from "../module/rules/distance.mjs";
 import { buildAttackCard } from "../module/rules/roll-card.mjs";
 
@@ -28,8 +28,7 @@ test("a missing equipped weapon item falls back to unarmed", () => {
     bep: 2,
     rangeModifier: 0,
     clip: null,
-    ammo: null,
-    nozzle: null
+    ammo: null
   });
 });
 
@@ -86,20 +85,33 @@ test("weapons without a clip use melee at displayed 1.0 m", () => {
   }
 });
 
-test("primarily ranged weapons add ten to the attack", () => {
-  assert.equal(primarilyRangedBonus({ nozzle: "10m/s" }), 0);
-  assert.equal(primarilyRangedBonus({ nozzle: "11m/s" }), 10);
-  assert.equal(primarilyRangedBonus({ nozzle: "Light" }), 10);
-
+test("legacy muzzle data does not classify a weapon or modify its attack", () => {
   const weapon = { type: "weapon", name: "Test", system: { clip: 1, nozzle: "Light", rangeModifier: 0, skill: "Test", bep: 1 } };
   const attacker = { system: { weapon: { selected: "w" }, skills: { Test: { value: 20 } }, health: {} }, items: new Map([["w", weapon]]) };
   const originalRandom = Math.random;
   try {
     Math.random = () => 0;
     const outcome = resolveAttack({ attacker, target: { system: { health: {}, armor: {} } }, skillKey: "Test", distance: 5 });
-    assert.equal(outcome.primarilyRangedBonus, 10);
-    assert.equal(outcome.result, 30);
-    assert.match(buildAttackCard(outcome).attackFormula, /\+ 10 \(ranged\)/);
+    assert.equal(outcome.result, 20);
+    assert.doesNotMatch(buildAttackCard(outcome).attackFormula, /ranged/);
+  } finally {
+    Math.random = originalRandom;
+  }
+});
+
+test("attack cards show fixed modifiers before changing terms", () => {
+  const weapon = { type: "weapon", name: "Test", system: { clip: 1, rangeModifier: 2, skill: "Test", bep: 1 } };
+  const attacker = { system: { weapon: { selected: "w" }, skills: { Test: { value: 20 } }, health: { damage: 4 } }, items: new Map([["w", weapon]]) };
+  const originalRandom = Math.random;
+  try {
+    Math.random = () => 0;
+    const outcome = resolveAttack({ attacker, target: { system: { health: {}, armor: {} } }, skillKey: "Test", bonus: 3, distance: 10 });
+
+    assert.equal(outcome.distPen, -4);
+    assert.equal(
+      buildAttackCard(outcome).attackFormula,
+      "20 (skill) + 3 (modifier) + 2 (range modifier) - 4 (damage) - 6.0 (range 10.0 m) + (0 - 0) (n5)"
+    );
   } finally {
     Math.random = originalRandom;
   }

@@ -93,6 +93,19 @@ export const SCI_FI = {
   ARMOR_MATERIALS
 };
 
+/** A ship owns one configurable weapon entry by default, never one per gun. */
+export function starterShipWeaponSource(specification = {}) {
+  return {
+    type: "shipWeapon",
+    name: "Ship Weapon",
+    img: "icons/weapons/artillery/missile.webp",
+    system: {
+      bep: Number(specification.gunRate) || 1,
+      energy: Number(specification.gunPower) || 0,
+    },
+  };
+}
+
 export function displaySkillName(key) {
   return DISPLAY_NAME_OVERRIDES[key] ?? key;
 }

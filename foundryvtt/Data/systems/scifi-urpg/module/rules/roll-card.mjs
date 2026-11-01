@@ -26,16 +26,29 @@ export function buildAttackCard(outcome) {
 function attackFormula(outcome) {
   const parts = [`${outcome.skillVal} (skill)`];
 
-  if (outcome.damagePen > 0) parts.push(`- ${outcome.damagePen} (damage)`);
+  // Fixed modifiers first, so the changing situation and dice result form a
+  // distinct second half of the calculation.
   if (outcome.bonus > 0) parts.push(`+ ${outcome.bonus} (modifier)`);
   if (outcome.bonus < 0) parts.push(`- ${Math.abs(outcome.bonus)} (modifier)`);
-  if (outcome.primarilyRangedBonus > 0) parts.push(`+ ${outcome.primarilyRangedBonus} (ranged)`);
-  if (outcome.distPen < 0) parts.push(`- ${Math.abs(outcome.distPen).toFixed(1)} (distance ${outcome.distance.toFixed(1)} m)`);
+  if (outcome.distPen < 0) appendSignedPart(parts, outcome.rangeModifier, "range modifier", { integer: true });
+
+  if (outcome.damagePen > 0) parts.push(`- ${outcome.damagePen} (damage)`);
+  if (outcome.distPen < 0) {
+    appendSignedPart(parts, outcome.rangePen, `range ${outcome.distance.toFixed(1)} m`);
+  }
   if (outcome.aimPen > 0) parts.push(`- ${outcome.aimPen} (aim)`);
 
   parts.push(n5Formula(outcome.roll));
 
   return parts.join(" ");
+}
+
+function appendSignedPart(parts, value, label, { integer = false } = {}) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number === 0) return;
+  const sign = number > 0 ? "+" : "-";
+  const formatted = integer ? String(Math.round(Math.abs(number))) : Math.abs(number).toFixed(1);
+  parts.push(`${sign} ${formatted} (${label})`);
 }
 
 function armorLossFormula(outcome) {
