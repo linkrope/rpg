@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { formatAttackResult, isMeleeAttack, rangePenalty, resolveAttack, weaponForActor } from "../module/rules/combat.mjs";
 import { tokenDistance } from "../module/rules/distance.mjs";
 import { buildAttackCard } from "../module/rules/roll-card.mjs";
+import { shipRangePenalty } from "../module/rules/ship-combat.mjs";
 
 test("range penalty uses the five-metre curve and clamps positive modifiers", () => {
   const weapon = { rangeModifier: 0 };
@@ -53,6 +54,20 @@ test("distance includes elevation without rounding and attacks apply the full mo
   } finally {
     Math.random = originalRandom;
   }
+});
+
+test("kilometre scene grids convert token distances to metres for ship range badges", () => {
+  const scene = { grid: { size: 100, distance: 1, units: "km" } };
+  const source = { center: { x: 0, y: 0 }, document: { elevation: 0 } };
+  const target = { center: { x: 200, y: 0 }, document: { elevation: 0 } };
+  const distance = tokenDistance(source, target, scene);
+
+  assert.equal(distance, 2_000);
+  assert.equal(shipRangePenalty({}, distance), 0);
+
+  target.center.x = 0;
+  target.document.elevation = 3;
+  assert.equal(tokenDistance(source, target, scene), 3_000);
 });
 
 test("weapons without a clip use melee at displayed 1.0 m", () => {
@@ -186,9 +201,19 @@ test("target badges redraw on movement, elevation, selection, and weapon changes
   actor.type = "ship";
   target.actor.type = "ship";
   source.center.x = 0;
-  target.center.x = 200000;
+  target.center.x = 1_000_000;
   hooks.get("updateActor")(actor); flush();
-  assert.equal(label(), "2.00 km · -6.0");
+  assert.equal(label(), "10.00 km · -6.0");
+  actor.type = "character";
+  target.actor.type = "character";
+  actor.system.weapon.selected = "w";
+  weapon.system.skill = "Test";
+  weapon.system.clip = 1;
+  weapon.system.rangeModifier = 0;
+  scene.grid.units = "km";
+  target.center.x = 1_000;
+  hooks.get("updateActor")(actor); flush();
+  assert.equal(label(), "10.0 km · -6.0");
   game.user.targets.clear();
   hooks.get("targetToken")(); flush();
   assert.equal(label(), undefined);

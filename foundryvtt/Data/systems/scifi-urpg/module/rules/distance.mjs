@@ -1,9 +1,10 @@
-/** Center-to-center Euclidean distance; scene grid units and elevations are meters. */
+/** Center-to-center Euclidean distance in metres. */
 export function tokenDistance(source, target, scene = globalThis.canvas?.scene) {
   if (!source || !target || !scene) return null;
   const gridSize = Number(scene.grid?.size);
   const gridDistance = Number(scene.grid?.distance);
   if (!(gridSize > 0) || !(gridDistance > 0)) return null;
+  const metresPerGridUnit = String(scene.grid?.units ?? "m").trim().toLowerCase() === "km" ? 1_000 : 1;
 
   const center = (token) => {
     const doc = token.document ?? token;
@@ -18,7 +19,19 @@ export function tokenDistance(source, target, scene = globalThis.canvas?.scene) 
   const bElevation = Number((target.document ?? target).elevation ?? 0);
   const scale = gridDistance / gridSize;
   const result = Math.hypot((b.x - a.x) * scale, (b.y - a.y) * scale, bElevation - aElevation);
-  return Number.isFinite(result) ? result : null;
+  return Number.isFinite(result) ? result * metresPerGridUnit : null;
+}
+
+/** The unit used by the character-range curve for the current Scene. */
+export function sceneRangeUnit(scene = globalThis.canvas?.scene) {
+  return String(scene?.grid?.units ?? "m").trim().toLowerCase() === "km" ? "km" : "m";
+}
+
+/** Convert a metre distance to the current Scene's character-range unit. */
+export function distanceForSceneRange(distance, scene = globalThis.canvas?.scene) {
+  const metres = Number(distance);
+  if (!Number.isFinite(metres)) return 0;
+  return sceneRangeUnit(scene) === "km" ? metres / 1_000 : metres;
 }
 
 /** Prefer the controlled token, including unlinked synthetic actors. */

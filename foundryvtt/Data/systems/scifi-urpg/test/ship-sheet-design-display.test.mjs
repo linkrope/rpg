@@ -16,5 +16,5 @@ test("ship design display rounds floating-point free tonnage to three decimals",
 
   const context = await sheet.getData();
 
-  assert.equal(context.specificationDisplay.freeTonnage, "1.712");
+  assert.equal(context.specificationDisplay.freeTonnage, "0.512");
 });

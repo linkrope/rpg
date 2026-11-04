@@ -23,16 +23,32 @@ test("a 75 metre Type II custom design recalculates from its length", () => {
   assert.equal(specification.hullThickness, 20);
   assert.equal(specification.hullMass, 2.025);
   assert.equal(specification.hullProtection, 240);
-  assert.equal(specification.batteryCapacity, 3_750);
-  assert.equal(specification.gunCount, 15);
+  assert.equal(specification.batteryCapacity, 2_500);
+  assert.equal(specification.generatorOutput, 1_250);
+  assert.equal(specification.shieldCapacity, 125);
+  assert.equal(specification.gunCount, 20);
 });
 
 test("a tonnage override is authoritative for all dependent values", () => {
   const specification = calculateShipSpecification({ ...standardShipDesign("II"), mode: "custom", length: 75, tonnageOverride: 35 });
   assert.equal(specification.tonnage, 35);
   assert.equal(specification.crew, 21);
-  assert.equal(specification.shieldCapacity, 437.5);
-  assert.equal(specification.gunCount, 17);
+  assert.equal(Number(specification.shieldCapacity.toFixed(3)), 145.833);
+  assert.equal(specification.gunCount, 23);
+});
+
+test("each standard Mk uses its specified component allocation", () => {
+  const expectedBatteryDivisors = { I: 5, II: 12, III: 13, IV: 10, V: 5 };
+
+  for (const [mark, batteryDivisor] of Object.entries(expectedBatteryDivisors)) {
+    const specification = calculateShipSpecification(standardShipDesign(mark));
+    const batteryMass = specification.tonnage / batteryDivisor;
+
+    assert.equal(specification.batteryMass, batteryMass, `Mk-${mark} battery`);
+    assert.equal(specification.generatorMass, batteryMass / 2, `Mk-${mark} generator`);
+    assert.equal(specification.shieldMass, batteryMass / 2, `Mk-${mark} shields`);
+    assert.equal(specification.gunMass, batteryMass * 2, `Mk-${mark} guns`);
+  }
 });
 
 test("component mass overrides recalculate only their dependent ship values", () => {
@@ -45,7 +61,7 @@ test("component mass overrides recalculate only their dependent ship values", ()
   assert.equal(specification.generatorOutput, 3_000);
   assert.equal(specification.shieldCapacity, 200);
   assert.equal(specification.gunRate, 4);
-  assert.equal(specification.gunPower, 200);
+  assert.equal(specification.gunPower, 0.4);
   assert.equal(specification.gunCount, 4);
   assert.equal(specification.freeTonnage, 17.975);
 });
@@ -55,5 +71,5 @@ test("a hull-thickness override recalculates hull mass, protection, and payload"
 
   assert.equal(specification.hullMass, 1.62);
   assert.equal(specification.hullProtection, 300);
-  assert.equal(Number(specification.freeTonnage.toFixed(3)), 5.88);
+  assert.equal(Number(specification.freeTonnage.toFixed(3)), 8.38);
 });

@@ -7,9 +7,9 @@
         <div class="ship-design-origin"><span>Design</span><strong>{{#if isCustomDesign}}Custom{{else}}Standard{{/if}} · Mk-{{design.baseMark}}</strong></div>
       </div>
       <div class="ship-status-grid">
-        <label><span>Battery (MWs)</span><input name="system.energy.value" type="text" inputmode="decimal" min="0" max="{{system.energy.max}}" value="{{system.energy.value}}"> / {{system.energy.max}}</label>
-        <label><span>Hull (kBEP)</span><input name="system.hull.value" type="text" inputmode="decimal" min="0" max="{{system.hull.max}}" value="{{system.hull.value}}"> / {{system.hull.max}}</label>
-        <label><span>Shields (kBEP)</span><input name="system.shields.value" type="text" inputmode="decimal" min="0" max="{{system.shields.max}}" value="{{system.shields.value}}"> / {{system.shields.max}}</label>
+        <label><span>Battery (MWs)</span><input name="system.energy.value" type="text" inputmode="decimal" min="0" max="{{batteryMaxDisplay}}" value="{{batteryDisplay}}"> / {{batteryMaxDisplay}}</label>
+        <label><span>Hull (BEP)</span><input name="system.hull.value" type="text" inputmode="decimal" min="0" max="{{system.hull.max}}" value="{{system.hull.value}}"> / {{system.hull.max}}</label>
+        <label><span>Shields (kBEP)</span><input name="system.shields.value" type="text" inputmode="decimal" min="0" max="{{shieldsMaxDisplay}}" value="{{shieldsDisplay}}"> / {{shieldsMaxDisplay}}</label>
       </div>
       <div class="ship-attack-row">
         <div class="equipped-weapon-display"><span>Weapon</span><strong>{{attack.weaponName}}</strong></div>
@@ -42,7 +42,7 @@
             <label><span>Shields (t)</span><input data-field="design-component-mass" data-design-override="shieldMassOverride" type="text" inputmode="decimal" min="0" step="0.001" value="{{designEditSpecification.shieldMass}}"></label>
             <label><span>Guns (t)</span><input data-field="design-component-mass" data-design-override="gunMassOverride" type="text" inputmode="decimal" min="0" step="0.001" value="{{designEditSpecification.gunMass}}"></label>
           </div>
-          <p class="ship-rule-note">Each component mass is recommended at {{designEditSpecification.recommendedComponentMass}} t (Tonnage ÷ 8). Editing one keeps the other recommendations intact.</p>
+          <p class="ship-rule-note">Recommended masses follow the selected Mk allocation: generator and shields each receive half the battery mass, while guns receive twice it. Editing one keeps the other recommendations intact.</p>
         </div>
       </section>
       <div class="ship-stat-grid">
@@ -60,7 +60,7 @@
         <div><span>Shield capacity</span><strong>{{specificationDisplay.shieldCapacity}} kBEP</strong></div>
         <div><span>Gun mass</span><strong>{{specificationDisplay.gunMass}} t</strong></div>
         <div><span>Gun rate</span><strong>{{specificationDisplay.gunRate}} kBEP/s</strong></div>
-        <div><span>Gun power</span><strong>{{specificationDisplay.gunPower}} MW</strong></div>
+        <div><span>Gun power</span><strong>{{specificationDisplay.gunPower}} MWs</strong></div>
         <div><span>Gun count</span><strong>{{specificationDisplay.gunCount}}</strong></div>
         <div><span>Nominal crew</span><strong>{{specificationDisplay.crew}}</strong></div>
         <div><span>Payload</span><strong>{{specificationDisplay.freeTonnage}} t</strong></div>
@@ -68,8 +68,6 @@
       </div>
       <button type="button" data-action="recharge-shields">Recharge shields from battery</button>
       <button type="button" data-action="generate-reactor-energy">Generate one round of reactor energy</button>
-      <label><span>Convert Dilithium (t)</span><input data-field="dilithium-conversion" type="text" inputmode="decimal" min="0" step="0.000001" value="{{dilithiumConversion}}"></label>
-      <button type="button" data-action="convert-dilithium">Convert Dilithium to battery energy</button>
       <p class="ship-rule-note">Shields cover every direction. kBEP is absorbed by shields before it reaches the hull. Shields and weapons do not take conventional Loss.</p>
     </div>
 
@@ -77,11 +75,11 @@
       <div class="ship-toolbar"><span>Every weapon fires independently and may target any direction.</span><button type="button" class="ship-add-weapon" data-action="add-weapon">Add weapon</button></div>
       {{#each weapons}}
         <article class="ship-weapon-row{{#if selected}} selected{{/if}}">
-          <button type="button" class="ship-weapon-select" data-action="select-weapon" data-item-id="{{id}}" aria-pressed="{{#if selected}}true{{else}}false{{/if}}"><img src="{{img}}" alt=""><span><strong>{{name}}</strong><span>Damage {{bep}} kBEP · Energy {{energy}} kWs · Range {{rangeModifier}}</span></span></button>
+          <button type="button" class="ship-weapon-select" data-action="select-weapon" data-item-id="{{id}}" aria-pressed="{{#if selected}}true{{else}}false{{/if}}"><img src="{{img}}" alt=""><span><strong>{{name}}</strong><span>Damage {{bep}} kBEP · Energy {{energy}} MWs · Range {{rangeModifier}}</span></span></button>
           <div class="ship-weapon-actions"><button type="button" data-action="edit-weapon" data-item-id="{{id}}">Edit</button><button type="button" data-action="delete-weapon" data-item-id="{{id}}">Delete</button></div>
         </article>
       {{else}}<p>No ship weapons. Add one here or drag a Ship Weapon item onto this ship.</p>{{/each}}
-      <p class="ship-rule-note">At 1 km the range modifier is 0; each doubling of distance is −6.</p>
+      <p class="ship-rule-note">At 5 km the range modifier is 0; each doubling of distance is −6.</p>
     </div>
 
     <div class="tab" data-group="primary" data-tab="crew">

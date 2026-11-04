@@ -5,7 +5,7 @@ import { actorNameElement, postRollCard } from "../chat.mjs";
 import { combineSkillValues, skillRollFormula } from "../rules/skills.mjs";
 import { DEFAULT_AIM_ZONES, aimPenalty, aimTotalPct, formatAttackResult, isMeleeAttack, isUnarmedWeapon, resolveAttack, UNARMED_WEAPON, weaponForActor } from "../rules/combat.mjs";
 import { buildAttackCard } from "../rules/roll-card.mjs";
-import { distanceToTarget } from "../rules/distance.mjs";
+import { distanceForSceneRange, distanceToTarget, sceneRangeUnit } from "../rules/distance.mjs";
 import { formatDimensionMetersPerSecond, moveMetersPerSecondForDimension } from "../rules/dimensions.mjs";
 
 function displayNumber(value) {
@@ -499,11 +499,12 @@ export class SciFiCharacterSheet extends ActorSheet {
 
     const weapon = weaponForActor(this.actor);
     const skillKey = this.actor.system.skills?.[weapon.skill] ? weapon.skill : "Waffenlos";
-    const distance = distanceToTarget(this.actor, targetToken);
-    if (distance === null) {
+    const distanceInMetres = distanceToTarget(this.actor, targetToken);
+    if (distanceInMetres === null) {
       ui.notifications.warn("Place this actor on the scene before attacking.");
       return;
     }
+    const distance = distanceForSceneRange(distanceInMetres);
 
     if (isUnarmedWeapon(weapon) && !isMeleeAttack(weapon, distance)) {
       ui.notifications.warn(`${weapon.name} is a melee weapon. Move within 1 ${canvas.scene?.grid?.units || "grid unit"} before attacking.`);
@@ -518,6 +519,7 @@ export class SciFiCharacterSheet extends ActorSheet {
       distance,
       aimZones
     });
+    outcome.distanceUnit = sceneRangeUnit();
 
     await game.scifiUrpg.updateActor(target, outcome.updateData, {
       token: targetToken,

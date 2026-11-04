@@ -14,7 +14,8 @@ import { n5Formula, rollN5, rollP5 } from "./module/rules/dice.mjs";
 import { combineSkillValues, skillRollFormula } from "./module/rules/skills.mjs";
 import { DEFAULT_AIM_ZONES, formatAttackResult, isMeleeAttack, isUnarmedWeapon, resolveAttack, weaponForActor } from "./module/rules/combat.mjs";
 import { buildAttackCard } from "./module/rules/roll-card.mjs";
-import { distanceToTarget } from "./module/rules/distance.mjs";
+import { distanceForSceneRange, distanceToTarget, sceneRangeUnit } from "./module/rules/distance.mjs";
+import { migrateShipSystemUnits, migrateShipWeaponSystemUnits } from "./module/rules/ship-units.mjs";
 import "./module/canvas/target-distance.mjs";
 import { applyShockOutcome, resolveShock, shockFormula, shouldRollShock } from "./module/rules/shock.mjs";
 import { formatDimensionMetersPerSecond, moveMetersPerSecondForDimension } from "./module/rules/dimensions.mjs";
@@ -98,7 +99,10 @@ Hooks.once("ready", () => {
     rollSkill
   };
 
-  if (game.user?.isGM) void clearSecondaryTokenBars();
+  if (game.user?.isGM) {
+    void clearSecondaryTokenBars();
+    void migrateWorldShipUnits();
+  }
 });
 
 Hooks.once("ready", () => {
@@ -320,11 +324,12 @@ async function attack({ actorId, bonus = 0, aimZones = DEFAULT_AIM_ZONES } = {})
 
   const weapon = weaponForActor(actor);
   const skillKey = actor.system.skills?.[weapon.skill] ? weapon.skill : "Waffenlos";
-  const distance = distanceToTarget(actor, targetToken);
-  if (distance === null) {
+  const distanceInMetres = distanceToTarget(actor, targetToken);
+  if (distanceInMetres === null) {
     ui.notifications.warn("Place this actor on the scene before attacking.");
     return;
   }
+  const distance = distanceForSceneRange(distanceInMetres);
 
   const meleeReach = isUnarmedWeapon(weapon) ? 1 : Math.max(1, Number(canvas.scene?.grid?.distance ?? 1) || 1);
   if (isUnarmedWeapon(weapon) && !isMeleeAttack(weapon, distance)) {
@@ -340,6 +345,7 @@ async function attack({ actorId, bonus = 0, aimZones = DEFAULT_AIM_ZONES } = {})
     distance,
     aimZones
   });
+  outcome.distanceUnit = sceneRangeUnit();
 
   await updateActor(target, outcome.updateData, {
     token: targetToken,
@@ -595,6 +601,50 @@ function activeGMUsers() {
   return game.users
     ?.filter((user) => user.active && user.isGM)
     .sort((a, b) => a.id.localeCompare(b.id)) ?? [];
+}
+
+function sourceSystem(document) {
+  return document?._source?.system ?? document?.toObject?.()?.system ?? document?.system ?? {};
+}
+
+function shipUnitsVersion(document) {
+  return Number(document?._source?.flags?.["scifi-urpg"]?.shipUnitsVersion ?? 0);
+}
+
+function isPrimaryActiveGM() {
+  const [primary] = activeGMUsers();
+  return primary?.id === game.user?.id;
+}
+
+/** Persist the v2 base-unit conversion once, from one authoritative GM client. */
+async function migrateWorldShipUnits() {
+  if (!isPrimaryActiveGM()) return;
+
+  let ships = 0;
+  let weapons = 0;
+  for (const actor of game.actors ?? []) {
+    if (actor.type !== "ship") continue;
+
+    const shipUpdate = migrateShipSystemUnits(sourceSystem(actor), shipUnitsVersion(actor));
+    if (shipUpdate) {
+      await actor.update(shipUpdate);
+      ships += 1;
+    }
+
+    for (const item of actor.items ?? []) {
+      if (item.type !== "shipWeapon") continue;
+      const weaponUpdate = migrateShipWeaponSystemUnits(sourceSystem(item), shipUnitsVersion(item));
+      if (!weaponUpdate) continue;
+      await item.update(weaponUpdate);
+      weapons += 1;
+    }
+  }
+
+  if (ships || weapons) {
+    const summary = `Migrated ${ships} ship${ships === 1 ? "" : "s"} and ${weapons} ship weapon${weapons === 1 ? "" : "s"} to base units.`;
+    console.info(`SciFi@URPG | ${summary}`);
+    ui.notifications?.info(summary);
+  }
 }
 
 function sanitizeCombatUpdateData(updateData) {

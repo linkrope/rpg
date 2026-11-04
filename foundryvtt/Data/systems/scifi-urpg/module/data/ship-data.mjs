@@ -35,12 +35,12 @@ export class ShipDataModel extends foundry.abstract.TypeDataModel {
         max: new fields.NumberField({ initial: 20, min: 1, required: true }),
       }),
       shields: new fields.SchemaField({
-        value: new fields.NumberField({ initial: 10, min: 0, required: true }),
-        max: new fields.NumberField({ initial: 10, min: 0, required: true }),
+        value: new fields.NumberField({ initial: 10_000, min: 0, required: true }),
+        max: new fields.NumberField({ initial: 10_000, min: 0, required: true }),
       }),
       energy: new fields.SchemaField({
-        value: new fields.NumberField({ initial: 4000, min: 0, required: true }),
-        max: new fields.NumberField({ initial: 4000, min: 0, required: true }),
+        value: new fields.NumberField({ initial: 4_000_000, min: 0, required: true }),
+        max: new fields.NumberField({ initial: 4_000_000, min: 0, required: true }),
       }),
       reactor: new fields.SchemaField({
         output: new fields.NumberField({ initial: 100, min: 0, required: true }),
@@ -77,8 +77,8 @@ export class ShipDataModel extends foundry.abstract.TypeDataModel {
     const specification = calculateShipSpecification(this.design);
     this.mass = specification.tonnage;
     this.hull.max = specification.hullProtection;
-    this.shields.max = specification.shieldCapacity;
-    this.energy.max = specification.batteryCapacity;
+    this.shields.max = specification.shieldCapacityBep;
+    this.energy.max = specification.batteryCapacityKws;
     this.reactor.output = specification.generatorOutput;
 
     // Changing a design never repairs a vessel or creates charge. Clamp its
@@ -93,7 +93,7 @@ export class ShipWeaponDataModel extends foundry.abstract.TypeDataModel {
   static defineSchema() {
     return {
       description: new fields.HTMLField({ required: false, nullable: false, initial: "" }),
-      bep: new fields.NumberField({ initial: 1, min: 0, required: true }),
+      bep: new fields.NumberField({ initial: 1_000, min: 0, required: true }),
       energy: new fields.NumberField({ initial: 0, min: 0, required: true }),
       rangeModifier: new fields.NumberField({ initial: 0, required: true }),
     };

@@ -1,15 +1,18 @@
 import { rollN5 } from "./dice.mjs";
 import { combineSkillValues } from "./skills.mjs";
+import { BEP_PER_KBEP } from "./ship-units.mjs";
 
-export const SHIP_RANGE_BASELINE_METERS = 1_000;
+export const SHIP_RANGE_BASELINE_METERS = 5_000;
 export const DILITHIUM_KWS_PER_TONNE = 360_000_000;
+export { BEP_PER_KBEP } from "./ship-units.mjs";
+export const SHIELD_BEP_PER_KWS = 10;
 
 function number(value) {
   const result = Number(value);
   return Number.isFinite(result) ? result : 0;
 }
 
-/** The normal range curve, shifted so that one kilometre is neutral. */
+/** The normal range curve, shifted so that five kilometres is neutral. */
 export function shipRangePenalty(weapon, distance) {
   const meters = Math.max(0, number(distance));
   if (meters <= 0) return 0;
@@ -52,8 +55,8 @@ export function shipPilotEvasionTotal(pilots = []) {
 /**
  * Resolve one independent weapon attack.
  *
- * Shields are an omnidirectional energy pool. Damage crosses shields first;
- * only the remainder reduces hull integrity.
+ * Shields and hull use stored BEP. Damage crosses shields first; only the
+ * remaining BEP reduces hull integrity.
  */
 export function resolveShipAttack({
   attacker,
@@ -82,9 +85,9 @@ export function resolveShipAttack({
   const shieldsBefore = Math.max(0, number(target?.system?.shields?.value));
   const hullBefore = Math.max(0, number(target?.system?.hull?.value));
 
-  const rawDamage = hit
-    ? Math.max(0, Math.floor(result / 5) + Math.max(0, number(weapon?.system?.bep)))
-    : 0;
+  // Ship gunnery determines whether a shot hits; its BEP damage comes only
+  // from the weapon. The to-hit ÷ 5 bonus belongs to character BEP combat.
+  const rawDamage = hit ? Math.max(0, number(weapon?.system?.bep)) : 0;
   const shieldDamage = Math.min(shieldsBefore, rawDamage);
   const hullDamage = Math.max(0, rawDamage - shieldDamage);
   const shieldsAfter = shieldsBefore - shieldDamage;
@@ -124,28 +127,28 @@ export function resolveShipAttack({
   };
 }
 
-/** Move stored battery charge into the omnidirectional shield pool. */
+/** Move stored kWs into the omnidirectional shield pool at 10 BEP per kWs. */
 export function rechargeShields(ship) {
   const shieldValue = Math.max(0, number(ship?.system?.shields?.value));
   const shieldMax = Math.max(shieldValue, number(ship?.system?.shields?.max));
   const energyValue = Math.max(0, number(ship?.system?.energy?.value));
-  const transfer = Math.min(shieldMax - shieldValue, energyValue);
+  const transfer = Math.min(shieldMax - shieldValue, energyValue * SHIELD_BEP_PER_KWS);
+  const energySpent = Math.ceil(transfer / SHIELD_BEP_PER_KWS);
   return {
     transfer,
     updateData: transfer > 0 ? {
       "system.shields.value": shieldValue + transfer,
-      "system.energy.value": energyValue - transfer,
+      "system.energy.value": energyValue - energySpent,
     } : {},
   };
 }
 
-/** Generate one round of battery charge: reactor kW × ship mass in tonnes. */
+/** Generate one second of battery charge from total reactor kW, stored as kWs. */
 export function generateReactorEnergy(ship) {
   const output = Math.max(0, number(ship?.system?.reactor?.output));
-  const mass = Math.max(0, number(ship?.system?.mass));
   const energy = Math.max(0, number(ship?.system?.energy?.value));
   const energyMax = Math.max(energy, number(ship?.system?.energy?.max));
-  const generated = Math.min(Math.floor(output * mass), energyMax - energy);
+  const generated = Math.min(output, energyMax - energy);
   return {
     generated,
     updateData: generated > 0 ? { "system.energy.value": energy + generated } : {},

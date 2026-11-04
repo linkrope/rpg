@@ -58,7 +58,7 @@ test("ship design editing stages changes until Done and then recalculates capaci
   sheet.actor = {
     system: {
       design: { mode: "standard", baseMark: "II", length: 60, tonnageOverride: null },
-      hull: { value: 500 }, shields: { value: 500 }, energy: { value: 5_000 },
+      hull: { value: 500 }, shields: { value: 500_000 }, energy: { value: 5_000_000 },
     },
     update: async (data) => { updateData = data; },
   };
@@ -86,10 +86,10 @@ test("ship design editing stages changes until Done and then recalculates capaci
   assert.equal(updateData["system.design.length"], 75);
   assert.equal(updateData["system.design.tonnageOverride"], null);
   assert.equal(updateData["system.design.hullThicknessOverride"], 25);
-  // The special design is 30 t: 300 hull BEP, 375 shield kBEP, 3,750 kWs.
+  // The special Mk-II design is 30 t: 300 hull BEP, 125,000 shield BEP, 2,500,000 kWs.
   assert.equal(updateData["system.hull.value"], 300);
-  assert.equal(updateData["system.shields.value"], 375);
-  assert.equal(updateData["system.energy.value"], 3_750);
+  assert.equal(updateData["system.shields.value"], 125_000);
+  assert.equal(updateData["system.energy.value"], 2_500_000);
 });
 
 test("opening design edit toggles the existing controls without replacing their listeners", async () => {
@@ -123,7 +123,7 @@ test("Done saves a staged design without submitting an unchanged form again", as
   sheet.actor = {
     system: {
       design: { mode: "standard", baseMark: "II", length: 60, tonnageOverride: null },
-      hull: { value: 240 }, shields: { value: 100 }, energy: { value: 300 },
+      hull: { value: 240 }, shields: { value: 100_000 }, energy: { value: 300_000 },
     },
     update: async (data) => { updates.push(data); },
   };
@@ -136,8 +136,8 @@ test("Done saves a staged design without submitting an unchanged form again", as
 
   assert.equal(updates[0]["system.design.length"], 75);
   assert.equal(updates[0]["system.hull.value"], 240);
-  assert.equal(updates[0]["system.shields.value"], 100);
-  assert.equal(updates[0]["system.energy.value"], 300);
+  assert.equal(updates[0]["system.shields.value"], 100_000);
+  assert.equal(updates[0]["system.energy.value"], 300_000);
 
   await sheet._onToggleDesignEdit({ preventDefault: () => {} });
   await sheet._onToggleDesignEdit({ preventDefault: () => {} });
@@ -164,7 +164,8 @@ test("changing Mk refreshes the staged Length and Tonnage, and added weapons use
   await sheet._onAddWeapon({ preventDefault: () => {} });
   assert.deepEqual(created, [{
     type: "shipWeapon", name: "Ship Weapon", img: "icons/weapons/artillery/missile.webp",
-    system: { bep: 2, energy: 100 },
+      flags: { "scifi-urpg": { shipUnitsVersion: 2 } },
+      system: { bep: 6_400, energy: 640 },
   }]);
 });
 
@@ -290,7 +291,8 @@ test("a GM's NPC ship attack shows players the outcome but not the attack formul
   await sheet._postAttackMessage({
     gunnery: 12,
     bonus: 0,
-    rangePenalty: 0,
+    rangePenalty: -20.726798901733616,
+    distance: 10_960,
     evasion: 4,
     roll: { plus: 3, minus: 1 },
     weapon: { name: "Railgun" },
@@ -305,5 +307,6 @@ test("a GM's NPC ship attack shows players the outcome but not the attack formul
   assert.match(messages[0].content, /<div class="roll-result">10\.0<\/div>/);
   assert.match(messages[0].content, /Miss: no damage/);
   assert.match(messages[1].content, /12 \(Eingebettete\).*4 \(Raumfahrzeuge\).*\(3 - 1\) \(n5\)/s);
+  assert.match(messages[1].content, /− 20\.7 \(range 11\.0 km\)/);
   assert.deepEqual(messages[1].whisper, ["gm"]);
 });

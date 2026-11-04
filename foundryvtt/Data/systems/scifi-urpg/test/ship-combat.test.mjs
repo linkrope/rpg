@@ -19,18 +19,18 @@ const crewActor = ({ gunnery = 0, piloting = 0, damage = 0 } = {}) => ({
 });
 const ship = (system) => ({ type: "ship", system });
 
-test("ship range uses one kilometre as the neutral distance", () => {
+test("ship range uses five kilometres as the neutral distance", () => {
+  assert.equal(shipRangePenalty({}, 5_000), 0);
+  assert.equal(shipRangePenalty({}, 10_000), -6);
   assert.equal(shipRangePenalty({}, 1_000), 0);
-  assert.equal(shipRangePenalty({}, 2_000), -6);
-  assert.equal(shipRangePenalty({}, 500), 0);
-  assert.equal(shipRangePenalty({ rangeModifier: 3 }, 2_000), -3);
+  assert.equal(shipRangePenalty({ rangeModifier: 3 }, 10_000), -3);
 });
 
 test("ship attacks combine gunners, drain shields, then damage hull", () => {
-  const target = ship({ hull: { value: 20 }, shields: { value: 5 } });
+  const target = ship({ hull: { value: 5_000 }, shields: { value: 2_000 } });
   const outcome = resolveShipAttack({
     attacker: ship({}), target,
-    weapon: { system: { bep: 4, accuracy: 0, rangeModifier: 0 } },
+    weapon: { system: { bep: 4_000, accuracy: 0, rangeModifier: 0 } },
     gunners: [gunner(10), gunner(10)],
     distance: 1_000,
     roll: { plus: 0, minus: 0, total: 0 },
@@ -38,10 +38,26 @@ test("ship attacks combine gunners, drain shields, then damage hull", () => {
 
   // Two equal skills use the system's five-step addition rule: 10 ⊕ 10 = 15.
   assert.equal(outcome.gunnery, 15);
-  assert.equal(outcome.rawDamage, 7);
-  assert.equal(outcome.shieldDamage, 5);
-  assert.equal(outcome.hullDamage, 2);
-  assert.deepEqual(outcome.updateData, { "system.shields.value": 0, "system.hull.value": 18 });
+  assert.equal(outcome.rawDamage, 4_000);
+  assert.equal(outcome.shieldDamage, 2_000);
+  assert.equal(outcome.hullDamage, 2_000);
+  assert.deepEqual(outcome.updateData, { "system.shields.value": 0, "system.hull.value": 3_000 });
+});
+
+test("one kBEP of unshielded damage removes 1,000 stored BEP of hull", () => {
+  const target = ship({ hull: { value: 2_000 }, shields: { value: 0 } });
+  const outcome = resolveShipAttack({
+    attacker: ship({}), target,
+    weapon: { system: { bep: 1_000, rangeModifier: 0 } },
+    gunners: [gunner(1)],
+    distance: 1_000,
+    roll: { plus: 0, minus: 0, total: 0 },
+  });
+
+  assert.equal(outcome.rawDamage, 1_000);
+  assert.equal(outcome.shieldDamage, 0);
+  assert.equal(outcome.hullDamage, 1_000);
+  assert.deepEqual(outcome.updateData, { "system.shields.value": 0, "system.hull.value": 1_000 });
 });
 
 test("repeated generic crew members combine their gunnery contributions", () => {
@@ -120,10 +136,10 @@ test("ship weapons spend energy for every shot and no longer add Accuracy", () =
   assert.deepEqual(outcome.attackerUpdateData, { "system.energy.value": 75 });
 });
 
-test("recharging shields moves battery charge without repairing a shield component", () => {
-  const result = rechargeShields(ship({ shields: { value: 3, max: 10 }, energy: { value: 4 } }));
-  assert.equal(result.transfer, 4);
-  assert.deepEqual(result.updateData, { "system.shields.value": 7, "system.energy.value": 0 });
+test("recharging shields restores 100 kBEP for every 10 MWs", () => {
+  const result = rechargeShields(ship({ shields: { value: 3_000, max: 10_000 }, energy: { value: 4_000 } }));
+  assert.equal(result.transfer, 7_000);
+  assert.deepEqual(result.updateData, { "system.shields.value": 10_000, "system.energy.value": 3_300 });
 });
 
 test("coasting is free while acceleration and braking consume energy", () => {
@@ -147,8 +163,8 @@ test("Dilithium converts to the specified 100 GWh energy budget", () => {
   assert.equal(result.updateData["system.dilithium"], 0);
 });
 
-test("a reactor creates its kW output times mass once per round", () => {
-  const result = generateReactorEnergy(ship({ mass: 4, reactor: { output: 100 }, energy: { value: 10, max: 1_000 } }));
-  assert.equal(result.generated, 400);
-  assert.deepEqual(result.updateData, { "system.energy.value": 410 });
+test("a reactor adds its total kW output as kWs once per round", () => {
+  const result = generateReactorEnergy(ship({ mass: 4, reactor: { output: 1_000 }, energy: { value: 10_000, max: 1_000_000 } }));
+  assert.equal(result.generated, 1_000);
+  assert.deepEqual(result.updateData, { "system.energy.value": 11_000 });
 });

@@ -21,9 +21,10 @@ export class SciFiActor extends Actor {
       this.updateSource({
         "system.design": design,
         "system.mark": design.baseMark,
+        "flags.scifi-urpg.shipUnitsVersion": 2,
         "system.hull.value": specification.hullProtection,
-        "system.shields.value": specification.shieldCapacity,
-        "system.energy.value": specification.batteryCapacity,
+        "system.shields.value": specification.shieldCapacityBep,
+        "system.energy.value": specification.batteryCapacityKws,
       });
       const items = Array.isArray(data.items) ? data.items : (this._source.items ?? []);
       if (!items.some((item) => item.type === "shipWeapon")) {

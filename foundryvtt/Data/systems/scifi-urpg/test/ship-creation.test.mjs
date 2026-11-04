@@ -23,6 +23,7 @@ test("a newly created ship with Foundry defaults starts as the selected standard
   assert.equal(updates.find((update) => update["prototypeToken.rotation"])["prototypeToken.rotation"], 90);
   assert.deepEqual(updates.find((update) => update.items).items, [{
     type: "shipWeapon", name: "Ship Weapon", img: "icons/weapons/artillery/missile.webp",
-    system: { bep: 7.5, energy: 375 },
+    flags: { "scifi-urpg": { shipUnitsVersion: 2 } },
+    system: { bep: 10_000, energy: 1_000 },
   }]);
 });

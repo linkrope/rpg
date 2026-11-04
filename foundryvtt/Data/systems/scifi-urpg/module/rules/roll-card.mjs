@@ -34,7 +34,7 @@ function attackFormula(outcome) {
 
   if (outcome.damagePen > 0) parts.push(`- ${outcome.damagePen} (damage)`);
   if (outcome.distPen < 0) {
-    appendSignedPart(parts, outcome.rangePen, `range ${outcome.distance.toFixed(1)} m`);
+    appendSignedPart(parts, outcome.rangePen, `range ${outcome.distance.toFixed(1)} ${outcome.distanceUnit ?? "m"}`);
   }
   if (outcome.aimPen > 0) parts.push(`- ${outcome.aimPen} (aim)`);
 

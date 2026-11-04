@@ -1,5 +1,5 @@
 import { isMeleeAttack, isUnarmedWeapon, rangePenalty, weaponForActor } from "../rules/combat.mjs";
-import { tokenDistance } from "../rules/distance.mjs";
+import { distanceForSceneRange, sceneRangeUnit, tokenDistance } from "../rules/distance.mjs";
 import { shipRangePenalty } from "../rules/ship-combat.mjs";
 
 let badges = null;
@@ -35,13 +35,15 @@ function draw() {
     if (target === source || !target.visible || target.actor?.type !== source.actor?.type) continue;
     const distance = tokenDistance(source, target);
     if (distance === null) continue;
+    const rangeUnit = sceneRangeUnit();
+    const rangeDistance = isShipCombat ? distance : distanceForSceneRange(distance);
     const unarmed = isCharacterCombat && isUnarmedWeapon(weapon);
     const modifier = isShipCombat ? shipRangePenalty({}, distance).toFixed(1)
-      : unarmed ? isMeleeAttack(weapon, distance) ? "Melee" : "−∞"
-        : isMeleeAttack(weapon, distance) ? "Melee" : rangePenalty(weapon, distance).toFixed(1);
+      : unarmed ? isMeleeAttack(weapon, rangeDistance) ? "Melee" : "−∞"
+        : isMeleeAttack(weapon, rangeDistance) ? "Melee" : rangePenalty(weapon, rangeDistance).toFixed(1);
     const text = isShipCombat
       ? `${(distance / 1_000).toFixed(2)} km · ${modifier}`
-      : `${distance.toFixed(1)} m · ${modifier}`;
+      : `${rangeDistance.toFixed(1)} ${rangeUnit} · ${modifier}`;
     const Text = foundry.canvas.containers.PreciseText;
     const label = new Text(text, Text.getTextStyle({ fontFamily: "Signika", fontSize: 14, fill: 0xffffff, strokeThickness: 3 }));
     const box = new PIXI.Graphics();

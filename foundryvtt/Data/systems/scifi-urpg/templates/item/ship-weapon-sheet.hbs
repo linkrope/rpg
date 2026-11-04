@@ -1,8 +1,8 @@
 <form class="{{cssClass}} scifi-urpg-ship-weapon-sheet" autocomplete="off">
   <header class="weapon-sheet-header"><img class="profile-img" src="{{item.img}}" data-edit="img" height="64" width="64"><input name="name" type="text" value="{{item.name}}" placeholder="Ship weapon name"></header>
   <div class="weapon-sheet-grid">
-    <label><span>Damage (kBEP)</span><input name="system.bep" type="number" min="0" step="1" value="{{system.bep}}"></label>
-    <label><span>Energy (kWs)</span><input name="system.energy" type="number" min="0" step="1" value="{{system.energy}}"></label>
+    <label><span>Damage (kBEP)</span><input name="system.bep" type="number" min="0" step="0.001" value="{{bepDisplay}}"></label>
+    <label><span>Energy (MWs)</span><input name="system.energy" type="number" min="0" step="0.001" value="{{energyDisplay}}"></label>
     <label><span>Range modifier</span><input name="system.rangeModifier" type="number" step="1" value="{{system.rangeModifier}}"></label>
   </div>
   <label class="weapon-description"><span>Description</span><textarea name="system.description">{{system.description}}</textarea></label>

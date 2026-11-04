@@ -99,9 +99,10 @@ export function starterShipWeaponSource(specification = {}) {
     type: "shipWeapon",
     name: "Ship Weapon",
     img: "icons/weapons/artillery/missile.webp",
+    flags: { "scifi-urpg": { shipUnitsVersion: 2 } },
     system: {
-      bep: Number(specification.gunRate) || 1,
-      energy: Number(specification.gunPower) || 0,
+      bep: Number(specification.gunRate) ? Math.round(Number(specification.gunRate) * 1_000) : 1_000,
+      energy: Number(specification.gunPowerKws) || 0,
     },
   };
 }

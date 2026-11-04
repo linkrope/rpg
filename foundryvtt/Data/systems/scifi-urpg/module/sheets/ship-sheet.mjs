@@ -12,6 +12,7 @@ import {
 import { calculateShipSpecification, SHIP_PROFILES, standardShipDesign } from "../rules/ship-design.mjs";
 import { starterShipWeaponSource } from "../constants.mjs";
 import { n5Formula, rollN5 } from "../rules/dice.mjs";
+import { bepToKBep, kBepToBep, kwsToMws, mwsToKws } from "../rules/ship-units.mjs";
 
 const CREW_SKILL_ROLLS = {
   gunner: { skill: "Eingebettete", roleName: "gunner" },
@@ -45,8 +46,9 @@ function designInput(design = {}) {
   };
 }
 
-function displayShipNumber(value) {
-  const rounded = Math.round((number(value) + Number.EPSILON) * 1_000) / 1_000;
+function displayShipNumber(value, fractionDigits = 3) {
+  const factor = 10 ** fractionDigits;
+  const rounded = Math.round((number(value) + Number.EPSILON) * factor) / factor;
   return String(rounded);
 }
 
@@ -97,6 +99,10 @@ export class SciFiShipSheet extends ActorSheet {
     context.design = designInput(system.design);
     context.specification = calculateShipSpecification(context.design);
     context.specificationDisplay = context.specification ? displaySpecification(context.specification) : null;
+    context.batteryDisplay = displayShipNumber(kwsToMws(system.energy?.value), 1);
+    context.batteryMaxDisplay = displayShipNumber(kwsToMws(system.energy?.max), 1);
+    context.shieldsDisplay = displayShipNumber(bepToKBep(system.shields?.value));
+    context.shieldsMaxDisplay = displayShipNumber(bepToKBep(system.shields?.max));
     context.isCustomDesign = context.design.mode === "custom";
     context.editingDesign = this._editingDesign;
     context.designEdit = this._pendingDesign ?? context.design;
@@ -121,8 +127,8 @@ export class SciFiShipSheet extends ActorSheet {
         id: item.id,
         name: item.name,
         img: item.img,
-        bep: number(item.system.bep),
-        energy: shipWeaponEnergyCost(item),
+        bep: displayShipNumber(bepToKBep(item.system.bep)),
+        energy: displayShipNumber(kwsToMws(shipWeaponEnergyCost(item))),
         rangeModifier: number(item.system.rangeModifier),
         selected: item.id === system.weapon?.selected,
       }));
@@ -138,6 +144,17 @@ export class SciFiShipSheet extends ActorSheet {
     context.dilithiumConversion = this._dilithiumConversion;
     context.speed = Math.hypot(number(system.movement?.velocityX), number(system.movement?.velocityY));
     return context;
+  }
+
+  async _updateObject(event, formData) {
+    const updateData = foundry.utils.deepClone(formData);
+    if (updateData["system.shields.value"] !== undefined) {
+      updateData["system.shields.value"] = kBepToBep(updateData["system.shields.value"]);
+    }
+    if (updateData["system.energy.value"] !== undefined) {
+      updateData["system.energy.value"] = mwsToKws(updateData["system.energy.value"]);
+    }
+    return this.actor.update(updateData);
   }
 
   activateListeners(html) {
@@ -223,8 +240,8 @@ export class SciFiShipSheet extends ActorSheet {
       // Persist a reduced operational state. Derived maxima are calculated by
       // ShipDataModel, so a refit cannot be used to refill a depleted ship.
       "system.hull.value": Math.min(number(this.actor.system.hull?.value), specification.hullProtection),
-      "system.shields.value": Math.min(number(this.actor.system.shields?.value), specification.shieldCapacity),
-      "system.energy.value": Math.min(number(this.actor.system.energy?.value), specification.batteryCapacity),
+      "system.shields.value": Math.min(number(this.actor.system.shields?.value), specification.shieldCapacityBep),
+      "system.energy.value": Math.min(number(this.actor.system.energy?.value), specification.batteryCapacityKws),
     });
   }
 
@@ -420,7 +437,7 @@ export class SciFiShipSheet extends ActorSheet {
     }
     const energyCost = shipWeaponEnergyCost(weapon);
     if (energyCost > number(this.actor.system.energy?.value)) {
-      ui.notifications.warn(`Insufficient energy: firing ${weapon.name} needs ${energyCost} kWs.`);
+      ui.notifications.warn(`Insufficient energy: firing ${weapon.name} needs ${displayShipNumber(kwsToMws(energyCost))} MWs.`);
       return;
     }
 
@@ -517,14 +534,14 @@ export class SciFiShipSheet extends ActorSheet {
     const formula = [
       `${outcome.gunnery} (Eingebettete)`,
       outcome.bonus ? `${outcome.bonus >= 0 ? "+" : "−"} ${Math.abs(outcome.bonus)}` : null,
-      outcome.rangePenalty ? `${outcome.rangePenalty >= 0 ? "+" : "−"} ${Math.abs(outcome.rangePenalty)}` : null,
+      outcome.rangePenalty ? `${outcome.rangePenalty >= 0 ? "+" : "−"} ${Math.abs(outcome.rangePenalty).toFixed(1)} (range ${(outcome.distance / 1_000).toFixed(1)} km)` : null,
       `− ${outcome.evasion} (Raumfahrzeuge)`,
       // Keep the random roll last so the deterministic comparison is easy to read.
       `+ ${n5Formula(outcome.roll, { leadingPlus: false })}`,
     ].filter(Boolean).join(" ");
     const weaponName = foundry.utils.escapeHTML(outcome.weapon?.name ?? "ship weapon");
     const damage = outcome.hit
-      ? `<p>Damage ${outcome.rawDamage} kBEP: shields absorb ${outcome.shieldDamage}; hull takes ${outcome.hullDamage}.</p>`
+      ? `<p>Damage ${displayShipNumber(bepToKBep(outcome.rawDamage))} kBEP: shields absorb ${displayShipNumber(bepToKBep(outcome.shieldDamage))} kBEP; hull takes ${outcome.hullDamage} BEP.</p>`
       : "<p>Miss: no damage.</p>";
     const content = `
       <div class="scifi-urpg-chat-card attack-card">
@@ -532,7 +549,7 @@ export class SciFiShipSheet extends ActorSheet {
         <p>${actorNameElement(this.actor)} attacks ${actorNameElement(outcome.target)} with ${weaponName}</p>
         <div class="roll-formula">${foundry.utils.escapeHTML(formula)}</div>
         <div class="roll-result">${outcome.result.toFixed(1)}</div>
-        ${outcome.energyCost ? `<p>${outcome.energyCost} kWs expended.</p>` : ""}
+        ${outcome.energyCost ? `<p>${displayShipNumber(kwsToMws(outcome.energyCost))} MWs expended.</p>` : ""}
         ${damage}
       </div>`;
     const publicContent = `
@@ -540,7 +557,7 @@ export class SciFiShipSheet extends ActorSheet {
         <h3>Eingebettete</h3>
         <p>${actorNameElement(this.actor)} attacks ${actorNameElement(outcome.target)} with ${weaponName}</p>
         <div class="roll-result">${outcome.result.toFixed(1)}</div>
-        ${outcome.energyCost ? `<p>${outcome.energyCost} kWs expended.</p>` : ""}
+        ${outcome.energyCost ? `<p>${displayShipNumber(kwsToMws(outcome.energyCost))} MWs expended.</p>` : ""}
         ${damage}
       </div>`;
     const flags = updateRequest ? { "scifi-urpg": { shipUpdate: updateRequest } } : undefined;
