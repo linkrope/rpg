@@ -86,9 +86,9 @@ test("ship design editing stages changes until Done and then recalculates capaci
   assert.equal(updateData["system.design.length"], 75);
   assert.equal(updateData["system.design.tonnageOverride"], null);
   assert.equal(updateData["system.design.hullThicknessOverride"], 25);
-  // The special Mk-II design is 30 t: 300 hull BEP, 125,000 shield BEP, 2,500,000 kWs.
+  // The special Mk-II design is 30 t: 300 hull BEP, 12,500 shield BEP, 2,500,000 kWs.
   assert.equal(updateData["system.hull.value"], 300);
-  assert.equal(updateData["system.shields.value"], 125_000);
+  assert.equal(updateData["system.shields.value"], 12_500);
   assert.equal(updateData["system.energy.value"], 2_500_000);
 });
 
@@ -136,7 +136,7 @@ test("Done saves a staged design without submitting an unchanged form again", as
 
   assert.equal(updates[0]["system.design.length"], 75);
   assert.equal(updates[0]["system.hull.value"], 240);
-  assert.equal(updates[0]["system.shields.value"], 100_000);
+  assert.equal(updates[0]["system.shields.value"], 12_500);
   assert.equal(updates[0]["system.energy.value"], 300_000);
 
   await sheet._onToggleDesignEdit({ preventDefault: () => {} });
@@ -164,8 +164,8 @@ test("changing Mk refreshes the staged Length and Tonnage, and added weapons use
   await sheet._onAddWeapon({ preventDefault: () => {} });
   assert.deepEqual(created, [{
     type: "shipWeapon", name: "Ship Weapon", img: "icons/weapons/artillery/missile.webp",
-      flags: { "scifi-urpg": { shipUnitsVersion: 2 } },
-      system: { bep: 6_400, energy: 640 },
+      flags: { "scifi-urpg": { shipUnitsVersion: 3 } },
+      system: {},
   }]);
 });
 

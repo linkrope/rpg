@@ -93,17 +93,14 @@ export const SCI_FI = {
   ARMOR_MATERIALS
 };
 
-/** A ship owns one configurable weapon entry by default, never one per gun. */
-export function starterShipWeaponSource(specification = {}) {
+/** A ship owns one selectable weapon entry by default, never one per gun. */
+export function starterShipWeaponSource() {
   return {
     type: "shipWeapon",
     name: "Ship Weapon",
     img: "icons/weapons/artillery/missile.webp",
-    flags: { "scifi-urpg": { shipUnitsVersion: 2 } },
-    system: {
-      bep: Number(specification.gunRate) ? Math.round(Number(specification.gunRate) * 1_000) : 1_000,
-      energy: Number(specification.gunPowerKws) || 0,
-    },
+    flags: { "scifi-urpg": { shipUnitsVersion: 3 } },
+    system: {},
   };
 }
 

@@ -1,4 +1,5 @@
-import { bepToKBep, kBepToBep, kwsToMws, mwsToKws } from "../rules/ship-units.mjs";
+import { bepToKBep, kwsToMws } from "../rules/ship-units.mjs";
+import { shipWeaponOutput } from "../rules/ship-combat.mjs";
 
 export class SciFiShipWeaponSheet extends ItemSheet {
   static get defaultOptions() {
@@ -17,15 +18,14 @@ export class SciFiShipWeaponSheet extends ItemSheet {
   async getData(options = {}) {
     const context = await super.getData(options);
     context.system = this.item.system;
-    context.bepDisplay = bepToKBep(this.item.system.bep);
-    context.energyDisplay = kwsToMws(this.item.system.energy);
+    const ship = this.item.parent?.type === "ship" ? this.item.parent : null;
+    const output = shipWeaponOutput(ship);
+    context.bepDisplay = bepToKBep(output.damage);
+    context.energyDisplay = kwsToMws(output.energy);
     return context;
   }
 
   async _updateObject(event, formData) {
-    const updateData = foundry.utils.deepClone(formData);
-    if (updateData["system.bep"] !== undefined) updateData["system.bep"] = kBepToBep(updateData["system.bep"]);
-    if (updateData["system.energy"] !== undefined) updateData["system.energy"] = mwsToKws(updateData["system.energy"]);
-    return this.item.update(updateData);
+    return this.item.update(foundry.utils.deepClone(formData));
   }
 }

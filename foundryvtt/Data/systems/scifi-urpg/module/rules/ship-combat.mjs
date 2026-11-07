@@ -1,11 +1,12 @@
 import { rollN5 } from "./dice.mjs";
 import { combineSkillValues } from "./skills.mjs";
 import { BEP_PER_KBEP } from "./ship-units.mjs";
+import { calculateShipSpecification } from "./ship-design.mjs";
 
 export const SHIP_RANGE_BASELINE_METERS = 5_000;
 export const DILITHIUM_KWS_PER_TONNE = 360_000_000;
 export { BEP_PER_KBEP } from "./ship-units.mjs";
-export const SHIELD_BEP_PER_KWS = 10;
+export const SHIELD_BEP_PER_KWS = 1;
 
 function number(value) {
   const result = Number(value);
@@ -21,9 +22,29 @@ export function shipRangePenalty(weapon, distance) {
   return Math.min(0, -6 * Math.log2(meters / SHIP_RANGE_BASELINE_METERS) + modifier);
 }
 
-/** Energy drawn from the ship battery for one shot. */
-export function shipWeaponEnergyCost(weapon) {
-  return Math.max(0, number(weapon?.system?.energy));
+function shipWeaponCount(ship) {
+  const items = ship?.items;
+  const entries = items?.values ? [...items.values()] : Array.isArray(items) ? items : [];
+  return Math.max(1, entries.filter((item) => item?.type === "shipWeapon").length);
+}
+
+/**
+ * Weapon effect is derived from the ship's gun-mass allocation. Named weapon
+ * items select targets and range modifiers, but never carry their own damage
+ * or energy budget. Multiple entries divide the allocated output equally.
+ */
+export function shipWeaponOutput(ship) {
+  const specification = calculateShipSpecification(ship?.system?.design);
+  const weapons = shipWeaponCount(ship);
+  return {
+    damage: Math.max(0, Math.round(number(specification.gunRate) * BEP_PER_KBEP / weapons)),
+    energy: Math.max(0, Math.round(number(specification.gunPowerKws) / weapons)),
+  };
+}
+
+/** Energy drawn from the ship battery for one derived weapon shot. */
+export function shipWeaponEnergyCost(ship) {
+  return shipWeaponOutput(ship).energy;
 }
 
 /** One crew-member entry is a physical person, even when several entries use the same Actor. */
@@ -77,7 +98,8 @@ export function resolveShipAttack({
   // TODO(rules): confirm the provisional rule that an unpiloted ship evades at 0.
   const evasion = shipCrewRoleTotal(defendingCrew, "pilot", "Raumfahrzeuge");
   const rangePenalty = shipRangePenalty(weapon, distance);
-  const energyCost = shipWeaponEnergyCost(weapon);
+  const weaponOutput = shipWeaponOutput(attacker);
+  const energyCost = weaponOutput.energy;
   const energyBefore = Math.max(0, number(attacker?.system?.energy?.value));
   const attackBonus = number(bonus);
   const result = gunnery + attackBonus + rangePenalty + number(roll?.total) - evasion;
@@ -85,9 +107,10 @@ export function resolveShipAttack({
   const shieldsBefore = Math.max(0, number(target?.system?.shields?.value));
   const hullBefore = Math.max(0, number(target?.system?.hull?.value));
 
-  // Ship gunnery determines whether a shot hits; its BEP damage comes only
-  // from the weapon. The to-hit ÷ 5 bonus belongs to character BEP combat.
-  const rawDamage = hit ? Math.max(0, number(weapon?.system?.bep)) : 0;
+  // Ship gunnery determines whether a shot hits; damage is derived from the
+  // attacker's gun allocation. The to-hit ÷ 5 bonus belongs to character BEP
+  // combat.
+  const rawDamage = hit ? weaponOutput.damage : 0;
   const shieldDamage = Math.min(shieldsBefore, rawDamage);
   const hullDamage = Math.max(0, rawDamage - shieldDamage);
   const shieldsAfter = shieldsBefore - shieldDamage;
@@ -127,10 +150,10 @@ export function resolveShipAttack({
   };
 }
 
-/** Move stored kWs into the omnidirectional shield pool at 10 BEP per kWs. */
+/** Move stored kWs into the omnidirectional shield pool at 1 BEP per kWs. */
 export function rechargeShields(ship) {
   const shieldValue = Math.max(0, number(ship?.system?.shields?.value));
-  const shieldMax = Math.max(shieldValue, number(ship?.system?.shields?.max));
+  const shieldMax = Math.max(shieldValue, number(calculateShipSpecification(ship?.system?.design).shieldCapacityBep));
   const energyValue = Math.max(0, number(ship?.system?.energy?.value));
   const transfer = Math.min(shieldMax - shieldValue, energyValue * SHIELD_BEP_PER_KWS);
   const energySpent = Math.ceil(transfer / SHIELD_BEP_PER_KWS);
@@ -145,9 +168,9 @@ export function rechargeShields(ship) {
 
 /** Generate one second of battery charge from total reactor kW, stored as kWs. */
 export function generateReactorEnergy(ship) {
-  const output = Math.max(0, number(ship?.system?.reactor?.output));
+  const output = Math.max(0, number(calculateShipSpecification(ship?.system?.design).generatorOutput));
   const energy = Math.max(0, number(ship?.system?.energy?.value));
-  const energyMax = Math.max(energy, number(ship?.system?.energy?.max));
+  const energyMax = Math.max(energy, number(calculateShipSpecification(ship?.system?.design).batteryCapacityKws));
   const generated = Math.min(output, energyMax - energy);
   return {
     generated,
@@ -188,7 +211,7 @@ export function convertDilithium(ship, tonnes) {
   const requested = Math.max(0, number(tonnes));
   const used = Math.min(available, requested);
   const energy = Math.max(0, number(ship?.system?.energy?.value));
-  const energyMax = Math.max(energy, number(ship?.system?.energy?.max));
+  const energyMax = Math.max(energy, number(calculateShipSpecification(ship?.system?.design).batteryCapacityKws));
   const room = Math.max(0, energyMax - energy);
   const required = room / DILITHIUM_KWS_PER_TONNE;
   const converted = Math.min(used, required);

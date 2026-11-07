@@ -7,6 +7,7 @@ import {
   generateReactorEnergy,
   rechargeShields,
   resolveShipAttack,
+  shipWeaponOutput,
   shipRangePenalty,
 } from "../module/rules/ship-combat.mjs";
 
@@ -26,10 +27,23 @@ test("ship range uses five kilometres as the neutral distance", () => {
   assert.equal(shipRangePenalty({ rangeModifier: 3 }, 10_000), -3);
 });
 
+test("ship weapon output is derived from gun mass and shared among weapon entries", () => {
+  const vessel = {
+    ...ship({ design: { gunMassOverride: 2.5 } }),
+    items: [
+      { type: "shipWeapon", system: { bep: 999_999, energy: 999_999 } },
+      { type: "shipWeapon", system: { bep: 999_999, energy: 999_999 } },
+    ],
+  };
+
+  // 2.5 t yields 1 kBEP/s and 1 MWs in total; neither item supplies stats.
+  assert.deepEqual(shipWeaponOutput(vessel), { damage: 500, energy: 500 });
+});
+
 test("ship attacks combine gunners, drain shields, then damage hull", () => {
   const target = ship({ hull: { value: 5_000 }, shields: { value: 2_000 } });
   const outcome = resolveShipAttack({
-    attacker: ship({}), target,
+    attacker: ship({ design: { gunMassOverride: 10 } }), target,
     weapon: { system: { bep: 4_000, accuracy: 0, rangeModifier: 0 } },
     gunners: [gunner(10), gunner(10)],
     distance: 1_000,
@@ -47,7 +61,7 @@ test("ship attacks combine gunners, drain shields, then damage hull", () => {
 test("one kBEP of unshielded damage removes 1,000 stored BEP of hull", () => {
   const target = ship({ hull: { value: 2_000 }, shields: { value: 0 } });
   const outcome = resolveShipAttack({
-    attacker: ship({}), target,
+    attacker: ship({ design: { gunMassOverride: 2.5 } }), target,
     weapon: { system: { bep: 1_000, rangeModifier: 0 } },
     gunners: [gunner(1)],
     distance: 1_000,
@@ -64,7 +78,7 @@ test("repeated generic crew members combine their gunnery contributions", () => 
   const target = ship({ hull: { value: 20 }, shields: { value: 0 } });
   const pirate = gunner(0);
   const outcome = resolveShipAttack({
-    attacker: ship({}), target,
+    attacker: ship({ design: { gunMassOverride: 0.0075 } }), target,
     weapon: { system: { bep: 1, accuracy: 0, rangeModifier: 0 } },
     gunners: [pirate, pirate, pirate, pirate],
     distance: 1_000,
@@ -80,7 +94,7 @@ test("crew rows apply injury and multitasking before combining role skills", () 
   const target = ship({ hull: { value: 20 }, shields: { value: 0 } });
   const sharedNpc = crewActor({ gunnery: 12, piloting: 10, damage: 2 });
   const outcome = resolveShipAttack({
-    attacker: ship({}), target,
+    attacker: ship({ design: { gunMassOverride: 0.0075 } }), target,
     weapon: { system: { bep: 3, accuracy: 0, rangeModifier: 0 } },
     // These are two physical crew members sharing a single NPC Actor.
     crewMembers: [
@@ -118,7 +132,7 @@ test("a ship with no assigned pilot has zero evasion", () => {
 });
 
 test("ship weapons spend energy for every shot and no longer add Accuracy", () => {
-  const attacker = ship({ energy: { value: 100 } });
+  const attacker = ship({ energy: { value: 100 }, design: { gunMassOverride: 0.0625 } });
   const target = ship({ hull: { value: 20 }, shields: { value: 0 } });
   const outcome = resolveShipAttack({
     attacker,
@@ -136,10 +150,13 @@ test("ship weapons spend energy for every shot and no longer add Accuracy", () =
   assert.deepEqual(outcome.attackerUpdateData, { "system.energy.value": 75 });
 });
 
-test("recharging shields restores 100 kBEP for every 10 MWs", () => {
-  const result = rechargeShields(ship({ shields: { value: 3_000, max: 10_000 }, energy: { value: 4_000 } }));
+test("recharging shields restores one BEP for every kWs", () => {
+  const result = rechargeShields(ship({
+    design: { shieldMassOverride: 1 },
+    shields: { value: 3_000 }, energy: { value: 10_000 },
+  }));
   assert.equal(result.transfer, 7_000);
-  assert.deepEqual(result.updateData, { "system.shields.value": 10_000, "system.energy.value": 3_300 });
+  assert.deepEqual(result.updateData, { "system.shields.value": 10_000, "system.energy.value": 3_000 });
 });
 
 test("coasting is free while acceleration and braking consume energy", () => {
@@ -156,15 +173,21 @@ test("coasting is free while acceleration and braking consume energy", () => {
 });
 
 test("Dilithium converts to the specified 100 GWh energy budget", () => {
-  const vessel = ship({ dilithium: 1, energy: { value: 0, max: DILITHIUM_KWS_PER_TONNE } });
+  const vessel = ship({
+    design: { batteryMassOverride: DILITHIUM_KWS_PER_TONNE / 1_000 },
+    dilithium: 1, energy: { value: 0 },
+  });
   const result = convertDilithium(vessel, 1);
   assert.equal(result.tonnes, 1);
   assert.equal(result.energy, DILITHIUM_KWS_PER_TONNE);
   assert.equal(result.updateData["system.dilithium"], 0);
 });
 
-test("a reactor adds its total kW output as kWs once per round", () => {
-  const result = generateReactorEnergy(ship({ mass: 4, reactor: { output: 1_000 }, energy: { value: 10_000, max: 1_000_000 } }));
+test("a reactor adds its calculated total kW output as kWs once per round", () => {
+  const result = generateReactorEnergy(ship({
+    design: { generatorMassOverride: 1 },
+    mass: 4, energy: { value: 10_000 },
+  }));
   assert.equal(result.generated, 1_000);
   assert.deepEqual(result.updateData, { "system.energy.value": 11_000 });
 });

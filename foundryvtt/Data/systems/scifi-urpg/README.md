@@ -26,7 +26,9 @@ Rules reference: https://irisiflimsi.github.io/rpg-rules/scifi.xml
   Mk in Edit starts that Mk's standard design. Older ships without a design are given the standard
   design for their saved Mk; existing design data is never rewritten. There is
   no Legacy mode. Ships have all-direction energy shields, hull
-  integrity, Dilithium values, editable ship weapons, and selected gunners.
+  integrity, Dilithium values, named ship-weapon entries, and selected gunners.
+  Weapon damage and energy are derived from the ship's gun-mass allocation;
+  entries share that output equally and only carry identity and range data.
   Each weapon fires separately. Gunnery uses `Eingebettete` and
   combines multiple gunners with the normal five-step addition rule. Ship
   range has no modifier at 1 km, then receives −6 per doubling. A hit drains

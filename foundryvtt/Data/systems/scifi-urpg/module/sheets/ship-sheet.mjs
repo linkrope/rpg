@@ -8,6 +8,7 @@ import {
   resolveShipAttack,
   shipCrewRoleTotal,
   shipWeaponEnergyCost,
+  shipWeaponOutput,
 } from "../rules/ship-combat.mjs";
 import { calculateShipSpecification, SHIP_PROFILES, standardShipDesign } from "../rules/ship-design.mjs";
 import { starterShipWeaponSource } from "../constants.mjs";
@@ -127,8 +128,8 @@ export class SciFiShipSheet extends ActorSheet {
         id: item.id,
         name: item.name,
         img: item.img,
-        bep: displayShipNumber(bepToKBep(item.system.bep)),
-        energy: displayShipNumber(kwsToMws(shipWeaponEnergyCost(item))),
+        bep: displayShipNumber(bepToKBep(shipWeaponOutput(this.actor).damage)),
+        energy: displayShipNumber(kwsToMws(shipWeaponEnergyCost(this.actor))),
         rangeModifier: number(item.system.rangeModifier),
         selected: item.id === system.weapon?.selected,
       }));
@@ -268,14 +269,13 @@ export class SciFiShipSheet extends ActorSheet {
     toggledButton?.text?.(editing ? "Done" : "Edit");
   }
 
-  async _ensureStarterShipWeapon(specification = null) {
+  async _ensureStarterShipWeapon() {
     if (this.actor.items?.some?.((item) => item.type === "shipWeapon")) return;
-    await this._createCalculatedShipWeapon(specification);
+    await this._createCalculatedShipWeapon();
   }
 
-  async _createCalculatedShipWeapon(specification = null) {
-    const calculated = specification ?? calculateShipSpecification(designInput(this.actor.system.design));
-    await this.actor.createEmbeddedDocuments("Item", [starterShipWeaponSource(calculated)]);
+  async _createCalculatedShipWeapon() {
+    await this.actor.createEmbeddedDocuments("Item", [starterShipWeaponSource()]);
   }
 
   _onPendingDesignMarkChange(event) {
@@ -435,7 +435,7 @@ export class SciFiShipSheet extends ActorSheet {
       ui.notifications.warn("Assign at least one gunner before firing.");
       return;
     }
-    const energyCost = shipWeaponEnergyCost(weapon);
+    const energyCost = shipWeaponEnergyCost(this.actor);
     if (energyCost > number(this.actor.system.energy?.value)) {
       ui.notifications.warn(`Insufficient energy: firing ${weapon.name} needs ${displayShipNumber(kwsToMws(energyCost))} MWs.`);
       return;
@@ -461,7 +461,7 @@ export class SciFiShipSheet extends ActorSheet {
 
   async _onAddWeapon(event) {
     event.preventDefault();
-    await this._createCalculatedShipWeapon(calculateShipSpecification(designInput(this.actor.system.design)));
+    await this._createCalculatedShipWeapon();
   }
 
   _onEditWeapon(event) {

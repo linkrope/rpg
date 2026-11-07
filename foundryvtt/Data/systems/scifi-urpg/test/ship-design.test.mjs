@@ -25,7 +25,7 @@ test("a 75 metre Type II custom design recalculates from its length", () => {
   assert.equal(specification.hullProtection, 240);
   assert.equal(specification.batteryCapacity, 2_500);
   assert.equal(specification.generatorOutput, 1_250);
-  assert.equal(specification.shieldCapacity, 125);
+  assert.equal(specification.shieldCapacity, 12.5);
   assert.equal(specification.gunCount, 20);
 });
 
@@ -33,7 +33,7 @@ test("a tonnage override is authoritative for all dependent values", () => {
   const specification = calculateShipSpecification({ ...standardShipDesign("II"), mode: "custom", length: 75, tonnageOverride: 35 });
   assert.equal(specification.tonnage, 35);
   assert.equal(specification.crew, 21);
-  assert.equal(Number(specification.shieldCapacity.toFixed(3)), 145.833);
+  assert.equal(Number(specification.shieldCapacity.toFixed(3)), 14.583);
   assert.equal(specification.gunCount, 23);
 });
 
@@ -59,8 +59,8 @@ test("component mass overrides recalculate only their dependent ship values", ()
 
   assert.equal(specification.batteryCapacity, 4_000);
   assert.equal(specification.generatorOutput, 3_000);
-  assert.equal(specification.shieldCapacity, 200);
-  assert.equal(specification.gunRate, 4);
+  assert.equal(specification.shieldCapacity, 20);
+  assert.equal(specification.gunRate, 0.4);
   assert.equal(specification.gunPower, 0.4);
   assert.equal(specification.gunCount, 4);
   assert.equal(specification.freeTonnage, 17.975);

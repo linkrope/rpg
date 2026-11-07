@@ -616,7 +616,7 @@ function isPrimaryActiveGM() {
   return primary?.id === game.user?.id;
 }
 
-/** Persist the v2 base-unit conversion once, from one authoritative GM client. */
+/** Persist the v3 derived-output model once, from one authoritative GM client. */
 async function migrateWorldShipUnits() {
   if (!isPrimaryActiveGM()) return;
 
@@ -641,7 +641,7 @@ async function migrateWorldShipUnits() {
   }
 
   if (ships || weapons) {
-    const summary = `Migrated ${ships} ship${ships === 1 ? "" : "s"} and ${weapons} ship weapon${weapons === 1 ? "" : "s"} to base units.`;
+    const summary = `Migrated ${ships} ship${ships === 1 ? "" : "s"} and ${weapons} ship weapon${weapons === 1 ? "" : "s"} to derived ship output.`;
     console.info(`SciFi@URPG | ${summary}`);
     ui.notifications?.info(summary);
   }
