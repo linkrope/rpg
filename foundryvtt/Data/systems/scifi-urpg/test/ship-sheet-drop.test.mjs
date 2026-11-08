@@ -86,9 +86,9 @@ test("ship design editing stages changes until Done and then recalculates capaci
   assert.equal(updateData["system.design.length"], 75);
   assert.equal(updateData["system.design.tonnageOverride"], null);
   assert.equal(updateData["system.design.hullThicknessOverride"], 25);
-  // The special Mk-II design is 30 t: 300 hull BEP, 12,500 shield BEP, 2,500,000 kWs.
-  assert.equal(updateData["system.hull.value"], 300);
-  assert.equal(updateData["system.shields.value"], 12_500);
+  // The special Mk-II design is 30 t: 300 hull BEP, 125,000 shield BEP, 2,500,000 kWs.
+  assert.equal(updateData["system.hull.value"], undefined);
+  assert.equal(updateData["system.shields.value"], 125_000);
   assert.equal(updateData["system.energy.value"], 2_500_000);
 });
 
@@ -135,8 +135,8 @@ test("Done saves a staged design without submitting an unchanged form again", as
   await sheet._onToggleDesignEdit({ preventDefault: () => {} });
 
   assert.equal(updates[0]["system.design.length"], 75);
-  assert.equal(updates[0]["system.hull.value"], 240);
-  assert.equal(updates[0]["system.shields.value"], 12_500);
+  assert.equal(updates[0]["system.hull.value"], undefined);
+  assert.equal(updates[0]["system.shields.value"], 100_000);
   assert.equal(updates[0]["system.energy.value"], 300_000);
 
   await sheet._onToggleDesignEdit({ preventDefault: () => {} });
@@ -164,7 +164,7 @@ test("changing Mk refreshes the staged Length and Tonnage, and added weapons use
   await sheet._onAddWeapon({ preventDefault: () => {} });
   assert.deepEqual(created, [{
     type: "shipWeapon", name: "Ship Weapon", img: "icons/weapons/artillery/missile.webp",
-      flags: { "scifi-urpg": { shipUnitsVersion: 3 } },
+    flags: { "scifi-urpg": { shipUnitsVersion: 4 } },
       system: {},
   }]);
 });
@@ -179,7 +179,31 @@ test("entering a numeric ship field selects its existing value", async () => {
   assert.equal(selected, true);
 });
 
-test("crew skill rolls use the assigned crew's current combined role value", async () => {
+test("ship Attack and Crew Roll controls provide actor-bound hotbar payloads", async () => {
+  const { SciFiShipSheet } = await import(`../module/sheets/ship-sheet.mjs?macro-drag-test=${Date.now()}`);
+  const sheet = Object.create(SciFiShipSheet.prototype);
+  sheet.actor = { id: "ship-1" };
+  const payloads = [];
+  const dataTransfer = { setData: (_type, payload) => payloads.push(JSON.parse(payload)) };
+
+  sheet._onDragRollMacro({
+    currentTarget: { dataset: { macroAction: "shipCrewSkill", crewRole: "gunner" } },
+    originalEvent: { dataTransfer },
+  });
+
+  globalThis.$ = () => ({ closest: () => ({ find: () => ({ val: () => "2" }) }) });
+  sheet._onDragRollMacro({
+    currentTarget: { dataset: { macroAction: "shipAttack" } },
+    originalEvent: { dataTransfer },
+  });
+
+  assert.deepEqual(payloads, [
+    { type: "scifi-urpg.roll", actorId: "ship-1", action: "shipCrewSkill", crewRole: "gunner" },
+    { type: "scifi-urpg.roll", actorId: "ship-1", action: "shipAttack", bonus: 2 },
+  ]);
+});
+
+test("crew skill rolls subtract and show the ship's structural damage", async () => {
   const originalRandom = Math.random;
   Math.random = () => 0; // p5 rolls a 1, so n5 is 0.
 
@@ -205,10 +229,13 @@ test("crew skill rolls use the assigned crew's current combined role value", asy
       id: "ship-1",
       name: "Odyssey",
       hasPlayerOwner: true,
-      system: { crew: { members: [
-        { actorId: "gunner-1", pilot: false, gunner: true },
-        { actorId: "gunner-2", pilot: false, gunner: true },
-      ] } },
+      system: {
+        damage: 1.5,
+        crew: { members: [
+          { actorId: "gunner-1", pilot: false, gunner: true },
+          { actorId: "gunner-2", pilot: false, gunner: true },
+        ] },
+      },
     };
     sheet.submit = async () => {};
 
@@ -219,8 +246,8 @@ test("crew skill rolls use the assigned crew's current combined role value", asy
 
     assert.equal(messages.length, 1);
     assert.match(messages[0].content, /<h3>Eingebettete<\/h3>/);
-    assert.match(messages[0].content, /15 \+ \(0 - 0\) \(n5\)/);
-    assert.match(messages[0].content, /<div class="roll-result">15<\/div>/);
+    assert.match(messages[0].content, /15 \(Eingebettete\) − 1\.5 \(damage\) \+ \(0 - 0\) \(n5\)/);
+    assert.match(messages[0].content, /<div class="roll-result">13\.5<\/div>/);
   } finally {
     Math.random = originalRandom;
   }
@@ -309,4 +336,42 @@ test("a GM's NPC ship attack shows players the outcome but not the attack formul
   assert.match(messages[1].content, /12 \(Eingebettete\).*4 \(Raumfahrzeuge\).*\(3 - 1\) \(n5\)/s);
   assert.match(messages[1].content, /− 20\.7 \(range 11\.0 km\)/);
   assert.deepEqual(messages[1].whisper, ["gm"]);
+});
+
+test("ship attack formulas show non-zero structural-damage penalties", async () => {
+  globalThis.foundry = { utils: { escapeHTML: (value) => String(value) } };
+  const messages = [];
+  globalThis.game = {
+    settings: { get: () => "public" },
+    user: { isGM: true },
+    users: [{ id: "gm", isGM: true }],
+  };
+  globalThis.ChatMessage = {
+    getSpeaker: () => ({ alias: "ship" }),
+    create: async (message) => { messages.push(message); },
+  };
+
+  const { SciFiShipSheet } = await import(`../module/sheets/ship-sheet.mjs?damage-formula-test=${Date.now()}`);
+  const sheet = Object.create(SciFiShipSheet.prototype);
+  sheet.actor = { id: "ship", name: "Attacker", hasPlayerOwner: true };
+
+  await sheet._postAttackMessage({
+    gunneryBeforeDamage: 12,
+    attackerDamage: 1.54,
+    gunnery: 10.5,
+    bonus: 0,
+    rangePenalty: 0,
+    distance: 1_000,
+    evasionBeforeDamage: 8,
+    defenderDamage: 2.25,
+    evasion: 5.75,
+    roll: { plus: 0, minus: 0 },
+    weapon: { name: "Railgun" },
+    target: { id: "target-ship", name: "Target" },
+    result: 4.75,
+    energyCost: 0,
+    hit: false,
+  });
+
+  assert.match(messages[0].content, /12 \(Eingebettete\) − 1\.5 \(damage\).*− \(8 \(Raumfahrzeuge\) − 2\.3 \(damage\)\)/s);
 });

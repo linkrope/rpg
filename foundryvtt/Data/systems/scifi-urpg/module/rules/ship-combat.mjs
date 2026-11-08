@@ -6,7 +6,8 @@ import { calculateShipSpecification } from "./ship-design.mjs";
 export const SHIP_RANGE_BASELINE_METERS = 5_000;
 export const DILITHIUM_KWS_PER_TONNE = 360_000_000;
 export { BEP_PER_KBEP } from "./ship-units.mjs";
-export const SHIELD_BEP_PER_KWS = 1;
+// One kBEP requires 10 MWs (10,000 kWs), or 0.1 BEP per stored kWs.
+export const SHIELD_BEP_PER_KWS = 0.1;
 
 function number(value) {
   const result = Number(value);
@@ -73,11 +74,16 @@ export function shipPilotEvasionTotal(pilots = []) {
   return shipCrewRoleTotal(pilots.map((pilot) => ({ actor: pilot, pilot: true })), "pilot", "Raumfahrzeuge");
 }
 
+/** Structural damage reduces every ship crew action by its lost tonnage. */
+export function shipDamagePenalty(ship) {
+  return Math.max(0, number(ship?.system?.damage));
+}
+
 /**
  * Resolve one independent weapon attack.
  *
- * Shields and hull use stored BEP. Damage crosses shields first; only the
- * remaining BEP reduces hull integrity.
+ * Shields absorb stored BEP first. The design-derived hull is fixed armour:
+ * only damage that exceeds it destroys ship mass at one tonne per kBEP.
  */
 export function resolveShipAttack({
   attacker,
@@ -94,9 +100,13 @@ export function resolveShipAttack({
 } = {}) {
   const attackingCrew = crewMembers ?? gunners.map((actor) => ({ actor, gunner: true }));
   const defendingCrew = targetCrewMembers ?? pilots.map((actor) => ({ actor, pilot: true }));
-  const gunnery = shipCrewRoleTotal(attackingCrew, "gunner", "Eingebettete");
+  const gunneryBeforeDamage = shipCrewRoleTotal(attackingCrew, "gunner", "Eingebettete");
+  const attackerDamage = shipDamagePenalty(attacker);
+  const gunnery = gunneryBeforeDamage - attackerDamage;
   // TODO(rules): confirm the provisional rule that an unpiloted ship evades at 0.
-  const evasion = shipCrewRoleTotal(defendingCrew, "pilot", "Raumfahrzeuge");
+  const evasionBeforeDamage = shipCrewRoleTotal(defendingCrew, "pilot", "Raumfahrzeuge");
+  const defenderDamage = shipDamagePenalty(target);
+  const evasion = evasionBeforeDamage - defenderDamage;
   const rangePenalty = shipRangePenalty(weapon, distance);
   const weaponOutput = shipWeaponOutput(attacker);
   const energyCost = weaponOutput.energy;
@@ -105,16 +115,20 @@ export function resolveShipAttack({
   const result = gunnery + attackBonus + rangePenalty + number(roll?.total) - evasion;
   const hit = result > 0;
   const shieldsBefore = Math.max(0, number(target?.system?.shields?.value));
-  const hullBefore = Math.max(0, number(target?.system?.hull?.value));
+  const hullArmor = Math.max(0, number(calculateShipSpecification(target?.system?.design).hullProtection));
+  const damageBefore = Math.max(0, number(target?.system?.damage));
 
   // Ship gunnery determines whether a shot hits; damage is derived from the
   // attacker's gun allocation. The to-hit ÷ 5 bonus belongs to character BEP
   // combat.
   const rawDamage = hit ? weaponOutput.damage : 0;
   const shieldDamage = Math.min(shieldsBefore, rawDamage);
-  const hullDamage = Math.max(0, rawDamage - shieldDamage);
+  const unshieldedDamage = Math.max(0, rawDamage - shieldDamage);
+  const hullArmorDamage = Math.min(hullArmor, unshieldedDamage);
+  const hullDamage = Math.max(0, unshieldedDamage - hullArmorDamage);
   const shieldsAfter = shieldsBefore - shieldDamage;
-  const hullAfter = Math.max(0, hullBefore - hullDamage);
+  const shipDamage = hullDamage / BEP_PER_KBEP;
+  const damageAfter = damageBefore + shipDamage;
 
   return {
     attacker,
@@ -122,7 +136,11 @@ export function resolveShipAttack({
     weapon,
     crewMembers: attackingCrew,
     targetCrewMembers: defendingCrew,
+    gunneryBeforeDamage,
+    attackerDamage,
     gunnery,
+    evasionBeforeDamage,
+    defenderDamage,
     evasion,
     bonus: attackBonus,
     rangePenalty,
@@ -135,14 +153,17 @@ export function resolveShipAttack({
     hit,
     rawDamage,
     shieldDamage,
+    hullArmor,
+    hullArmorDamage,
     hullDamage,
+    shipDamage,
     shieldsBefore,
     shieldsAfter,
-    hullBefore,
-    hullAfter,
+    damageBefore,
+    damageAfter,
     updateData: hit ? {
       "system.shields.value": shieldsAfter,
-      "system.hull.value": hullAfter,
+      "system.damage": damageAfter,
     } : {},
     attackerUpdateData: energyCost > 0 ? {
       "system.energy.value": energyBefore - energyCost,
@@ -150,7 +171,7 @@ export function resolveShipAttack({
   };
 }
 
-/** Move stored kWs into the omnidirectional shield pool at 1 BEP per kWs. */
+/** Move stored kWs into the omnidirectional shield pool at 10 MWs per kBEP. */
 export function rechargeShields(ship) {
   const shieldValue = Math.max(0, number(ship?.system?.shields?.value));
   const shieldMax = Math.max(shieldValue, number(calculateShipSpecification(ship?.system?.design).shieldCapacityBep));
@@ -166,13 +187,15 @@ export function rechargeShields(ship) {
   };
 }
 
-/** Generate one second of battery charge from total reactor kW, stored as kWs. */
-export function generateReactorEnergy(ship) {
+/** Generate battery charge from total reactor kW, stored as kWs, for whole rounds. */
+export function generateReactorEnergy(ship, rounds = 1) {
   const output = Math.max(0, number(calculateShipSpecification(ship?.system?.design).generatorOutput));
+  const roundCount = Math.max(0, Math.floor(number(rounds)));
   const energy = Math.max(0, number(ship?.system?.energy?.value));
   const energyMax = Math.max(energy, number(calculateShipSpecification(ship?.system?.design).batteryCapacityKws));
-  const generated = Math.min(output, energyMax - energy);
+  const generated = Math.min(output * roundCount, energyMax - energy);
   return {
+    rounds: roundCount,
     generated,
     updateData: generated > 0 ? { "system.energy.value": energy + generated } : {},
   };

@@ -21,8 +21,7 @@ export class SciFiActor extends Actor {
       this.updateSource({
         "system.design": design,
         "system.mark": design.baseMark,
-        "flags.scifi-urpg.shipUnitsVersion": 3,
-        "system.hull.value": specification.hullProtection,
+        "flags.scifi-urpg.shipUnitsVersion": 4,
         "system.shields.value": specification.shieldCapacityBep,
         "system.energy.value": specification.batteryCapacityKws,
       });
@@ -32,7 +31,7 @@ export class SciFiActor extends Actor {
       }
       this.updateSource({
         "prototypeToken.actorLink": true,
-        "prototypeToken.bar1.attribute": "hull",
+        "prototypeToken.bar1.attribute": "damageBar",
         "prototypeToken.bar2.attribute": "shields",
         // Ship illustrations are drawn in landscape. Rotate their token so a
         // right-facing sprite points south on the tactical map by default.

@@ -21,9 +21,10 @@ test("a newly created ship with Foundry defaults starts as the selected standard
     batteryMassOverride: null, generatorMassOverride: null, shieldMassOverride: null, gunMassOverride: null,
   });
   assert.equal(updates.find((update) => update["prototypeToken.rotation"])["prototypeToken.rotation"], 90);
+  assert.equal(updates.find((update) => update["prototypeToken.bar1.attribute"])["prototypeToken.bar1.attribute"], "damageBar");
   assert.deepEqual(updates.find((update) => update.items).items, [{
     type: "shipWeapon", name: "Ship Weapon", img: "icons/weapons/artillery/missile.webp",
-    flags: { "scifi-urpg": { shipUnitsVersion: 3 } },
+    flags: { "scifi-urpg": { shipUnitsVersion: 4 } },
     system: {},
   }]);
 });

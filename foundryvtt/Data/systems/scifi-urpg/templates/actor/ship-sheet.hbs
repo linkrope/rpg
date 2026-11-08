@@ -8,13 +8,13 @@
       </div>
       <div class="ship-status-grid">
         <label><span>Battery (MWs)</span><input name="system.energy.value" type="text" inputmode="decimal" min="0" max="{{batteryMaxDisplay}}" value="{{batteryDisplay}}"> / {{batteryMaxDisplay}}</label>
-        <label><span>Hull (BEP)</span><input name="system.hull.value" type="text" inputmode="decimal" min="0" max="{{system.hull.max}}" value="{{system.hull.value}}"> / {{system.hull.max}}</label>
         <label><span>Shields (kBEP)</span><input name="system.shields.value" type="text" inputmode="decimal" min="0" max="{{shieldsMaxDisplay}}" value="{{shieldsDisplay}}"> / {{shieldsMaxDisplay}}</label>
+        <label><span>Damage (t)</span><input name="system.damage" type="number" inputmode="decimal" min="0" step="0.1" value="{{damageInput}}" placeholder="-"></label>
       </div>
       <div class="ship-attack-row">
         <div class="equipped-weapon-display"><span>Weapon</span><strong>{{attack.weaponName}}</strong></div>
         <label><span>Modifier</span><input type="text" inputmode="decimal" data-field="attack-bonus" value="{{attack.bonusInput}}" step="1" placeholder="-"></label>
-        <div class="ship-header-attack-control"><span class="ship-header-attack-label">&nbsp;</span><div class="ship-header-attack-row"><button type="button" class="attack-button ship-skill-roll" data-action="attack-target" {{#unless attack.hasWeapon}}disabled{{/unless}}>Attack</button></div></div>
+        <div class="ship-header-attack-control"><span class="ship-header-attack-label">&nbsp;</span><div class="ship-header-attack-row"><button type="button" class="attack-button ship-skill-roll" data-action="attack-target" data-macro-action="shipAttack" draggable="true" title="Drag to hotbar or attack" {{#unless attack.hasWeapon}}disabled{{/unless}}>Attack</button></div></div>
       </div>
     </div>
   </header>
@@ -29,6 +29,11 @@
 
   <section class="sheet-body">
     <div class="tab" data-group="primary" data-tab="overview">
+      <div class="ship-operation-toolbar">
+        <button type="button" data-action="recharge-shields">Recharge shields</button>
+        <button type="button" data-action="generate-reactor-energy">Generate reactor energy</button>
+        <label><span>Rounds</span><input type="number" inputmode="numeric" min="1" step="1" data-field="reactor-rounds" value="{{reactorRounds}}"></label>
+      </div>
       <section class="ship-design-panel">
         <div class="ship-design-heading"><div><h2>Ship design</h2><p>{{#if isCustomDesign}}Custom design based on Mk-{{design.baseMark}}.{{else}}Standard Mk-{{design.baseMark}} design.{{/if}}</p></div><button type="button" class="{{#if editingDesign}}active{{/if}}" data-action="toggle-design-edit">{{#if editingDesign}}Done{{else}}Edit{{/if}}</button></div>
         <div class="ship-design-editor" {{#unless editingDesign}}hidden{{/unless}}>
@@ -51,7 +56,7 @@
         <div><span>Surface</span><strong>{{specificationDisplay.surface}} m³</strong></div>
         <div><span>Hull thickness</span><strong>{{specificationDisplay.hullThickness}} mm</strong></div>
         <div><span>Hull mass</span><strong>{{specificationDisplay.hullMass}} t</strong></div>
-        <div><span>Hull protection</span><strong>{{specificationDisplay.hullProtection}} BEP</strong></div>
+        <div><span>Hull armour</span><strong>{{specificationDisplay.hullProtection}} BEP</strong></div>
         <div><span>Battery mass</span><strong>{{specificationDisplay.batteryMass}} t</strong></div>
         <div><span>Battery capacity</span><strong>{{specificationDisplay.batteryCapacity}} MWs</strong></div>
         <div><span>Generator mass</span><strong>{{specificationDisplay.generatorMass}} t</strong></div>
@@ -60,15 +65,12 @@
         <div><span>Shield capacity</span><strong>{{specificationDisplay.shieldCapacity}} kBEP</strong></div>
         <div><span>Gun mass</span><strong>{{specificationDisplay.gunMass}} t</strong></div>
         <div><span>Gun rate</span><strong>{{specificationDisplay.gunRate}} kBEP/s</strong></div>
-        <div><span>Gun power</span><strong>{{specificationDisplay.gunPower}} MWs</strong></div>
+        <div><span>Gun power</span><strong>{{specificationDisplay.gunPower}} MW</strong></div>
         <div><span>Gun count</span><strong>{{specificationDisplay.gunCount}}</strong></div>
         <div><span>Nominal crew</span><strong>{{specificationDisplay.crew}}</strong></div>
         <div><span>Payload</span><strong>{{specificationDisplay.freeTonnage}} t</strong></div>
-        <label><span>Dilithium (t)</span><input name="system.dilithium" type="text" inputmode="decimal" min="0" step="0.001" value="{{system.dilithium}}"></label>
       </div>
-      <button type="button" data-action="recharge-shields">Recharge shields from battery</button>
-      <button type="button" data-action="generate-reactor-energy">Generate one round of reactor energy</button>
-      <p class="ship-rule-note">Shields cover every direction. kBEP is absorbed by shields before it reaches the hull. Shields and weapons do not take conventional Loss.</p>
+      <p class="ship-rule-note">Shields cover every direction. Remaining damage is reduced by fixed hull armour, then each kBEP that gets through destroys 1 t. Shields and hull armour do not take conventional Loss.</p>
     </div>
 
     <div class="tab" data-group="primary" data-tab="weapons">
@@ -85,8 +87,8 @@
     <div class="tab" data-group="primary" data-tab="crew">
       <div class="ship-crew-toolbar">
         <div class="ship-crew-rolls">
-          <div class="ship-crew-roll"><span>Eingebettete</span><button type="button" class="skill-roll" data-action="roll-crew-skill" data-crew-role="gunner">Roll</button></div>
-          <div class="ship-crew-roll"><span>Raumfahrzeuge</span><button type="button" class="skill-roll" data-action="roll-crew-skill" data-crew-role="pilot">Roll</button></div>
+          <div class="ship-crew-roll"><span>Eingebettete</span><button type="button" class="skill-roll" data-action="roll-crew-skill" data-macro-action="shipCrewSkill" data-crew-role="gunner" draggable="true" title="Drag to hotbar or roll Eingebettete">Roll</button></div>
+          <div class="ship-crew-roll"><span>Raumfahrzeuge</span><button type="button" class="skill-roll" data-action="roll-crew-skill" data-macro-action="shipCrewSkill" data-crew-role="pilot" draggable="true" title="Drag to hotbar or roll Raumfahrzeuge">Roll</button></div>
         </div>
       </div>
       <p class="ship-crew-hint">Drag Actors here to add physical crew members. Assign each member to Pilot, Gunner, or both.</p>

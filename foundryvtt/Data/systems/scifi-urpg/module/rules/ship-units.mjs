@@ -1,5 +1,5 @@
 /** Persisted ship resources use these integer base units. */
-export const SHIP_UNITS_VERSION = 3;
+export const SHIP_UNITS_VERSION = 4;
 export const BEP_PER_KBEP = 1_000;
 export const KWS_PER_MWS = 1_000;
 export const SHIP_OUTPUT_DIVISOR = 10;
@@ -50,7 +50,7 @@ export function migrateShipSystemUnits(source = {}, unitsVersion = 0) {
     "flags.scifi-urpg.shipUnitsVersion": SHIP_UNITS_VERSION,
     ...resourceMigration(source.shields, "system.shields", shieldConversion, ["value"]),
     ...(legacyDisplayUnits ? resourceMigration(source.energy, "system.energy", mwsToKws, ["value"]) : {}),
-    "system.hull.-=max": null,
+    "system.-=hull": null,
     "system.shields.-=max": null,
     "system.energy.-=max": null,
     "system.-=reactor": null,

@@ -16,7 +16,7 @@ Rules reference: https://irisiflimsi.github.io/rpg-rules/scifi.xml
 - Supports level-up spending from the `Allgemein` and `Speziell` point pools. Skill increases use the original cost rule from the RPToken viewer: each target level costs `ceil(level / 10)`.
 - Supports free-form `Talente` entries with a heading, optional value, and Markdown description.
 - Stores character notes as Markdown.
-- Skill Roll, p5, n5, Shock, Dimensions, Attack, and Repair buttons can be dragged to the Foundry hotbar to create actor-bound script macros.
+- Character Skill Roll, p5, n5, Shock, Dimensions, Attack, and Repair buttons, plus ship Attack and Crew Roll buttons, can be dragged to the Foundry hotbar to create actor-bound script macros.
 - Shock uses `20 - total damage + n5`; a result of 0 or less applies Foundry's native `unconscious` status effect. Attacks that inflict damage automatically request the Shock roll from the GM while that status is absent.
 - With one character token controlled, targeted characters show their 3D distance and the equipped weapon's calculated range penalty, or melee reach. Distance is measured center to center using token elevations. Scene grid distances and elevations must be in meters.
 - Weapons without a clip use melee attacks when the displayed distance is up to 1.0 m, with no distance penalty. Beyond that, range penalty is `-6 × log₂(distance / 5) + range modifier`, capped at zero. Unarmed attacks use the same displayed melee boundary.
@@ -25,15 +25,17 @@ Rules reference: https://irisiflimsi.github.io/rpg-rules/scifi.xml
   the design table. A standard design can be customised; selecting a different
   Mk in Edit starts that Mk's standard design. Older ships without a design are given the standard
   design for their saved Mk; existing design data is never rewritten. There is
-  no Legacy mode. Ships have all-direction energy shields, hull
-  integrity, Dilithium values, named ship-weapon entries, and selected gunners.
+  no Legacy mode. Ships have all-direction energy shields, fixed hull armour,
+  accumulated structural damage in tonnes, shown as the primary token bar in
+  shades of red from zero to the design's full tonnage, named ship-weapon entries,
+  and selected gunners.
   Weapon damage and energy are derived from the ship's gun-mass allocation;
   entries share that output equally and only carry identity and range data.
   Each weapon fires separately. Gunnery uses `Eingebettete` and
   combines multiple gunners with the normal five-step addition rule. Ship
   range has no modifier at 1 km, then receives −6 per doubling. A hit drains
-  the unified shield charge before hull integrity; it never applies normal
-  equipment Loss. Tokens may be moved freely; only the sheet's acceleration
+  the unified shield charge before fixed hull armour, then adds structural
+  damage at one tonne per kBEP; it never applies normal equipment Loss. Tokens may be moved freely; only the sheet's acceleration
   and braking control spends battery energy.
 
 `.rptok` import and attack undo are intentionally left for later steps.

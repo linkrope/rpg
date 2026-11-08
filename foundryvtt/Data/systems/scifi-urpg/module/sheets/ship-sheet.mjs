@@ -2,10 +2,10 @@ import { actorNameElement, postRollCard } from "../chat.mjs";
 import { distanceToTarget } from "../rules/distance.mjs";
 import {
   applyShipAcceleration,
-  convertDilithium,
   generateReactorEnergy,
   rechargeShields,
   resolveShipAttack,
+  shipDamagePenalty,
   shipCrewRoleTotal,
   shipWeaponEnergyCost,
   shipWeaponOutput,
@@ -53,6 +53,10 @@ function displayShipNumber(value, fractionDigits = 3) {
   return String(rounded);
 }
 
+function inputShipNumber(value) {
+  return number(value) === 0 ? "" : displayShipNumber(value, 1);
+}
+
 function displaySpecification(specification) {
   return Object.fromEntries(Object.entries(specification).map(([key, value]) => [key, displayShipNumber(value)]));
 }
@@ -68,11 +72,143 @@ function resolvedCrewMembers(ship) {
   });
 }
 
+export async function rollShipCrewSkill(actor, role) {
+  const configuration = CREW_SKILL_ROLLS[role];
+  if (!configuration) return;
+
+  const crewMembers = resolvedCrewMembers(actor);
+  const assignedCrew = crewMembers.filter((member) => member[role]);
+  if (!assignedCrew.length) {
+    ui.notifications.warn(`Assign at least one ${configuration.roleName} before rolling ${configuration.skill}.`);
+    return;
+  }
+
+  const crewSkill = shipCrewRoleTotal(crewMembers, role, configuration.skill);
+  const damagePenalty = shipDamagePenalty(actor);
+  const base = crewSkill - damagePenalty;
+  const roll = rollN5();
+  const result = base + roll.total;
+  const crewNames = [...new Set(assignedCrew.map((member) => member.actor.name))].join(", ");
+  const formula = damagePenalty
+    ? `${crewSkill} (${configuration.skill}) − ${displayShipNumber(damagePenalty, 1)} (damage) ${n5Formula(roll)}`
+    : `${base} ${n5Formula(roll)}`;
+  const content = `
+    <div class="scifi-urpg-chat-card" data-scifi-urpg-roll-result="${Number(result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(actor.id)}">
+      <h3>${configuration.skill}</h3>
+      <p>${actorNameElement(actor)}: ${foundry.utils.escapeHTML(crewNames)}</p>
+      <div class="roll-formula">${foundry.utils.escapeHTML(formula)}</div>
+      <div class="roll-result">${result}</div>
+    </div>
+  `;
+  const publicContent = `
+    <div class="scifi-urpg-chat-card" data-scifi-urpg-roll-result="${Number(result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(actor.id)}">
+      <h3>${configuration.skill}</h3>
+      <p>${actorNameElement(actor)}: ${foundry.utils.escapeHTML(crewNames)}</p>
+      <div class="roll-result">${result}</div>
+    </div>
+  `;
+
+  await postRollCard(actor, {
+    speaker: ChatMessage.getSpeaker({ actor }),
+    content,
+    publicContent,
+    result,
+  });
+}
+
+export async function shipAttack(actor, { bonus = 0 } = {}) {
+  const weapon = actor.items.get(actor.system.weapon?.selected)
+    ?? actor.items.find((item) => item.type === "shipWeapon");
+  const targetToken = game.user?.targets?.size === 1 ? [...game.user.targets][0] : null;
+  const target = targetToken?.actor;
+  if (!weapon || target?.type !== "ship") {
+    ui.notifications.warn("Target exactly one SciFi ship before firing.");
+    return;
+  }
+  const distance = distanceToTarget(actor, targetToken);
+  if (distance === null) {
+    ui.notifications.warn("Place both ships on the scene before firing.");
+    return;
+  }
+  const crewMembers = resolvedCrewMembers(actor);
+  if (!crewMembers.some((member) => member.gunner)) {
+    ui.notifications.warn("Assign at least one gunner before firing.");
+    return;
+  }
+  const energyCost = shipWeaponEnergyCost(actor);
+  if (energyCost > number(actor.system.energy?.value)) {
+    ui.notifications.warn(`Insufficient energy: firing ${weapon.name} needs ${displayShipNumber(kwsToMws(energyCost))} MWs.`);
+    return;
+  }
+
+  const outcome = resolveShipAttack({
+    attacker: actor,
+    target,
+    weapon,
+    crewMembers,
+    targetCrewMembers: resolvedCrewMembers(target),
+    bonus,
+    distance,
+  });
+  if (Object.keys(outcome.attackerUpdateData).length) {
+    await game.scifiUrpg.updateShip(actor, outcome.attackerUpdateData);
+  }
+  await game.scifiUrpg.updateShip(target, outcome.updateData, {
+    token: targetToken,
+    beforeApply: (updateRequest) => postShipAttackMessage(actor, outcome, { updateRequest }),
+  });
+}
+
+export async function postShipAttackMessage(actor, outcome, { updateRequest = null } = {}) {
+  const gunneryBeforeDamage = outcome.gunneryBeforeDamage ?? outcome.gunnery;
+  const evasionBeforeDamage = outcome.evasionBeforeDamage ?? outcome.evasion;
+  const formula = [
+    `${gunneryBeforeDamage} (Eingebettete)`,
+    outcome.attackerDamage ? `− ${displayShipNumber(outcome.attackerDamage, 1)} (damage)` : null,
+    outcome.bonus ? `${outcome.bonus >= 0 ? "+" : "−"} ${Math.abs(outcome.bonus)}` : null,
+    outcome.rangePenalty ? `${outcome.rangePenalty >= 0 ? "+" : "−"} ${Math.abs(outcome.rangePenalty).toFixed(1)} (range ${(outcome.distance / 1_000).toFixed(1)} km)` : null,
+    outcome.defenderDamage
+      ? `− (${evasionBeforeDamage} (Raumfahrzeuge) − ${displayShipNumber(outcome.defenderDamage, 1)} (damage))`
+      : `− ${outcome.evasion} (Raumfahrzeuge)`,
+    `+ ${n5Formula(outcome.roll, { leadingPlus: false })}`,
+  ].filter(Boolean).join(" ");
+  const weaponName = foundry.utils.escapeHTML(outcome.weapon?.name ?? "ship weapon");
+  const damage = outcome.hit
+    ? `<p>Damage ${displayShipNumber(bepToKBep(outcome.rawDamage))} kBEP: shields absorb ${displayShipNumber(bepToKBep(outcome.shieldDamage))} kBEP; hull armour absorbs ${outcome.hullArmorDamage} BEP; ship takes ${displayShipNumber(outcome.shipDamage, 1)} t damage.</p>`
+    : "<p>Miss: no damage.</p>";
+  const content = `
+    <div class="scifi-urpg-chat-card attack-card">
+      <h3>Eingebettete</h3>
+      <p>${actorNameElement(actor)} attacks ${actorNameElement(outcome.target)} with ${weaponName}</p>
+      <div class="roll-formula">${foundry.utils.escapeHTML(formula)}</div>
+      <div class="roll-result">${outcome.result.toFixed(1)}</div>
+      ${outcome.energyCost ? `<p>${displayShipNumber(kwsToMws(outcome.energyCost))} MWs expended.</p>` : ""}
+      ${damage}
+    </div>`;
+  const publicContent = `
+    <div class="scifi-urpg-chat-card attack-card">
+      <h3>Eingebettete</h3>
+      <p>${actorNameElement(actor)} attacks ${actorNameElement(outcome.target)} with ${weaponName}</p>
+      <div class="roll-result">${outcome.result.toFixed(1)}</div>
+      ${outcome.energyCost ? `<p>${displayShipNumber(kwsToMws(outcome.energyCost))} MWs expended.</p>` : ""}
+      ${damage}
+    </div>`;
+  const flags = updateRequest ? { "scifi-urpg": { shipUpdate: updateRequest } } : undefined;
+  await postRollCard(actor, {
+    speaker: ChatMessage.getSpeaker({ actor }),
+    content,
+    publicContent,
+    result: outcome.result,
+    flags,
+    actorIds: [outcome.target.id],
+  });
+}
+
 export class SciFiShipSheet extends ActorSheet {
   constructor(...args) {
     super(...args);
     this._acceleration = { x: 0, y: 0 };
-    this._dilithiumConversion = 0;
+    this._reactorRounds = 1;
     this._attackBonus = 0;
     this._editingDesign = false;
     this._pendingDesign = null;
@@ -104,6 +240,7 @@ export class SciFiShipSheet extends ActorSheet {
     context.batteryMaxDisplay = displayShipNumber(kwsToMws(system.energy?.max), 1);
     context.shieldsDisplay = displayShipNumber(bepToKBep(system.shields?.value));
     context.shieldsMaxDisplay = displayShipNumber(bepToKBep(system.shields?.max));
+    context.damageInput = inputShipNumber(system.damage);
     context.isCustomDesign = context.design.mode === "custom";
     context.editingDesign = this._editingDesign;
     context.designEdit = this._pendingDesign ?? context.design;
@@ -142,13 +279,16 @@ export class SciFiShipSheet extends ActorSheet {
       hasWeapon: !!selectedWeapon,
     };
     context.acceleration = this._acceleration;
-    context.dilithiumConversion = this._dilithiumConversion;
+    context.reactorRounds = this._reactorRounds ?? 1;
     context.speed = Math.hypot(number(system.movement?.velocityX), number(system.movement?.velocityY));
     return context;
   }
 
   async _updateObject(event, formData) {
     const updateData = foundry.utils.deepClone(formData);
+    if (updateData["system.damage"] === "" || updateData["system.damage"] === "-") {
+      updateData["system.damage"] = 0;
+    }
     if (updateData["system.shields.value"] !== undefined) {
       updateData["system.shields.value"] = kBepToBep(updateData["system.shields.value"]);
     }
@@ -166,6 +306,7 @@ export class SciFiShipSheet extends ActorSheet {
     html.find("[data-action='toggle-crew-role']").on("change", this._onToggleCrewRole.bind(this));
     html.find("[data-action='roll-crew-skill']").on("click", this._onRollCrewSkill.bind(this));
     html.find("[data-action='attack-target']").on("click", this._onAttackTarget.bind(this));
+    html.find("[data-macro-action]").on("dragstart", this._onDragRollMacro.bind(this));
     html.find("[data-field='attack-bonus']").on("input change", this._onAttackBonusChange.bind(this));
     html.find("[data-action='select-weapon']").on("click", this._onSelectWeapon.bind(this));
     html.find("[data-action='add-weapon']").on("click", this._onAddWeapon.bind(this));
@@ -173,9 +314,8 @@ export class SciFiShipSheet extends ActorSheet {
     html.find("[data-action='delete-weapon']").on("click", this._onDeleteWeapon.bind(this));
     html.find("[data-action='recharge-shields']").on("click", this._onRechargeShields.bind(this));
     html.find("[data-action='generate-reactor-energy']").on("click", this._onGenerateReactorEnergy.bind(this));
-    html.find("[data-action='convert-dilithium']").on("click", this._onConvertDilithium.bind(this));
     html.find("[data-action='toggle-design-edit']").on("click", this._onToggleDesignEdit.bind(this));
-    html.find("[data-field='dilithium-conversion']").on("input change", this._onDilithiumConversionChange.bind(this));
+    html.find("[data-field='reactor-rounds']").on("input change", this._onReactorRoundsChange.bind(this));
     html.find("[data-field='design-mark']").on("change", this._onPendingDesignMarkChange.bind(this));
     html.find("[data-field='design-length']").on("change", this._onPendingDesignLengthChange.bind(this));
     html.find("[data-field='design-tonnage-override']").on("input change", this._onPendingDesignTonnageOverrideChange.bind(this));
@@ -240,7 +380,6 @@ export class SciFiShipSheet extends ActorSheet {
       "system.design.gunMassOverride": normalized.gunMassOverride,
       // Persist a reduced operational state. Derived maxima are calculated by
       // ShipDataModel, so a refit cannot be used to refill a depleted ship.
-      "system.hull.value": Math.min(number(this.actor.system.hull?.value), specification.hullProtection),
       "system.shields.value": Math.min(number(this.actor.system.shields?.value), specification.shieldCapacityBep),
       "system.energy.value": Math.min(number(this.actor.system.energy?.value), specification.batteryCapacityKws),
     });
@@ -364,48 +503,30 @@ export class SciFiShipSheet extends ActorSheet {
   async _onRollCrewSkill(event) {
     event.preventDefault();
     const role = event.currentTarget.dataset.crewRole;
-    const configuration = CREW_SKILL_ROLLS[role];
-    if (!configuration) return;
-
     await this.submit({ preventClose: true });
-    const crewMembers = resolvedCrewMembers(this.actor);
-    const assignedCrew = crewMembers.filter((member) => member[role]);
-    if (!assignedCrew.length) {
-      ui.notifications.warn(`Assign at least one ${configuration.roleName} before rolling ${configuration.skill}.`);
-      return;
-    }
-
-    const base = shipCrewRoleTotal(crewMembers, role, configuration.skill);
-    const roll = rollN5();
-    const result = base + roll.total;
-    const crewNames = [...new Set(assignedCrew.map((member) => member.actor.name))].join(", ");
-    const formula = `${base} ${n5Formula(roll)}`;
-    const content = `
-      <div class="scifi-urpg-chat-card" data-scifi-urpg-roll-result="${Number(result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(this.actor.id)}">
-        <h3>${configuration.skill}</h3>
-        <p>${actorNameElement(this.actor)}: ${foundry.utils.escapeHTML(crewNames)}</p>
-        <div class="roll-formula">${foundry.utils.escapeHTML(formula)}</div>
-        <div class="roll-result">${result}</div>
-      </div>
-    `;
-    const publicContent = `
-      <div class="scifi-urpg-chat-card" data-scifi-urpg-roll-result="${Number(result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(this.actor.id)}">
-        <h3>${configuration.skill}</h3>
-        <p>${actorNameElement(this.actor)}: ${foundry.utils.escapeHTML(crewNames)}</p>
-        <div class="roll-result">${result}</div>
-      </div>
-    `;
-
-    await postRollCard(this.actor, {
-      speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-      content,
-      publicContent,
-      result,
-    });
+    await rollShipCrewSkill(this.actor, role);
   }
 
   _onAttackBonusChange(event) {
     this._attackBonus = number(event.currentTarget.value);
+  }
+
+  _onDragRollMacro(event) {
+    const action = event.currentTarget.dataset.macroAction;
+    if (!action) return;
+
+    const dragData = {
+      type: "scifi-urpg.roll",
+      actorId: this.actor.id,
+      action,
+    };
+    if (action === "shipCrewSkill") dragData.crewRole = event.currentTarget.dataset.crewRole;
+    if (action === "shipAttack") {
+      const root = $(event.currentTarget).closest(".scifi-urpg-ship-sheet");
+      dragData.bonus = number(root.find("[data-field='attack-bonus']").val());
+    }
+
+    event.originalEvent?.dataTransfer?.setData("text/plain", JSON.stringify(dragData));
   }
 
   async _onSelectWeapon(event) {
@@ -417,46 +538,7 @@ export class SciFiShipSheet extends ActorSheet {
   async _onAttackTarget(event) {
     event.preventDefault();
     await this.submit({ preventClose: true });
-    const weapon = this.actor.items.get(this.actor.system.weapon?.selected)
-      ?? this.actor.items.find((item) => item.type === "shipWeapon");
-    const targetToken = game.user?.targets?.size === 1 ? [...game.user.targets][0] : null;
-    const target = targetToken?.actor;
-    if (!weapon || target?.type !== "ship") {
-      ui.notifications.warn("Target exactly one SciFi ship before firing.");
-      return;
-    }
-    const distance = distanceToTarget(this.actor, targetToken);
-    if (distance === null) {
-      ui.notifications.warn("Place both ships on the scene before firing.");
-      return;
-    }
-    const crewMembers = resolvedCrewMembers(this.actor);
-    if (!crewMembers.some((member) => member.gunner)) {
-      ui.notifications.warn("Assign at least one gunner before firing.");
-      return;
-    }
-    const energyCost = shipWeaponEnergyCost(this.actor);
-    if (energyCost > number(this.actor.system.energy?.value)) {
-      ui.notifications.warn(`Insufficient energy: firing ${weapon.name} needs ${displayShipNumber(kwsToMws(energyCost))} MWs.`);
-      return;
-    }
-
-    const outcome = resolveShipAttack({
-      attacker: this.actor,
-      target,
-      weapon,
-      crewMembers,
-      targetCrewMembers: resolvedCrewMembers(target),
-      bonus: this._attackBonus,
-      distance,
-    });
-    if (Object.keys(outcome.attackerUpdateData).length) {
-      await game.scifiUrpg.updateShip(this.actor, outcome.attackerUpdateData);
-    }
-    await game.scifiUrpg.updateShip(target, outcome.updateData, {
-      token: targetToken,
-      beforeApply: (updateRequest) => this._postAttackMessage(outcome, { updateRequest }),
-    });
+    await shipAttack(this.actor, { bonus: this._attackBonus });
   }
 
   async _onAddWeapon(event) {
@@ -489,28 +571,16 @@ export class SciFiShipSheet extends ActorSheet {
   async _onGenerateReactorEnergy(event) {
     event.preventDefault();
     await this.submit({ preventClose: true });
-    const generation = generateReactorEnergy(this.actor);
+    const generation = generateReactorEnergy(this.actor, this._reactorRounds);
     if (!generation.generated) {
-      ui.notifications.info("Battery is full or the reactor has no output.");
+      ui.notifications.info("Battery is full, the reactor has no output, or rounds must be positive.");
       return;
     }
     await this.actor.update(generation.updateData);
   }
 
-  _onDilithiumConversionChange(event) {
-    this._dilithiumConversion = Math.max(0, number(event.currentTarget.value));
-  }
-
-  async _onConvertDilithium(event) {
-    event.preventDefault();
-    await this.submit({ preventClose: true });
-    const conversion = convertDilithium(this.actor, this._dilithiumConversion);
-    if (!conversion.tonnes) {
-      ui.notifications.info("No Dilithium was converted; increase battery capacity or the amount to convert.");
-      return;
-    }
-    await this.actor.update(conversion.updateData);
-    this._dilithiumConversion = 0;
+  _onReactorRoundsChange(event) {
+    this._reactorRounds = Math.max(1, Math.floor(number(event.currentTarget.value)));
   }
 
   _onAccelerationChange(event) {
@@ -531,43 +601,6 @@ export class SciFiShipSheet extends ActorSheet {
   }
 
   async _postAttackMessage(outcome, { updateRequest = null } = {}) {
-    const formula = [
-      `${outcome.gunnery} (Eingebettete)`,
-      outcome.bonus ? `${outcome.bonus >= 0 ? "+" : "−"} ${Math.abs(outcome.bonus)}` : null,
-      outcome.rangePenalty ? `${outcome.rangePenalty >= 0 ? "+" : "−"} ${Math.abs(outcome.rangePenalty).toFixed(1)} (range ${(outcome.distance / 1_000).toFixed(1)} km)` : null,
-      `− ${outcome.evasion} (Raumfahrzeuge)`,
-      // Keep the random roll last so the deterministic comparison is easy to read.
-      `+ ${n5Formula(outcome.roll, { leadingPlus: false })}`,
-    ].filter(Boolean).join(" ");
-    const weaponName = foundry.utils.escapeHTML(outcome.weapon?.name ?? "ship weapon");
-    const damage = outcome.hit
-      ? `<p>Damage ${displayShipNumber(bepToKBep(outcome.rawDamage))} kBEP: shields absorb ${displayShipNumber(bepToKBep(outcome.shieldDamage))} kBEP; hull takes ${outcome.hullDamage} BEP.</p>`
-      : "<p>Miss: no damage.</p>";
-    const content = `
-      <div class="scifi-urpg-chat-card attack-card">
-        <h3>Eingebettete</h3>
-        <p>${actorNameElement(this.actor)} attacks ${actorNameElement(outcome.target)} with ${weaponName}</p>
-        <div class="roll-formula">${foundry.utils.escapeHTML(formula)}</div>
-        <div class="roll-result">${outcome.result.toFixed(1)}</div>
-        ${outcome.energyCost ? `<p>${displayShipNumber(kwsToMws(outcome.energyCost))} MWs expended.</p>` : ""}
-        ${damage}
-      </div>`;
-    const publicContent = `
-      <div class="scifi-urpg-chat-card attack-card">
-        <h3>Eingebettete</h3>
-        <p>${actorNameElement(this.actor)} attacks ${actorNameElement(outcome.target)} with ${weaponName}</p>
-        <div class="roll-result">${outcome.result.toFixed(1)}</div>
-        ${outcome.energyCost ? `<p>${displayShipNumber(kwsToMws(outcome.energyCost))} MWs expended.</p>` : ""}
-        ${damage}
-      </div>`;
-    const flags = updateRequest ? { "scifi-urpg": { shipUpdate: updateRequest } } : undefined;
-    await postRollCard(this.actor, {
-      speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-      content,
-      publicContent,
-      result: outcome.result,
-      flags,
-      actorIds: [outcome.target.id],
-    });
+    return postShipAttackMessage(this.actor, outcome, { updateRequest });
   }
 }

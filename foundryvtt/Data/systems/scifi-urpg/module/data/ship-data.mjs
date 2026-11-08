@@ -30,8 +30,13 @@ export class ShipDataModel extends foundry.abstract.TypeDataModel {
         gunMassOverride: new fields.NumberField({ initial: null, min: 0, nullable: true, required: false }),
       }),
       mass: new fields.NumberField({ initial: 4, min: 0, required: true }),
-      hull: new fields.SchemaField({
-        value: new fields.NumberField({ initial: 20, min: 0, required: true }),
+      damage: new fields.NumberField({ initial: 0, min: 0, required: true }),
+      // A derived resource solely for Foundry's primary token bar. Damage is
+      // persisted above as a simple tonnage value so it stays convenient for
+      // ship combat and the sheet.
+      damageBar: new fields.SchemaField({
+        value: new fields.NumberField({ initial: 0, min: 0, required: true }),
+        max: new fields.NumberField({ initial: 0, min: 0, required: true }),
       }),
       shields: new fields.SchemaField({
         value: new fields.NumberField({ initial: 10_000, min: 0, required: true }),
@@ -59,10 +64,9 @@ export class ShipDataModel extends foundry.abstract.TypeDataModel {
   }
 
   prepareBaseData() {
-    // Source maxima can predate the calculated design values. Only ensure
-    // current values are non-negative here; cap them after the design has
-    // supplied its real capacities in prepareDerivedData.
-    this.hull.value = Math.max(0, this.hull.value);
+    // Only ensure operational values are non-negative here; cap shield and
+    // battery charge after the design has supplied their real capacities.
+    this.damage = Math.max(0, this.damage);
     this.shields.value = Math.max(0, this.shields.value);
     this.energy.value = Math.max(0, this.energy.value);
   }
@@ -70,13 +74,15 @@ export class ShipDataModel extends foundry.abstract.TypeDataModel {
   prepareDerivedData() {
     const specification = calculateShipSpecification(this.design);
     this.mass = specification.tonnage;
-    this.hull.max = specification.hullProtection;
+    // The damage bar fills as the ship is destroyed: its full scale is the
+    // complete design tonnage, not the (fixed) hull-armour BEP value.
+    this.damageBar.value = this.damage;
+    this.damageBar.max = this.mass;
     this.shields.max = specification.shieldCapacityBep;
     this.energy.max = specification.batteryCapacityKws;
 
-    // Changing a design never repairs a vessel or creates charge. Clamp its
-    // operational state to the newly calculated capacities instead.
-    this.hull.value = Math.min(this.hull.max, Math.max(0, this.hull.value));
+    // Changing a design never repairs a vessel or creates charge. Clamp the
+    // capacity-bound operational state to the newly calculated limits.
     this.shields.value = Math.min(this.shields.max, Math.max(0, this.shields.value));
     this.energy.value = Math.min(this.energy.max, Math.max(0, this.energy.value));
   }

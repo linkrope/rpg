@@ -17,4 +17,37 @@ test("ship design display rounds floating-point free tonnage to three decimals",
   const context = await sheet.getData();
 
   assert.equal(context.specificationDisplay.freeTonnage, "0.512");
+  assert.equal(context.damageInput, "");
+});
+
+test("ship damage input rounds to one fractional digit", async () => {
+  globalThis.ActorSheet = class { async getData() { return {}; } };
+  globalThis.game = { actors: new Map() };
+  const { SciFiShipSheet } = await import(`../module/sheets/ship-sheet.mjs?damage-display-test=${Date.now()}`);
+  const sheet = Object.create(SciFiShipSheet.prototype);
+  sheet.actor = {
+    system: {
+      damage: 1.25,
+      design: { mode: "standard", baseMark: "I", length: 40, tonnageOverride: null },
+      crew: { members: [] }, weapon: {}, movement: { velocityX: 0, velocityY: 0 },
+    },
+    items: [],
+  };
+
+  const context = await sheet.getData();
+
+  assert.equal(context.damageInput, "1.3");
+});
+
+test("clearing ship damage resets it to zero", async () => {
+  globalThis.ActorSheet = class {};
+  globalThis.foundry = { utils: { deepClone: (value) => ({ ...value }) } };
+  const { SciFiShipSheet } = await import(`../module/sheets/ship-sheet.mjs?test=${Date.now()}`);
+  let updateData;
+  const sheet = Object.create(SciFiShipSheet.prototype);
+  sheet.actor = { update: async (data) => { updateData = data; } };
+
+  await sheet._updateObject({}, { "system.damage": "-" });
+
+  assert.deepEqual(updateData, { "system.damage": 0 });
 });

@@ -377,6 +377,10 @@
 .scifi-urpg-ship-sheet .sheet-tabs .item.active { border-bottom: 2px solid #f0a500; color: var(--ship-head); }
 .scifi-urpg-ship-sheet .tab { display: none; gap: 12px; }
 .scifi-urpg-ship-sheet .tab.active { display: grid; }
+.scifi-urpg-ship-sheet .ship-operation-toolbar { align-items: end; background: var(--ship-card); border: 1px solid var(--ship-border); border-radius: 6px; display: flex; gap: 8px; padding: 8px; }
+.scifi-urpg-ship-sheet .ship-operation-toolbar label { display: grid; gap: 3px; width: 72px; }
+.scifi-urpg-ship-sheet .ship-operation-toolbar label > span { color: var(--ship-dim); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+.scifi-urpg-ship-sheet .ship-operation-toolbar input { text-align: right; }
 .scifi-urpg-ship-sheet .ship-toolbar { align-items: center; display: flex; gap: 12px; justify-content: space-between; }
 .scifi-urpg-ship-sheet .ship-add-weapon { flex: 0 0 auto; width: auto; }
 .scifi-urpg-ship-sheet .ship-design-origin { min-width: 0; }

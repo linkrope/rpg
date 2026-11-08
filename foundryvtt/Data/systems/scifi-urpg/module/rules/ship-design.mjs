@@ -80,11 +80,9 @@ export function calculateShipSpecification(design = {}) {
   const generatorMass = componentMass(design.generatorMassOverride, recommendedComponentMasses.generator);
   const generatorOutput = 1_000 * generatorMass;
   const shieldMass = componentMass(design.shieldMassOverride, recommendedComponentMasses.shield);
-  // A ship component's mass and energy use remain unchanged. Its kBEP
-  // effect, however, is one tenth of the previous rule.
-  const shieldCapacity = 10 * shieldMass;
+  const shieldCapacity = 100 * shieldMass;
   const gunMass = componentMass(design.gunMassOverride, recommendedComponentMasses.gun);
-  const gunRate = gunMass / 2.5;
+  const gunRate = 4 * gunMass;
   const gunPower = gunRate;
   const shieldCapacityBep = Math.round(shieldCapacity * 1_000);
   const batteryCapacityKws = Math.round(batteryCapacity * 1_000);

@@ -60,7 +60,7 @@ test("ship migration does not create a Mk-I design from an operational partial u
   assert.equal(source.design, undefined);
 });
 
-test("legacy ship resources retain only current charge; maxima are derived", () => {
+test("legacy ship resources retain charge and remove the obsolete hull resource", () => {
   const source = {
     hull: { value: 240, max: 240 },
     shields: { value: 375, max: 500 },
@@ -68,49 +68,50 @@ test("legacy ship resources retain only current charge; maxima are derived", () 
   };
 
   assert.deepEqual(migrateShipSystemUnits(source), {
-    "flags.scifi-urpg.shipUnitsVersion": 3,
+    "flags.scifi-urpg.shipUnitsVersion": 4,
     "system.shields.value": 37_500,
     "system.energy.value": 3_750_000,
-    "system.hull.-=max": null,
+    "system.-=hull": null,
     "system.shields.-=max": null,
     "system.energy.-=max": null,
     "system.-=reactor": null,
   });
   assert.equal(source.hull.value, 240);
   assert.deepEqual(migrateShipSystemUnits({ shields: { value: 40_000, max: 100_000 } }, 2), {
-    "flags.scifi-urpg.shipUnitsVersion": 3,
+    "flags.scifi-urpg.shipUnitsVersion": 4,
     "system.shields.value": 4_000,
-    "system.hull.-=max": null,
+    "system.-=hull": null,
     "system.shields.-=max": null,
     "system.energy.-=max": null,
     "system.-=reactor": null,
   });
-  assert.equal(migrateShipSystemUnits(source, 3), null);
+  assert.equal(migrateShipSystemUnits(source, 4), null);
 });
 
 test("legacy ship weapons drop persisted output in favour of ship-derived values", () => {
   const source = { bep: 7.5, energy: 0.75 };
   assert.deepEqual(migrateShipWeaponSystemUnits(source), {
-    "flags.scifi-urpg.shipUnitsVersion": 3,
+    "flags.scifi-urpg.shipUnitsVersion": 4,
     "system.-=bep": null,
     "system.-=energy": null,
   });
   assert.deepEqual(migrateShipWeaponSystemUnits({ bep: 7_500, energy: 750 }, 2), {
-    "flags.scifi-urpg.shipUnitsVersion": 3,
+    "flags.scifi-urpg.shipUnitsVersion": 4,
     "system.-=bep": null,
     "system.-=energy": null,
   });
-  assert.equal(migrateShipWeaponSystemUnits(source, 3), null);
+  assert.equal(migrateShipWeaponSystemUnits(source, 4), null);
 });
 
-test("derived capacities do not discard valid current Hull or Shields before they are calculated", async () => {
+test("derived capacities do not discard valid current Shields before they are calculated", async () => {
   const Model = await ShipDataModel();
   const ship = {
     design: { mode: "standard", baseMark: "I", length: 40 },
     // These are stale source maxima from before calculated design capacities.
-    hull: { value: 100, max: 20 },
     shields: { value: 4_000, max: 10_000 },
     energy: { value: 300_000, max: 4_000_000 },
+    damage: 0.76,
+    damageBar: { value: 0, max: 0 },
     reactor: { output: 0 },
     mass: 0,
   };
@@ -118,7 +119,8 @@ test("derived capacities do not discard valid current Hull or Shields before the
   Model.prototype.prepareBaseData.call(ship);
   Model.prototype.prepareDerivedData.call(ship);
 
-  assert.equal(ship.hull.value, 100);
+  assert.equal(ship.damage, 0.76);
+  assert.deepEqual(ship.damageBar, { value: 0.76, max: ship.mass });
   assert.equal(ship.shields.value, 4_000);
   assert.equal(ship.energy.value, 300_000);
 });

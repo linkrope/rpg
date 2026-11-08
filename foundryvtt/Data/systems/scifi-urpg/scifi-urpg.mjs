@@ -8,14 +8,14 @@ import { SciFiDimensionsApp } from "./module/apps/dimensions-app.mjs";
 import { actorNameElement, postRollCard } from "./module/chat.mjs";
 import { SciFiCharacterSheet } from "./module/sheets/character-sheet.mjs";
 import { SciFiWeaponSheet } from "./module/sheets/weapon-sheet.mjs";
-import { SciFiShipSheet } from "./module/sheets/ship-sheet.mjs";
+import { rollShipCrewSkill, SciFiShipSheet, shipAttack } from "./module/sheets/ship-sheet.mjs";
 import { SciFiShipWeaponSheet } from "./module/sheets/ship-weapon-sheet.mjs";
 import { n5Formula, rollN5, rollP5 } from "./module/rules/dice.mjs";
 import { combineSkillValues, skillRollFormula } from "./module/rules/skills.mjs";
 import { DEFAULT_AIM_ZONES, formatAttackResult, isMeleeAttack, isUnarmedWeapon, resolveAttack, weaponForActor } from "./module/rules/combat.mjs";
 import { buildAttackCard } from "./module/rules/roll-card.mjs";
 import { distanceForSceneRange, distanceToTarget, sceneRangeUnit } from "./module/rules/distance.mjs";
-import { migrateShipSystemUnits, migrateShipWeaponSystemUnits } from "./module/rules/ship-units.mjs";
+import { bepToKBep, kBepToBep, migrateShipSystemUnits, migrateShipWeaponSystemUnits } from "./module/rules/ship-units.mjs";
 import "./module/canvas/target-distance.mjs";
 import { applyShockOutcome, resolveShock, shockFormula, shouldRollShock } from "./module/rules/shock.mjs";
 import { formatDimensionMetersPerSecond, moveMetersPerSecondForDimension } from "./module/rules/dimensions.mjs";
@@ -72,7 +72,35 @@ Hooks.once("init", () => {
 // system that value mirrors damage, so redirect the HUD edit to the persisted,
 // uncapped damage field before Foundry applies its normal 0–20 bar clamp.
 Hooks.on("modifyTokenAttribute", (data, updates, actor) => {
-  if (actor?.type !== "character" || data.attribute !== "health" || !data.isBar) return;
+  if (!data.isBar) return;
+
+  // Ship shields are persisted in BEP, but their HUD input is displayed in
+  // kBEP so players work with the same unit as the ship sheet.
+  if (actor?.type === "ship" && data.attribute === "shields") {
+    const currentShields = Math.max(0, Number(actor.system.shields?.value) || 0);
+    const requested = Number(data.value);
+    if (!Number.isFinite(requested)) return;
+
+    const shields = data.isDelta
+      ? currentShields + kBepToBep(requested)
+      : kBepToBep(requested);
+    delete updates["system.shields.value"];
+    updates["system.shields.value"] = Math.max(0, shields);
+    return;
+  }
+
+  if (actor?.type === "ship" && data.attribute === "damageBar") {
+    const currentDamage = Math.max(0, Number(actor.system.damage) || 0);
+    const requested = Number(data.value);
+    if (!Number.isFinite(requested)) return;
+
+    const damage = data.isDelta ? currentDamage + requested : requested;
+    delete updates["system.damageBar.value"];
+    updates["system.damage"] = Math.max(0, damage);
+    return;
+  }
+
+  if (actor?.type !== "character" || data.attribute !== "health") return;
 
   const currentDamage = Math.max(0, Number(actor.system.health?.damage) || 0);
   const requested = Number(data.value);
@@ -81,6 +109,15 @@ Hooks.on("modifyTokenAttribute", (data, updates, actor) => {
   const damage = data.isDelta ? currentDamage + requested : requested;
   delete updates["system.health.value"];
   updates["system.health.damage"] = Math.max(0, Math.round(damage));
+});
+
+Hooks.on("renderTokenHUD", (application, html) => {
+  if (application.actor?.type !== "ship") return;
+  const shieldBar = application.document?.getBarAttribute("bar2");
+  if (shieldBar?.attribute !== "shields") return;
+
+  const input = html.querySelector("input[name='bar2']");
+  if (input) input.value = String(bepToKBep(shieldBar.value));
 });
 
 Hooks.once("ready", () => {
@@ -96,7 +133,9 @@ Hooks.once("ready", () => {
     rollN5: rollN5Macro,
     rollP5: rollP5Macro,
     rollShock,
-    rollSkill
+    rollShipCrewSkill: rollShipCrewSkillMacro,
+    rollSkill,
+    shipAttack: shipAttackMacro,
   };
 
   if (game.user?.isGM) {
@@ -225,6 +264,10 @@ function buildRollMacroData(actor, data) {
       name: "Repair Armor",
       command: `await game.scifiUrpg.macros.repairArmor({ actorId: ${actorId} });`
     },
+    shipAttack: {
+      name: "Ship Attack",
+      command: `await game.scifiUrpg.macros.shipAttack({ actorId: ${actorId}, bonus: ${numberOrZero(data.bonus)} });`
+    },
     shock: {
       name: "Shock",
       command: `await game.scifiUrpg.macros.rollShock({ actorId: ${actorId} });`
@@ -235,6 +278,12 @@ function buildRollMacroData(actor, data) {
     const skillKey = JSON.stringify(data.skillKey);
     const skillName = displaySkillName(data.skillKey);
     return macroData(actor, skillName, `await game.scifiUrpg.macros.rollSkill({ actorId: ${actorId}, skillKey: ${skillKey} });`);
+  }
+
+  if (data.action === "shipCrewSkill" && ["gunner", "pilot"].includes(data.crewRole)) {
+    const role = JSON.stringify(data.crewRole);
+    const name = data.crewRole === "gunner" ? "Eingebettete" : "Raumfahrzeuge";
+    return macroData(actor, name, `await game.scifiUrpg.macros.rollShipCrewSkill({ actorId: ${actorId}, role: ${role} });`);
   }
 
   if (!action) return null;
@@ -304,6 +353,24 @@ async function rollSkill({ actorId, skillKey } = {}) {
     formula: skillRollFormula(selected, roll),
     result: total
   });
+}
+
+function shipForMacro(actorId) {
+  const actor = game.actors?.get(actorId);
+  if (actor?.type === "ship") return actor;
+
+  ui.notifications.warn("SciFi ship not found.");
+  return null;
+}
+
+async function rollShipCrewSkillMacro({ actorId, role } = {}) {
+  const actor = shipForMacro(actorId);
+  if (actor) await rollShipCrewSkill(actor, role);
+}
+
+async function shipAttackMacro({ actorId, bonus = 0 } = {}) {
+  const actor = shipForMacro(actorId);
+  if (actor) await shipAttack(actor, { bonus: numberOrZero(bonus) });
 }
 
 async function attack({ actorId, bonus = 0, aimZones = DEFAULT_AIM_ZONES } = {}) {
@@ -616,7 +683,7 @@ function isPrimaryActiveGM() {
   return primary?.id === game.user?.id;
 }
 
-/** Persist the v3 derived-output model once, from one authoritative GM client. */
+/** Persist the v4 fixed-hull-armour and structural-damage-bar model once. */
 async function migrateWorldShipUnits() {
   if (!isPrimaryActiveGM()) return;
 
@@ -627,6 +694,9 @@ async function migrateWorldShipUnits() {
 
     const shipUpdate = migrateShipSystemUnits(sourceSystem(actor), shipUnitsVersion(actor));
     if (shipUpdate) {
+      if (actor.prototypeToken?.bar1?.attribute == null || actor.prototypeToken?.bar1?.attribute === "hull") {
+        shipUpdate["prototypeToken.bar1.attribute"] = "damageBar";
+      }
       await actor.update(shipUpdate);
       ships += 1;
     }
@@ -665,7 +735,7 @@ function sanitizeCombatUpdateData(updateData) {
 }
 
 function sanitizeShipUpdateData(updateData) {
-  const allowed = [/^system\.hull\.value$/, /^system\.shields\.value$/, /^system\.energy\.value$/];
+  const allowed = [/^system\.damage$/, /^system\.shields\.value$/, /^system\.energy\.value$/];
   const sanitized = {};
   for (const [key, value] of Object.entries(flattenUpdateData(updateData))) {
     if (!allowed.some((pattern) => pattern.test(key))) continue;
