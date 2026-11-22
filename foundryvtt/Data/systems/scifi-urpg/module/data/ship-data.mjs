@@ -10,6 +10,12 @@ export class ShipDataModel extends foundry.abstract.TypeDataModel {
     if (source.design === undefined && source.mark !== undefined) {
       source.design = standardShipDesign(SHIP_PROFILES[source.mark] ? source.mark : "I");
     }
+    // Firing controls used to be temporary sheet-only factors. A complete
+    // actor source now receives durable slider settings; leave partial updates
+    // alone so they cannot replace this nested object.
+    if (source.firing === undefined && source.mark !== undefined) {
+      source.firing = { timeDimension: 0, energyMws: null };
+    }
     return super.migrateData(source);
   }
 
@@ -58,6 +64,12 @@ export class ShipDataModel extends foundry.abstract.TypeDataModel {
       }),
       weapon: new fields.SchemaField({
         selected: new fields.StringField({ required: true, nullable: false, initial: "" }),
+      }),
+      firing: new fields.SchemaField({
+        timeDimension: new fields.NumberField({ initial: 0, min: -50, max: 50, step: 5, required: true }),
+        // Null means an unmigrated ship uses its normal full-energy profile;
+        // zero remains a valid explicit throttle selection.
+        energyMws: new fields.NumberField({ initial: null, min: 0, integer: true, nullable: true, required: false }),
       }),
       notes: new fields.StringField({ required: false, nullable: false, blank: true, initial: "" }),
     };

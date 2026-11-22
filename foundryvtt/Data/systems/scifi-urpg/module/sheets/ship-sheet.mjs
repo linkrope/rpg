@@ -7,8 +7,11 @@ import {
   resolveShipAttack,
   shipDamagePenalty,
   shipCrewRoleTotal,
+  shipFiringDimension,
+  shipFiringProfile,
   shipWeaponEnergyCost,
   shipWeaponOutput,
+  shipWeaponShotOutput,
 } from "../rules/ship-combat.mjs";
 import { calculateShipSpecification, SHIP_PROFILES, standardShipDesign } from "../rules/ship-design.mjs";
 import { starterShipWeaponSource } from "../constants.mjs";
@@ -53,6 +56,12 @@ function displayShipNumber(value, fractionDigits = 3) {
   return String(rounded);
 }
 
+function displayFiringSeconds(seconds) {
+  const value = Math.max(0, number(seconds));
+  if (value > 0 && value < 1) return `1/${Math.round(1 / value)}`;
+  return displayShipNumber(value, 0);
+}
+
 function inputShipNumber(value) {
   return number(value) === 0 ? "" : displayShipNumber(value, 1);
 }
@@ -90,7 +99,7 @@ export async function rollShipCrewSkill(actor, role) {
   const result = base + roll.total;
   const crewNames = [...new Set(assignedCrew.map((member) => member.actor.name))].join(", ");
   const formula = damagePenalty
-    ? `${crewSkill} (${configuration.skill}) − ${displayShipNumber(damagePenalty, 1)} (damage) ${n5Formula(roll)}`
+    ? `${crewSkill} (${configuration.skill}) − ${displayShipNumber(damagePenalty, 0)} (damage) ${n5Formula(roll)}`
     : `${base} ${n5Formula(roll)}`;
   const content = `
     <div class="scifi-urpg-chat-card" data-scifi-urpg-roll-result="${Number(result)}" data-scifi-urpg-actor-id="${foundry.utils.escapeHTML(actor.id)}">
@@ -116,7 +125,7 @@ export async function rollShipCrewSkill(actor, role) {
   });
 }
 
-export async function shipAttack(actor, { bonus = 0 } = {}) {
+export async function shipAttack(actor, { bonus = 0, firingProfile = null } = {}) {
   const weapon = actor.items.get(actor.system.weapon?.selected)
     ?? actor.items.find((item) => item.type === "shipWeapon");
   const targetToken = game.user?.targets?.size === 1 ? [...game.user.targets][0] : null;
@@ -135,7 +144,8 @@ export async function shipAttack(actor, { bonus = 0 } = {}) {
     ui.notifications.warn("Assign at least one gunner before firing.");
     return;
   }
-  const energyCost = shipWeaponEnergyCost(actor);
+  const selectedProfile = firingProfile ?? shipFiringProfile(actor, actor.system.firing);
+  const energyCost = shipWeaponEnergyCost(actor, selectedProfile);
   if (energyCost > number(actor.system.energy?.value)) {
     ui.notifications.warn(`Insufficient energy: firing ${weapon.name} needs ${displayShipNumber(kwsToMws(energyCost))} MWs.`);
     return;
@@ -149,6 +159,8 @@ export async function shipAttack(actor, { bonus = 0 } = {}) {
     targetCrewMembers: resolvedCrewMembers(target),
     bonus,
     distance,
+    firingProfile: selectedProfile,
+    timeBonus: number(selectedProfile.timeDimension),
   });
   if (Object.keys(outcome.attackerUpdateData).length) {
     await game.scifiUrpg.updateShip(actor, outcome.attackerUpdateData);
@@ -164,18 +176,23 @@ export async function postShipAttackMessage(actor, outcome, { updateRequest = nu
   const evasionBeforeDamage = outcome.evasionBeforeDamage ?? outcome.evasion;
   const formula = [
     `${gunneryBeforeDamage} (Eingebettete)`,
-    outcome.attackerDamage ? `− ${displayShipNumber(outcome.attackerDamage, 1)} (damage)` : null,
-    outcome.bonus ? `${outcome.bonus >= 0 ? "+" : "−"} ${Math.abs(outcome.bonus)}` : null,
+    outcome.attackerDamage ? `− ${displayShipNumber(outcome.attackerDamage, 0)} (damage)` : null,
+    outcome.bonus ? `${outcome.bonus >= 0 ? "+" : "−"} ${Math.abs(outcome.bonus)} (Modifier)` : null,
+    outcome.timeBonus ? `${outcome.timeBonus >= 0 ? "+" : "−"} ${Math.abs(outcome.timeBonus)} (duration)` : null,
     outcome.rangePenalty ? `${outcome.rangePenalty >= 0 ? "+" : "−"} ${Math.abs(outcome.rangePenalty).toFixed(1)} (range ${(outcome.distance / 1_000).toFixed(1)} km)` : null,
     outcome.defenderDamage
-      ? `− (${evasionBeforeDamage} (Raumfahrzeuge) − ${displayShipNumber(outcome.defenderDamage, 1)} (damage))`
+      ? `− ${evasionBeforeDamage} (Raumfahrzeuge) + ${displayShipNumber(outcome.defenderDamage, 0)} (damage)`
       : `− ${outcome.evasion} (Raumfahrzeuge)`,
     `+ ${n5Formula(outcome.roll, { leadingPlus: false })}`,
   ].filter(Boolean).join(" ");
   const weaponName = foundry.utils.escapeHTML(outcome.weapon?.name ?? "ship weapon");
   const damage = outcome.hit
-    ? `<p>Damage ${displayShipNumber(bepToKBep(outcome.rawDamage))} kBEP: shields absorb ${displayShipNumber(bepToKBep(outcome.shieldDamage))} kBEP; hull armour absorbs ${outcome.hullArmorDamage} BEP; ship takes ${displayShipNumber(outcome.shipDamage, 1)} t damage.</p>`
-    : "<p>Miss: no damage.</p>";
+    ? `<p>Damage ${displayShipNumber(bepToKBep(outcome.rawDamage), 1)} kBEP: ${[
+      `shields absorb ${displayShipNumber(bepToKBep(outcome.shieldDamage), 1)} kBEP`,
+      outcome.hullArmorDamage ? `hull armor absorbs ${displayShipNumber(outcome.hullArmorDamage, 1)} BEP` : null,
+      outcome.shipDamage ? `ship takes ${displayShipNumber(outcome.shipDamage, 1)} t damage` : null,
+    ].filter(Boolean).join("; ")}.</p>`
+    : "";
   const content = `
     <div class="scifi-urpg-chat-card attack-card">
       <h3>Eingebettete</h3>
@@ -208,7 +225,6 @@ export class SciFiShipSheet extends ActorSheet {
   constructor(...args) {
     super(...args);
     this._acceleration = { x: 0, y: 0 };
-    this._reactorRounds = 1;
     this._attackBonus = 0;
     this._editingDesign = false;
     this._pendingDesign = null;
@@ -241,6 +257,9 @@ export class SciFiShipSheet extends ActorSheet {
     context.shieldsDisplay = displayShipNumber(bepToKBep(system.shields?.value));
     context.shieldsMaxDisplay = displayShipNumber(bepToKBep(system.shields?.max));
     context.damageInput = inputShipNumber(system.damage);
+    const damagePenalty = shipDamagePenalty(this.actor);
+    context.damagePenaltyDisplay = displayShipNumber(damagePenalty, 0);
+    context.hasDamagePenalty = damagePenalty > 0;
     context.isCustomDesign = context.design.mode === "custom";
     context.editingDesign = this._editingDesign;
     context.designEdit = this._pendingDesign ?? context.design;
@@ -271,15 +290,21 @@ export class SciFiShipSheet extends ActorSheet {
         selected: item.id === system.weapon?.selected,
       }));
     const selectedWeapon = weapons.find((weapon) => weapon.selected) ?? weapons[0] ?? null;
+    const firingProfile = shipFiringProfile(this.actor, system.firing);
     context.weapons = weapons;
     context.attack = {
       weapon: selectedWeapon,
       weaponName: selectedWeapon?.name ?? "No weapon selected",
       bonusInput: this._attackBonus || "",
+      timeDimension: firingProfile.timeDimension,
+      seconds: displayFiringSeconds(firingProfile.seconds),
+      timeBonus: firingProfile.timeDimension >= 0 ? `+${firingProfile.timeDimension}` : String(firingProfile.timeDimension),
+      energyMws: firingProfile.energyMws,
+      maximumEnergyMws: firingProfile.maximumEnergyMws,
+      damage: displayShipNumber(bepToKBep(shipWeaponShotOutput(this.actor, firingProfile).damage), 1),
       hasWeapon: !!selectedWeapon,
     };
     context.acceleration = this._acceleration;
-    context.reactorRounds = this._reactorRounds ?? 1;
     context.speed = Math.hypot(number(system.movement?.velocityX), number(system.movement?.velocityY));
     return context;
   }
@@ -308,6 +333,12 @@ export class SciFiShipSheet extends ActorSheet {
     html.find("[data-action='attack-target']").on("click", this._onAttackTarget.bind(this));
     html.find("[data-macro-action]").on("dragstart", this._onDragRollMacro.bind(this));
     html.find("[data-field='attack-bonus']").on("input change", this._onAttackBonusChange.bind(this));
+    html.find("[data-field='attack-time-dimension']").on("input", this._previewAttackTimeDimension.bind(this));
+    html.find("[data-field='attack-time-dimension']").on("change", this._onAttackTimeDimensionChange.bind(this));
+    html.find("[data-action='nudge-attack-time']").on("click", this._onAttackTimeNudge.bind(this));
+    html.find("[data-field='attack-energy-mws']").on("input", this._previewAttackEnergy.bind(this));
+    html.find("[data-field='attack-energy-mws']").on("change", this._onAttackEnergyChange.bind(this));
+    html.find("[data-action='nudge-attack-energy']").on("click", this._onAttackEnergyNudge.bind(this));
     html.find("[data-action='select-weapon']").on("click", this._onSelectWeapon.bind(this));
     html.find("[data-action='add-weapon']").on("click", this._onAddWeapon.bind(this));
     html.find("[data-action='edit-weapon']").on("click", this._onEditWeapon.bind(this));
@@ -315,7 +346,6 @@ export class SciFiShipSheet extends ActorSheet {
     html.find("[data-action='recharge-shields']").on("click", this._onRechargeShields.bind(this));
     html.find("[data-action='generate-reactor-energy']").on("click", this._onGenerateReactorEnergy.bind(this));
     html.find("[data-action='toggle-design-edit']").on("click", this._onToggleDesignEdit.bind(this));
-    html.find("[data-field='reactor-rounds']").on("input change", this._onReactorRoundsChange.bind(this));
     html.find("[data-field='design-mark']").on("change", this._onPendingDesignMarkChange.bind(this));
     html.find("[data-field='design-length']").on("change", this._onPendingDesignLengthChange.bind(this));
     html.find("[data-field='design-tonnage-override']").on("input change", this._onPendingDesignTonnageOverrideChange.bind(this));
@@ -511,6 +541,69 @@ export class SciFiShipSheet extends ActorSheet {
     this._attackBonus = number(event.currentTarget.value);
   }
 
+  _firingRoot(element) {
+    return $(element).closest(".scifi-urpg-ship-sheet");
+  }
+
+  _showFiringProfile(root, firing) {
+    root.find("[data-output='attack-seconds']").text(`${displayFiringSeconds(firing.seconds)} s`);
+    root.find("[data-output='attack-time-bonus']").text(firing.timeDimension >= 0 ? `+${firing.timeDimension}` : firing.timeDimension);
+    root.find("[data-output='attack-energy-mws']").text(`${firing.energyMws} MWs`);
+    root.find("[data-output='attack-damage']").text(`${displayShipNumber(bepToKBep(shipWeaponShotOutput(this.actor, firing).damage), 1)} kBEP`);
+    root.find("[data-field='attack-energy-mws']").attr("max", firing.maximumEnergyMws).val(firing.energyMws);
+    root.find("[data-action='generate-reactor-energy']").text(`Generate reactor energy (${displayFiringSeconds(firing.seconds)} s)`);
+  }
+
+  _previewAttackTimeDimension(event) {
+    const firing = shipFiringProfile(this.actor, { timeDimension: event.currentTarget.value });
+    this._showFiringProfile(this._firingRoot(event.currentTarget), firing);
+  }
+
+  _previewAttackEnergy(event) {
+    const firing = shipFiringProfile(this.actor, {
+      timeDimension: this.actor.system.firing?.timeDimension,
+      energyMws: event.currentTarget.value,
+    });
+    this._showFiringProfile(this._firingRoot(event.currentTarget), firing);
+  }
+
+  async _saveAttackTimeDimension(value) {
+    const timeDimension = shipFiringDimension(value);
+    const firing = shipFiringProfile(this.actor, { timeDimension });
+    await this.actor.update({
+      "system.firing.timeDimension": timeDimension,
+      "system.firing.energyMws": firing.energyMws,
+    });
+  }
+
+  async _onAttackTimeDimensionChange(event) {
+    await this._saveAttackTimeDimension(event.currentTarget.value);
+  }
+
+  async _onAttackTimeNudge(event) {
+    event.preventDefault();
+    await this._saveAttackTimeDimension(shipFiringDimension(this.actor.system.firing?.timeDimension) + number(event.currentTarget.dataset.delta));
+  }
+
+  async _saveAttackEnergy(value) {
+    const timeDimension = shipFiringDimension(this.actor.system.firing?.timeDimension);
+    const firing = shipFiringProfile(this.actor, {
+      timeDimension,
+      energyMws: value,
+    });
+    await this.actor.update({ "system.firing.energyMws": firing.energyMws });
+  }
+
+  async _onAttackEnergyChange(event) {
+    await this._saveAttackEnergy(event.currentTarget.value);
+  }
+
+  async _onAttackEnergyNudge(event) {
+    event.preventDefault();
+    const firing = shipFiringProfile(this.actor, this.actor.system.firing);
+    await this._saveAttackEnergy(firing.energyMws + number(event.currentTarget.dataset.delta));
+  }
+
   _onDragRollMacro(event) {
     const action = event.currentTarget.dataset.macroAction;
     if (!action) return;
@@ -538,7 +631,9 @@ export class SciFiShipSheet extends ActorSheet {
   async _onAttackTarget(event) {
     event.preventDefault();
     await this.submit({ preventClose: true });
-    await shipAttack(this.actor, { bonus: this._attackBonus });
+    await shipAttack(this.actor, {
+      bonus: this._attackBonus,
+    });
   }
 
   async _onAddWeapon(event) {
@@ -571,16 +666,13 @@ export class SciFiShipSheet extends ActorSheet {
   async _onGenerateReactorEnergy(event) {
     event.preventDefault();
     await this.submit({ preventClose: true });
-    const generation = generateReactorEnergy(this.actor, this._reactorRounds);
+    const firing = shipFiringProfile(this.actor, this.actor.system.firing);
+    const generation = generateReactorEnergy(this.actor, firing.seconds);
     if (!generation.generated) {
-      ui.notifications.info("Battery is full, the reactor has no output, or rounds must be positive.");
+      ui.notifications.info("Battery is full or the reactor has no output.");
       return;
     }
     await this.actor.update(generation.updateData);
-  }
-
-  _onReactorRoundsChange(event) {
-    this._reactorRounds = Math.max(1, Math.floor(number(event.currentTarget.value)));
   }
 
   _onAccelerationChange(event) {

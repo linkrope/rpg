@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+
+# Run the same regression suite enforced by CI, regardless of the directory
+# from which Git invokes this hook.
+repo_root=$(git rev-parse --show-toplevel) || exit 1
+cd "$repo_root" || exit 1
+
+exec node --test foundryvtt/Data/systems/scifi-urpg/test/*.test.mjs

@@ -2,7 +2,8 @@ import { ARMOR_MATERIALS, ARMOR_ZONE_DEFS, BASE_HIT_ZONE_PCT, SKILL_COLUMN_BY_KE
 import { SciFiDimensionsApp } from "../apps/dimensions-app.mjs";
 import { n5Formula, rollN5, rollP5 } from "../rules/dice.mjs";
 import { actorNameElement, postRollCard } from "../chat.mjs";
-import { combineSkillValues, skillRollFormula } from "../rules/skills.mjs";
+import { combineValues } from "../rules/five-addition.mjs";
+import { skillRollFormula } from "../rules/skills.mjs";
 import { DEFAULT_AIM_ZONES, aimPenalty, aimTotalPct, formatAttackResult, isMeleeAttack, isUnarmedWeapon, resolveAttack, UNARMED_WEAPON, weaponForActor } from "../rules/combat.mjs";
 import { buildAttackCard } from "../rules/roll-card.mjs";
 import { distanceForSceneRange, distanceToTarget, sceneRangeUnit } from "../rules/distance.mjs";
@@ -400,7 +401,7 @@ export class SciFiCharacterSheet extends ActorSheet {
 
     if (!selected.length) return;
 
-    const base = combineSkillValues(selected.map((skill) => skill.adjustedValue));
+    const base = combineValues(selected.map((skill) => skill.adjustedValue));
     const roll = rollN5();
     const total = base + roll.total;
 
@@ -440,7 +441,7 @@ export class SciFiCharacterSheet extends ActorSheet {
       return;
     }
 
-    const base = combineSkillValues(selected.map((skill) => skill.adjustedValue));
+    const base = combineValues(selected.map((skill) => skill.adjustedValue));
     const roll = rollN5();
     const total = base + roll.total;
 

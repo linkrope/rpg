@@ -21,7 +21,7 @@ export class SciFiActor extends Actor {
       this.updateSource({
         "system.design": design,
         "system.mark": design.baseMark,
-        "flags.scifi-urpg.shipUnitsVersion": 4,
+        "flags.scifi-urpg.shipUnitsVersion": 5,
         "system.shields.value": specification.shieldCapacityBep,
         "system.energy.value": specification.batteryCapacityKws,
       });

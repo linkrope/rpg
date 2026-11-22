@@ -24,7 +24,7 @@ test("a newly created ship with Foundry defaults starts as the selected standard
   assert.equal(updates.find((update) => update["prototypeToken.bar1.attribute"])["prototypeToken.bar1.attribute"], "damageBar");
   assert.deepEqual(updates.find((update) => update.items).items, [{
     type: "shipWeapon", name: "Ship Weapon", img: "icons/weapons/artillery/missile.webp",
-    flags: { "scifi-urpg": { shipUnitsVersion: 4 } },
+        flags: { "scifi-urpg": { shipUnitsVersion: 5 } },
     system: {},
   }]);
 });

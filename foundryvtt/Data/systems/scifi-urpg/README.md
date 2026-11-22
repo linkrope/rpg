@@ -59,3 +59,14 @@ node --test foundryvtt/Data/systems/scifi-urpg/test/*.test.mjs
 ```
 
 GitHub Actions runs this command for every pushed commit and pull request.
+
+## Pre-commit hook
+
+Enable the repository's pre-commit hook once after cloning
+to run the same regression tests before every commit:
+
+```sh
+git config core.hooksPath .githooks
+```
+
+Use `git commit --no-verify` only when the test suite cannot be run locally.

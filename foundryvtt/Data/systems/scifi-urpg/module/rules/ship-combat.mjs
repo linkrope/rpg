@@ -1,6 +1,6 @@
 import { rollN5 } from "./dice.mjs";
-import { combineSkillValues } from "./skills.mjs";
-import { BEP_PER_KBEP } from "./ship-units.mjs";
+import { combineValues } from "./five-addition.mjs";
+import { BEP_PER_KBEP, KWS_PER_MWS, mwsToKws } from "./ship-units.mjs";
 import { calculateShipSpecification } from "./ship-design.mjs";
 
 export const SHIP_RANGE_BASELINE_METERS = 5_000;
@@ -8,6 +8,9 @@ export const DILITHIUM_KWS_PER_TONNE = 360_000_000;
 export { BEP_PER_KBEP } from "./ship-units.mjs";
 // One kBEP requires 10 MWs (10,000 kWs), or 0.1 BEP per stored kWs.
 export const SHIELD_BEP_PER_KWS = 0.1;
+export const SHIP_FIRING_DIMENSION_MIN = -50;
+export const SHIP_FIRING_DIMENSION_MAX = 50;
+export const SHIP_FIRING_DIMENSION_STEP = 5;
 
 function number(value) {
   const result = Number(value);
@@ -43,9 +46,71 @@ export function shipWeaponOutput(ship) {
   };
 }
 
-/** Energy drawn from the ship battery for one derived weapon shot. */
-export function shipWeaponEnergyCost(ship) {
-  return shipWeaponOutput(ship).energy;
+function shotFactor(value) {
+  if (value === undefined || value === null || value === "") return 1;
+  const result = Number(value);
+  return Number.isFinite(result) ? Math.max(0, result) : 1;
+}
+
+/**
+ * Resolve one firing profile from the derived weapon output. Factors are
+ * deliberately transient: callers choose them for this shot, rather than
+ * persisting an alternate weapon stat block.
+ */
+export function shipWeaponShotOutput(ship, { damageFactor = 1, energyFactor = 1 } = {}) {
+  const output = shipWeaponOutput(ship);
+  return {
+    damage: Math.max(0, Math.round(output.damage * shotFactor(damageFactor))),
+    energy: Math.max(0, Math.round(output.energy * shotFactor(energyFactor))),
+  };
+}
+
+/** Keep the ship-sheet time control on its five-dimension, doubling steps. */
+export function shipFiringDimension(value) {
+  const rounded = Math.round(number(value) / SHIP_FIRING_DIMENSION_STEP) * SHIP_FIRING_DIMENSION_STEP;
+  return Math.min(SHIP_FIRING_DIMENSION_MAX, Math.max(SHIP_FIRING_DIMENSION_MIN, rounded));
+}
+
+/** A time-dimension step of five doubles the firing and reactor interval. */
+export function shipFiringSeconds(value) {
+  return 2 ** (shipFiringDimension(value) / SHIP_FIRING_DIMENSION_STEP);
+}
+
+/** The Damage dimension row for a ship's selected firing interval. */
+export function shipFiringDamageMultiplier(value) {
+  return (8 / 5) ** (shipFiringDimension(value) / SHIP_FIRING_DIMENSION_STEP);
+}
+
+/**
+ * Derive a weapon profile from the two persisted ship-sheet sliders. Energy
+ * is deliberately entered in whole MWs; a missing value means the normal
+ * full-energy firing profile, while zero remains a valid throttle setting.
+ */
+export function shipFiringProfile(ship, { timeDimension = 0, energyMws = null } = {}) {
+  const dimension = shipFiringDimension(timeDimension);
+  const seconds = shipFiringSeconds(dimension);
+  const output = shipWeaponOutput(ship);
+  const maximumEnergyKws = output.energy * seconds;
+  const maximumEnergyMws = Math.floor(maximumEnergyKws / KWS_PER_MWS);
+  const hasCommittedEnergy = energyMws !== undefined && energyMws !== null && energyMws !== "";
+  const requestedMws = Math.max(0, Math.floor(number(energyMws)));
+  const committedMws = hasCommittedEnergy ? Math.min(requestedMws, maximumEnergyMws) : maximumEnergyMws;
+  const energyKws = mwsToKws(committedMws);
+  const fullEnergyRatio = maximumEnergyKws > 0 ? energyKws / maximumEnergyKws : 0;
+
+  return {
+    timeDimension: dimension,
+    seconds,
+    maximumEnergyMws,
+    energyMws: committedMws,
+    damageFactor: shipFiringDamageMultiplier(dimension) * fullEnergyRatio,
+    energyFactor: output.energy > 0 ? energyKws / output.energy : 0,
+  };
+}
+
+/** Energy drawn from the ship battery for one firing-profile shot. */
+export function shipWeaponEnergyCost(ship, firingProfile = {}) {
+  return shipWeaponShotOutput(ship, firingProfile).energy;
 }
 
 /** One crew-member entry is a physical person, even when several entries use the same Actor. */
@@ -63,7 +128,7 @@ export function shipCrewRoleTotal(crewMembers = [], role, skill) {
   const scores = crewMembers
     .filter((member) => member?.[role])
     .map((member) => crewMemberRoleValue(member, skill));
-  return scores.length ? combineSkillValues(scores) : 0;
+  return scores.length ? combineValues(scores) : 0;
 }
 
 export function shipGunneryTotal(gunners = []) {
@@ -74,9 +139,17 @@ export function shipPilotEvasionTotal(pilots = []) {
   return shipCrewRoleTotal(pilots.map((pilot) => ({ actor: pilot, pilot: true })), "pilot", "Raumfahrzeuge");
 }
 
-/** Structural damage reduces every ship crew action by its lost tonnage. */
+/**
+ * Structural damage reduces both attack and defence by the lost share of the
+ * ship's mass, rounded to a whole number. One kBEP that reaches the hull
+ * destroys one tonne, so this is also 100 divided by the ship's mass in
+ * kilograms for each BEP of damage.
+ */
 export function shipDamagePenalty(ship) {
-  return Math.max(0, number(ship?.system?.damage));
+  const damage = Math.max(0, number(ship?.system?.damage));
+  const tonnage = Math.max(0, number(calculateShipSpecification(ship?.system?.design).tonnage));
+  if (tonnage === 0) return 0;
+  return Math.round(damage * 100 / tonnage + Number.EPSILON);
 }
 
 /**
@@ -95,7 +168,9 @@ export function resolveShipAttack({
   gunners = [],
   pilots = [],
   bonus = 0,
+  timeBonus = 0,
   distance = 0,
+  firingProfile = {},
   roll = rollN5(),
 } = {}) {
   const attackingCrew = crewMembers ?? gunners.map((actor) => ({ actor, gunner: true }));
@@ -108,11 +183,12 @@ export function resolveShipAttack({
   const defenderDamage = shipDamagePenalty(target);
   const evasion = evasionBeforeDamage - defenderDamage;
   const rangePenalty = shipRangePenalty(weapon, distance);
-  const weaponOutput = shipWeaponOutput(attacker);
+  const weaponOutput = shipWeaponShotOutput(attacker, firingProfile);
   const energyCost = weaponOutput.energy;
   const energyBefore = Math.max(0, number(attacker?.system?.energy?.value));
   const attackBonus = number(bonus);
-  const result = gunnery + attackBonus + rangePenalty + number(roll?.total) - evasion;
+  const firingTimeBonus = number(timeBonus);
+  const result = gunnery + attackBonus + firingTimeBonus + rangePenalty + number(roll?.total) - evasion;
   const hit = result > 0;
   const shieldsBefore = Math.max(0, number(target?.system?.shields?.value));
   const hullArmor = Math.max(0, number(calculateShipSpecification(target?.system?.design).hullProtection));
@@ -143,6 +219,7 @@ export function resolveShipAttack({
     defenderDamage,
     evasion,
     bonus: attackBonus,
+    timeBonus: firingTimeBonus,
     rangePenalty,
     energyCost,
     energyBefore,
@@ -187,15 +264,15 @@ export function rechargeShields(ship) {
   };
 }
 
-/** Generate battery charge from total reactor kW, stored as kWs, for whole rounds. */
-export function generateReactorEnergy(ship, rounds = 1) {
+/** Generate battery charge from total reactor kW for the selected seconds. */
+export function generateReactorEnergy(ship, seconds = 1) {
   const output = Math.max(0, number(calculateShipSpecification(ship?.system?.design).generatorOutput));
-  const roundCount = Math.max(0, Math.floor(number(rounds)));
+  const duration = Math.max(0, number(seconds));
   const energy = Math.max(0, number(ship?.system?.energy?.value));
   const energyMax = Math.max(energy, number(calculateShipSpecification(ship?.system?.design).batteryCapacityKws));
-  const generated = Math.min(output * roundCount, energyMax - energy);
+  const generated = Math.min(output * duration, energyMax - energy);
   return {
-    rounds: roundCount,
+    seconds: duration,
     generated,
     updateData: generated > 0 ? { "system.energy.value": energy + generated } : {},
   };

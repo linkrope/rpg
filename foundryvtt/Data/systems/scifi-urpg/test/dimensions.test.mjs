@@ -10,7 +10,7 @@ test("dimensions use the calculator's categories and baseline formulas", () => {
   const rows = dimensionsAt(0);
 
   assert.deepEqual(Object.keys(rows), [
-    "Accuracy", "Healing", "Initiative", "Move", "Time/Speed", "Yield", "Range", "Accident"
+    "Accuracy", "Healing", "Initiative", "Move", "Time/Speed", "Yield", "Range", "Accident", "Damage"
   ]);
   assert.deepEqual(rows, {
     Accuracy: "0 % – ∞ %",
@@ -20,7 +20,8 @@ test("dimensions use the calculator's categories and baseline formulas", () => {
     "Time/Speed": "100 %",
     Yield: "1",
     Range: "5 m",
-    Accident: "0 %"
+    Accident: "0 %",
+    Damage: "1"
   });
 });
 
@@ -33,7 +34,8 @@ test("dimensions calculate Accuracy, range, and accident according to the calcul
     "Time/Speed": "400 %",
     Yield: "0.25",
     Range: "50 m",
-    Accident: "40 %"
+    Accident: "40 %",
+    Damage: "0.2"
   });
 });
 

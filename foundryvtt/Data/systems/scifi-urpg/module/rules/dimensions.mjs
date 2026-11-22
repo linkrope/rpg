@@ -43,6 +43,10 @@ export function buildDimensionRows(value) {
     {
       label: "Accident",
       value: `${Math.max(0, Math.min(100, -20 * v))} %`
+    },
+    {
+      label: "Damage",
+      value: `${Math.round((8 / 5) ** (2 * v) * 10) / 10}`
     }
   ];
 }

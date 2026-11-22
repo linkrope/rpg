@@ -99,7 +99,7 @@ export function starterShipWeaponSource() {
     type: "shipWeapon",
     name: "Ship Weapon",
     img: "icons/weapons/artillery/missile.webp",
-    flags: { "scifi-urpg": { shipUnitsVersion: 4 } },
+    flags: { "scifi-urpg": { shipUnitsVersion: 5 } },
     system: {},
   };
 }

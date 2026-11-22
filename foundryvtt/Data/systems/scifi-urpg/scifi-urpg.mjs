@@ -11,7 +11,8 @@ import { SciFiWeaponSheet } from "./module/sheets/weapon-sheet.mjs";
 import { rollShipCrewSkill, SciFiShipSheet, shipAttack } from "./module/sheets/ship-sheet.mjs";
 import { SciFiShipWeaponSheet } from "./module/sheets/ship-weapon-sheet.mjs";
 import { n5Formula, rollN5, rollP5 } from "./module/rules/dice.mjs";
-import { combineSkillValues, skillRollFormula } from "./module/rules/skills.mjs";
+import { combineValues } from "./module/rules/five-addition.mjs";
+import { skillRollFormula } from "./module/rules/skills.mjs";
 import { DEFAULT_AIM_ZONES, formatAttackResult, isMeleeAttack, isUnarmedWeapon, resolveAttack, weaponForActor } from "./module/rules/combat.mjs";
 import { buildAttackCard } from "./module/rules/roll-card.mjs";
 import { distanceForSceneRange, distanceToTarget, sceneRangeUnit } from "./module/rules/distance.mjs";
@@ -343,7 +344,7 @@ async function rollSkill({ actorId, skillKey } = {}) {
     return;
   }
 
-  const base = combineSkillValues(selected.map((skill) => skill.adjustedValue));
+  const base = combineValues(selected.map((skill) => skill.adjustedValue));
   const roll = rollN5();
   const total = base + roll.total;
 
@@ -368,9 +369,16 @@ async function rollShipCrewSkillMacro({ actorId, role } = {}) {
   if (actor) await rollShipCrewSkill(actor, role);
 }
 
-async function shipAttackMacro({ actorId, bonus = 0 } = {}) {
+async function shipAttackMacro({ actorId, bonus = 0, damageFactor, energyFactor } = {}) {
   const actor = shipForMacro(actorId);
-  if (actor) await shipAttack(actor, { bonus: numberOrZero(bonus) });
+  if (!actor) return;
+
+  // Existing hotbar macros carry the former transient factors. New macros
+  // omit them and always use the ship's persisted time and energy sliders.
+  const firingProfile = damageFactor === undefined && energyFactor === undefined
+    ? null
+    : { damageFactor, energyFactor };
+  await shipAttack(actor, { bonus: numberOrZero(bonus), firingProfile });
 }
 
 async function attack({ actorId, bonus = 0, aimZones = DEFAULT_AIM_ZONES } = {}) {

@@ -365,6 +365,16 @@
 .scifi-urpg-ship-sheet .ship-attack-row .ship-skill-roll { font-weight: 700; height: 28px; min-height: 28px; padding: 0 8px; }
 .scifi-urpg-ship-sheet .equipped-weapon-display > span { color: var(--ship-dim); display: block; font-size: 11px; letter-spacing: .06em; margin-bottom: 3px; text-transform: uppercase; }
 .scifi-urpg-ship-sheet .equipped-weapon-display > strong { align-items: center; background: #1b2330; border: 1px solid var(--ship-border); border-radius: 4px; color: var(--ship-head); display: flex; height: 28px; padding: 3px 7px; }
+.scifi-urpg-ship-sheet .ship-firing-sliders { display: grid; gap: 8px; }
+.scifi-urpg-ship-sheet .ship-firing-slider { display: grid; gap: 2px; }
+.scifi-urpg-ship-sheet .ship-firing-slider > strong,
+.scifi-urpg-ship-sheet .ship-firing-slider > small { display: block; font-size: 14px; font-variant-numeric: tabular-nums; text-align: center; }
+.scifi-urpg-ship-sheet .ship-firing-slider > strong { color: var(--ship-head); }
+.scifi-urpg-ship-sheet .ship-firing-slider > small { color: var(--ship-dim); }
+.scifi-urpg-ship-sheet .ship-firing-slider-row { align-items: center; display: grid; gap: 6px; grid-template-columns: 28px minmax(0, 1fr) 28px; }
+.scifi-urpg-ship-sheet .ship-firing-slider-row button { font-size: 16px; font-weight: 700; height: 28px; min-height: 28px; padding: 0; }
+.scifi-urpg-ship-sheet .ship-firing-slider input[type="range"] { accent-color: var(--ship-accent); min-width: 0; padding: 0; width: 100%; }
+.scifi-urpg-ship-sheet .ship-energy-slider input[type="range"] { accent-color: #f0a500; }
 .scifi-urpg-ship-sheet label > span,
 .scifi-urpg-ship-sheet .ship-stat-grid > div > span,
 .scifi-urpg-ship-weapon-sheet label > span {
@@ -372,6 +382,8 @@
 }
 .scifi-urpg-ship-sheet label input,
 .scifi-urpg-ship-sheet label select { width: 100%; }
+.scifi-urpg-ship-sheet .ship-damage-status > span { align-items: center; display: flex; justify-content: space-between; }
+.scifi-urpg-ship-sheet .ship-damage-status > span > strong { color: var(--ship-head); font-size: 14px; letter-spacing: 0; }
 .scifi-urpg-ship-sheet .sheet-tabs { border-bottom: 1px solid var(--ship-border); display: flex; gap: 6px; margin-bottom: 12px; }
 .scifi-urpg-ship-sheet .sheet-tabs .item { color: var(--ship-dim); padding: 7px 12px; text-shadow: none; }
 .scifi-urpg-ship-sheet .sheet-tabs .item.active { border-bottom: 2px solid #f0a500; color: var(--ship-head); }

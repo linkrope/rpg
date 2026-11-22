@@ -7,6 +7,12 @@ import {
   generateReactorEnergy,
   rechargeShields,
   resolveShipAttack,
+  shipFiringDamageMultiplier,
+  shipFiringDimension,
+  shipFiringProfile,
+  shipFiringSeconds,
+  shipDamagePenalty,
+  shipWeaponShotOutput,
   shipWeaponOutput,
   shipRangePenalty,
 } from "../module/rules/ship-combat.mjs";
@@ -27,6 +33,13 @@ test("ship range uses five kilometres as the neutral distance", () => {
   assert.equal(shipRangePenalty({ rangeModifier: 3 }, 10_000), -3);
 });
 
+test("ship structural damage penalty is the lost percentage of ship mass", () => {
+  assert.equal(shipDamagePenalty(ship({ design: { tonnageOverride: 100 }, damage: 20 })), 20);
+  assert.equal(shipDamagePenalty(ship({ design: { tonnageOverride: 200 }, damage: 20 })), 10);
+  assert.equal(shipDamagePenalty(ship({ design: { tonnageOverride: 60 }, damage: 8.6 })), 14);
+  assert.equal(shipDamagePenalty(ship({ design: { tonnageOverride: 0 }, damage: 20 })), 0);
+});
+
 test("ship weapon output is derived from gun mass and shared among weapon entries", () => {
   const vessel = {
     ...ship({ design: { gunMassOverride: 2.5 } }),
@@ -38,6 +51,80 @@ test("ship weapon output is derived from gun mass and shared among weapon entrie
 
   // 2.5 t yields 10 kBEP/s and 10 MWs in total; neither item supplies stats.
   assert.deepEqual(shipWeaponOutput(vessel), { damage: 5_000, energy: 5_000 });
+});
+
+test("a firing profile factors derived ship weapon damage and energy without changing the weapon", () => {
+  const vessel = ship({ design: { gunMassOverride: 2.5 } });
+
+  assert.deepEqual(shipWeaponShotOutput(vessel, { damageFactor: 0.5, energyFactor: 3 }), {
+    damage: 5_000,
+    energy: 30_000,
+  });
+  assert.deepEqual(shipWeaponShotOutput(vessel, { damageFactor: -1, energyFactor: "" }), {
+    damage: 0,
+    energy: 10_000,
+  });
+});
+
+test("firing controls use five-dimension steps for seconds, damage, and integer MWs", () => {
+  const vessel = ship({ design: { gunMassOverride: 2.5 } });
+
+  assert.equal(shipFiringDimension(7), 5);
+  assert.equal(shipFiringDimension(-53), -50);
+  assert.equal(shipFiringSeconds(15), 8);
+  assert.ok(Math.abs(shipFiringDamageMultiplier(15) - 4.096) < 1e-12);
+  assert.deepEqual(shipFiringProfile(vessel, { timeDimension: 5, energyMws: null }), {
+    timeDimension: 5,
+    seconds: 2,
+    maximumEnergyMws: 20,
+    energyMws: 20,
+    damageFactor: 1.6,
+    energyFactor: 2,
+  });
+  assert.deepEqual(shipFiringProfile(vessel, { timeDimension: -5, energyMws: 2 }), {
+    timeDimension: -5,
+    seconds: 0.5,
+    maximumEnergyMws: 5,
+    energyMws: 2,
+    damageFactor: 0.25,
+    energyFactor: 0.2,
+  });
+  assert.equal(shipFiringProfile(vessel, { timeDimension: 5, energyMws: 0 }).damageFactor, 0);
+});
+
+test("ship attacks use firing-profile factors for damage and battery cost", () => {
+  const attacker = ship({ energy: { value: 100 }, design: { gunMassOverride: 0.00625 } });
+  const target = ship({ shields: { value: 0 } });
+  const outcome = resolveShipAttack({
+    attacker,
+    target,
+    weapon: { system: { rangeModifier: 0 } },
+    gunners: [gunner(1)],
+    distance: 1_000,
+    firingProfile: { damageFactor: 2, energyFactor: 3 },
+    roll: { plus: 0, minus: 0, total: 0 },
+  });
+
+  assert.equal(outcome.rawDamage, 50);
+  assert.equal(outcome.energyCost, 75);
+  assert.deepEqual(outcome.attackerUpdateData, { "system.energy.value": 25 });
+});
+
+test("ship attacks apply the firing-time bonus independently of an attack modifier", () => {
+  const outcome = resolveShipAttack({
+    attacker: ship({ energy: { value: 100 }, design: { gunMassOverride: 0.00625 } }),
+    target: ship({ shields: { value: 0 } }),
+    weapon: { system: { rangeModifier: 0 } },
+    gunners: [gunner(1)],
+    bonus: 2,
+    timeBonus: 5,
+    distance: 1_000,
+    roll: { plus: 0, minus: 0, total: 0 },
+  });
+
+  assert.equal(outcome.bonus, 2);
+  assert.equal(outcome.timeBonus, 5);
+  assert.equal(outcome.result, 8);
 });
 
 test("ship attacks combine gunners, drain shields, then apply fixed hull armour", () => {
@@ -121,8 +208,8 @@ test("crew rows apply injury and multitasking before combining role skills", () 
 });
 
 test("ship damage reduces gunnery and evasion after crew skills are combined", () => {
-  const attacker = ship({ damage: 1.5, design: { gunMassOverride: 0.00075 } });
-  const target = ship({ damage: 2.25, shields: { value: 0 } });
+  const attacker = ship({ damage: 1.5, design: { tonnageOverride: 100, gunMassOverride: 0.00075 } });
+  const target = ship({ damage: 2.25, design: { tonnageOverride: 100 }, shields: { value: 0 } });
   const outcome = resolveShipAttack({
     attacker, target,
     weapon: { system: { bep: 3, rangeModifier: 0 } },
@@ -133,12 +220,12 @@ test("ship damage reduces gunnery and evasion after crew skills are combined", (
   });
 
   assert.equal(outcome.gunneryBeforeDamage, 10);
-  assert.equal(outcome.attackerDamage, 1.5);
-  assert.equal(outcome.gunnery, 8.5);
+  assert.equal(outcome.attackerDamage, 2);
+  assert.equal(outcome.gunnery, 8);
   assert.equal(outcome.evasionBeforeDamage, 8);
-  assert.equal(outcome.defenderDamage, 2.25);
-  assert.equal(outcome.evasion, 5.75);
-  assert.equal(outcome.result, 2.75);
+  assert.equal(outcome.defenderDamage, 2);
+  assert.equal(outcome.evasion, 6);
+  assert.equal(outcome.result, 2);
 });
 
 test("a ship with no assigned pilot has zero evasion", () => {
@@ -209,7 +296,7 @@ test("Dilithium converts to the specified 100 GWh energy budget", () => {
   assert.equal(result.updateData["system.dilithium"], 0);
 });
 
-test("a reactor adds its calculated total kW output as kWs once per round", () => {
+test("a reactor adds its calculated total kW output as kWs for one second", () => {
   const result = generateReactorEnergy(ship({
     design: { generatorMassOverride: 1 },
     mass: 4, energy: { value: 10_000 },
@@ -218,13 +305,13 @@ test("a reactor adds its calculated total kW output as kWs once per round", () =
   assert.deepEqual(result.updateData, { "system.energy.value": 11_000 });
 });
 
-test("a reactor generates multiple rounds of energy with one update", () => {
+test("a reactor uses fractional seconds selected by the firing-time slider", () => {
   const result = generateReactorEnergy(ship({
     design: { generatorMassOverride: 1 },
     energy: { value: 10_000 },
-  }), 20);
+  }), 0.5);
 
-  assert.equal(result.rounds, 20);
-  assert.equal(result.generated, 20_000);
-  assert.deepEqual(result.updateData, { "system.energy.value": 30_000 });
+  assert.equal(result.seconds, 0.5);
+  assert.equal(result.generated, 500);
+  assert.deepEqual(result.updateData, { "system.energy.value": 10_500 });
 });
